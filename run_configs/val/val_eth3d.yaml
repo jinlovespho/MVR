@@ -1,0 +1,41 @@
+
+
+init:
+  seed: 42
+
+
+data:
+  train:
+  val:
+    eth3d:
+      gt_depth_path: /mnt/dataset1/MV_Restoration/eth3d/eth3d_jisang_train/depth
+      data_paths: [
+        /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/eth3d/clean,
+        # /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/eth3d/deg_blur/kernel400_intensity01,
+        # /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/eth3d/deg_blur/kernel600_intensity01,
+        # /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/eth3d/deg_blur/kernel800_intensity01,
+      ]
+      eval_scenes: ['courtyard', 'delivery_area', 'electro', 'facade', 'kicker','meadow', 'office', 'pipes', 'playground', 'relief','relief_2', 'terrace', 'terrains']
+      # eval_scenes: ['terrace']
+
+  
+
+model:
+  train:
+  val:
+    mv_3dff:
+      model: vggt
+      # model: da3
+
+    mv_restoration:
+      model: 
+
+
+metric:
+
+
+log:
+  depth:
+    save_npy: True
+    save_vis: True
+
