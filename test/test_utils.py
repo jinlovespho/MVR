@@ -2,7 +2,7 @@ import cv2
 import torch 
 import numpy as np
 
-def load_eth3d_depth(depth_path, H, W):
+def load_depth(depth_path, H, W):
     depth = np.fromfile(depth_path, dtype=np.float32)
     assert depth.size == H * W, f"Size mismatch: {depth_path}"
     depth = depth.reshape(H, W)

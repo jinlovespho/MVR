@@ -36,8 +36,8 @@ def main(cfg):
 
     
     # loop through eval data paths
-    for data_path in cfg.data.val.eth3d.data_paths:
-        print(f'Evaluating ETH3D - {data_path.split("/")[-1]}')
+    for data_path in cfg.data.val.scannet.data_paths:
+        print(f'Evaluating ScanNet++ - {data_path.split("/")[-1]}')
         
         
         # set save path
@@ -52,22 +52,23 @@ def main(cfg):
         depth_metric_path = f'{save_path}/{cfg.model.val.mv_3dff.model}'
         os.makedirs(depth_metric_path, exist_ok=True)
         
-        depth_metric_txt = open(f'{save_path}/eth3d_metric_depth.txt', 'w', encoding='utf-8')
+        depth_metric_txt = open(f'{save_path}/scannet_metric_depth.txt', 'w', encoding='utf-8')
         all_metrics = []
         
-        # loop through eth3d scenes
-        for scene in tqdm(cfg.data.val.eth3d.eval_scenes):
+        # loop through scannet scenes
+        for scene in tqdm(cfg.data.val.scannet.eval_scenes):
             print('processing scene: ', scene)
             
             
             # load imgs 
-            imgs_path = sorted(glob.glob(f'{data_path}/image/{scene}/*'))
+            imgs_path = sorted(glob.glob(f'{data_path}/data/{scene}/dslr/resized_undistorted_images/*'))
             tot_num_input_view = len(imgs_path)
             assert len(imgs_path) != 0
-            
+
+
             # set number of input views
-            if cfg.data.val.eth3d.num_input_view is not None:
-                num_input_view = cfg.data.val.eth3d.num_input_view
+            if cfg.data.val.scannet.num_input_view is not None:
+                num_input_view = cfg.data.val.scannet.num_input_view
                 if num_input_view > tot_num_input_view:
                     num_input_view = tot_num_input_view
                 imgs_path = imgs_path[:num_input_view]
@@ -75,8 +76,8 @@ def main(cfg):
             
             
             # if gt depth is provided we calculate the depth metrics
-            if cfg.data.val.eth3d.gt_depth_path is not None:
-                gt_depths_path = sorted(glob.glob(f'{cfg.data.val.eth3d.gt_depth_path}/{scene}_dslr_depth/{scene}/ground_truth_depth/dslr_images/*'))
+            if cfg.data.val.scannet.gt_depth_path is not None:
+                gt_depths_path = sorted(glob.glob(f'{cfg.data.val.scannet.gt_depth_path}/{scene}_dslr_depth/{scene}/ground_truth_depth/dslr_images/*'))
 
             
             # set pred depth save dir
@@ -128,7 +129,7 @@ def main(cfg):
 
 
                 # gt depth
-                if cfg.data.val.eth3d.gt_depth_path is not None:
+                if cfg.data.val.scannet.gt_depth_path is not None:
                     H, W = 4032, 6048
                     gt_depth = load_depth(gt_depths_path[f_idx], H, W)
                     gt_depth = torch.from_numpy(gt_depth).to(device)
@@ -221,7 +222,7 @@ def main(cfg):
     print('Finish !')
     
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="mvr_val_eth3d")
+    parser = argparse.ArgumentParser(description="mvr_val_scannet")
     parser.add_argument("--config", type=str, required=True)
     args = parser.parse_args()
     cfg = OmegaConf.load(args.config)
