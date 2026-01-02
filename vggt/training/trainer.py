@@ -42,6 +42,7 @@ from train_utils.logging import setup_logging
 from train_utils.normalization import normalize_camera_extrinsics_and_points_batch
 from train_utils.optimizer import construct_optimizers
 
+from torchvision.utils import save_image
 
 class Trainer:
     """
@@ -551,12 +552,59 @@ class Trainer:
             data_time.update(time.time() - end)
             data_times.append(data_time.val)
 
-            
             with torch.cuda.amp.autocast(enabled=False):
                 batch = self._process_batch(batch)
 
             batch = copy_data_to_device(batch, self.device, non_blocking=True)
 
+            print('batch shape:', batch['images'].shape)
+            # pho vis 
+            for i in range(len(batch['images'])):
+                seq_name = batch['seq_name'][i]                # 'co3d_38_1738_5140'
+                ids = batch['ids'][i]                           # tensor([68, 64, 49, 21, 58, 16, 51, 17, 59], device='cuda:0')
+                extrinsics = batch['extrinsics'][i]             # (b 3 4)
+                intrinsics = batch['intrinsics'][i]             # (b 3 3)
+                cam_points = batch['cam_points'][i]             # (b H W 3)
+                world_points = batch['world_points'][i]         # b H W 3
+                point_masks = batch['point_masks'][i]           # b h W 
+                imgs = batch['images'][i]                       # (b 3 H W)
+                depths = batch['depths'][i].unsqueeze(1)        # (b 1 H W)
+                
+                
+                import matplotlib.pyplot as plt
+                import numpy as np
+
+                def get_cam_center(extr):
+                    R = extr[:3, :3]
+                    t = extr[:3, 3]
+                    return -R.T @ t
+
+                centers = []
+                for b in range(extrinsics.shape[0]):
+                    centers.append(get_cam_center(extrinsics[b].cpu().numpy()))
+
+                centers = np.stack(centers)
+
+                plt.figure(figsize=(6, 6))
+                plt.scatter(centers[:, 0], centers[:, 2], s=10)
+                plt.xlabel("X")
+                plt.ylabel("Z")
+                plt.title("Camera centers (top-down)")
+                plt.axis("equal")
+
+                plt.savefig("./img_camera_centers_topdown.png", dpi=200, bbox_inches="tight")
+                plt.close()
+                
+                
+                print(f'{seq_name} - ids: {ids.tolist()}')
+                save_image(imgs, './img.jpg', normalize=True)
+                save_image(depths, './img_depth.jpg', normalize=True)
+                breakpoint()
+                
+                
+                
+            
+            
             accum_steps = self.accum_steps
 
             if accum_steps==1:

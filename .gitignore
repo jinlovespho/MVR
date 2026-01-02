@@ -182,3 +182,4 @@ result_vlm/
 unit_ckpt_further_train/
 result_train 
 result_val
+result_ckpts/

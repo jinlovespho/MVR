@@ -4,6 +4,7 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
+import glob 
 import gzip
 import json
 import os.path as osp
@@ -20,47 +21,47 @@ from data.base_dataset import BaseDataset
 
 
 SEEN_CATEGORIES = [
-    "apple",
-    "backpack",
-    "banana",
-    "baseballbat",
-    "baseballglove",
-    "bench",
-    "bicycle",
-    "bottle",
-    "bowl",
-    "broccoli",
-    "cake",
-    "car",
-    "carrot",
-    "cellphone",
-    "chair",
-    "cup",
-    "donut",
-    "hairdryer",
-    "handbag",
-    "hydrant",
-    "keyboard",
-    "laptop",
-    "microwave",
-    "motorcycle",
-    "mouse",
-    "orange",
-    "parkingmeter",
-    "pizza",
+    # "apple",
+    # "backpack",
+    # "banana",
+    # "baseballbat",
+    # "baseballglove",
+    # "bench",
+    # "bicycle",
+    # "bottle",
+    # "bowl",
+    # "broccoli",
+    # "cake",
+    # "car",
+    # "carrot",
+    # "cellphone",
+    # "chair",
+    # "cup",
+    # "donut",
+    # "hairdryer",
+    # "handbag",
+    # "hydrant",
+    # "keyboard",
+    # "laptop",
+    # "microwave",
+    # "motorcycle",
+    # "mouse",
+    # "orange",
+    # "parkingmeter",
+    # "pizza",
     "plant",
-    "stopsign",
+    # "stopsign",
     "teddybear",
-    "toaster",
-    "toilet",
-    "toybus",
-    "toyplane",
-    "toytrain",
-    "toytruck",
-    "tv",
-    "umbrella",
-    "vase",
-    "wineglass",
+    # "toaster",
+    # "toilet",
+    # "toybus",
+    # "toyplane",
+    # "toytrain",
+    # "toytruck",
+    # "tv",
+    # "umbrella",
+    # "vase",
+    # "wineglass",
 ]
 
 
@@ -131,6 +132,10 @@ class Co3dDataset(BaseDataset):
         total_frame_num = 0
 
         for c in category:
+            
+            scenes = sorted(glob.glob(f'{self.CO3D_DIR}/{c}/*'))[:-5]
+            scene_ids = [s.split('/')[-1] for s in scenes]
+            
             for split_name in split_name_list:
                 annotation_file = osp.join(
                     self.CO3D_ANNOTATION_DIR, f"{c}_{split_name}.jgz"
@@ -144,6 +149,8 @@ class Co3dDataset(BaseDataset):
                     continue
 
                 for seq_name, seq_data in annotation.items():
+                    if seq_name not in scene_ids:
+                        continue 
                     if len(seq_data) < min_num_images:
                         continue
                     if seq_name in self.invalid_sequence:
@@ -151,7 +158,7 @@ class Co3dDataset(BaseDataset):
                     total_frame_num += len(seq_data)
                     self.data_store[seq_name] = seq_data
 
-        self.sequence_list = list(self.data_store.keys())
+        self.sequence_list = sorted(list(self.data_store.keys()))
         self.sequence_list_len = len(self.sequence_list)
         self.total_frame_num = total_frame_num
 

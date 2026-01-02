@@ -64,6 +64,9 @@ def main(cfg):
             imgs_path = sorted(glob.glob(f'{data_path}/data/{scene}/dslr/resized_undistorted_images/*'))
             tot_num_input_view = len(imgs_path)
             assert len(imgs_path) != 0
+            
+            
+            # TODO: must evaluate on all image path chunks !! gonna need a lot of space first.
 
 
             # set number of input views
@@ -72,6 +75,8 @@ def main(cfg):
                 if num_input_view > tot_num_input_view:
                     num_input_view = tot_num_input_view
                 imgs_path = imgs_path[:num_input_view]
+            else:
+                num_input_view=tot_num_input_view
             print(f'Num_input_view: {num_input_view}/{tot_num_input_view}')
             
             

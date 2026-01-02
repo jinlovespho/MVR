@@ -26,8 +26,8 @@ model:
   train:
   val:
     mv_3dff:
-      model: vggt
-      # model: da3
+      # model: vggt
+      model: da3
 
     mv_restoration:
       model: 
@@ -37,11 +37,11 @@ metric:
 
 
 log:
-  save_path:
+  save_path: ./tmp
   # save_path: ./tmp/eth3d/vggt
   # save_path: ./tmp/eth3d/da3
   depth:
-    save_npy: True
-  msg: ""
+    save_npy: False
+  msg: "tmp"
 
 

@@ -71,6 +71,8 @@ def main(cfg):
                 if num_input_view > tot_num_input_view:
                     num_input_view = tot_num_input_view
                 imgs_path = imgs_path[:num_input_view]
+            else:
+                num_input_view=tot_num_input_view
             print(f'Num_input_view: {num_input_view}/{tot_num_input_view}')
             
             
@@ -104,7 +106,8 @@ def main(cfg):
                 elif cfg.model.val.mv_3dff.model == 'da3':
                     pred_da3 = model.inference(imgs_path)
                     pred_depth = torch.from_numpy(pred_da3.depth).to(device)                 # (F, 336 504)
-            
+
+                    breakpoint()
                 
             # Safety check
             assert len(pred_depth) == len(imgs_path)

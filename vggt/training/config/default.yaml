@@ -3,15 +3,15 @@ defaults:
 
 exp_name: exp001
 img_size: 518
-num_workers: 8
+num_workers: 4
 seed_value: 42
 accum_steps: 2    # We did not use gradient accumulation in our training, while if you suffer from OOM, you can try to use it.
 patch_size: 14
 val_epoch_freq: 5
 max_img_per_gpu: 48
 
-limit_train_batches: 800
-limit_val_batches: 400
+limit_train_batches: 100
+limit_val_batches: 100
 
 
 data:
@@ -30,8 +30,8 @@ data:
       dataset_configs:
         - _target_: data.datasets.co3d.Co3dDataset
           split: train
-          CO3D_DIR: /YOUR/PATH/TO/CO3D
-          CO3D_ANNOTATION_DIR: /YOUR/PATH/TO/CO3D_ANNOTATION
+          CO3D_DIR: /media/data1/co3d/co3d_train
+          CO3D_ANNOTATION_DIR: /mnt/dataset1/MV_Restoration/co3d/co3d_anno
   val:
     _target_: data.dynamic_dataloader.DynamicTorchDataset
     num_workers: ${num_workers}
@@ -45,12 +45,12 @@ data:
       dataset_configs:
         - _target_: data.datasets.co3d.Co3dDataset
           split: test
-          CO3D_DIR: /YOUR/PATH/TO/CO3D
-          CO3D_ANNOTATION_DIR: /YOUR/PATH/TO/CO3D_ANNOTATION
+          CO3D_DIR: /media/data1/co3d/co3d_train
+          CO3D_ANNOTATION_DIR: /mnt/dataset1/MV_Restoration/co3d/co3d_anno
 
 
 logging:
-  log_dir: logs
+  log_dir: result_ckpts/VGGT
   log_visuals: False
   log_freq: 1
   log_level_primary: DEBUG
@@ -84,9 +84,9 @@ logging:
 
 
 checkpoint:
-  save_dir: logs/${exp_name}/ckpts
+  save_dir: result_ckpts/VGGT/${exp_name}/ckpts
   save_freq: 5
-  resume_checkpoint_path: /YOUR/PATH/TO/CKPT
+  resume_checkpoint_path:
   strict: False
 
 

@@ -376,6 +376,8 @@ class DinoVisionTransformer(nn.Module):
         export_feat_layers: List[int] = [],
         **kwargs,
     ) -> Tuple[Union[torch.Tensor, Tuple[torch.Tensor]]]:
+        
+        # breakpoint()
         outputs, aux_outputs = self._get_intermediate_layers_not_chunked(
             x, n, export_feat_layers=export_feat_layers, **kwargs
         )

@@ -122,6 +122,7 @@ class DepthAnything3Net(nn.Module):
         Returns:
             Dictionary containing predictions and auxiliary features
         """
+        # breakpoint()
         # Extract features using backbone
         if extrinsics is not None:
             with torch.autocast(device_type=x.device.type, enabled=False):
@@ -129,6 +130,7 @@ class DepthAnything3Net(nn.Module):
         else:
             cam_token = None
 
+        # dinov2 backbone
         feats, aux_feats = self.backbone(
             x, cam_token=cam_token, export_feat_layers=export_feat_layers, ref_view_strategy=ref_view_strategy
         )
@@ -330,8 +332,9 @@ class NestedDepthAnything3Net(nn.Module):
             second_preset: Configuration for metric depth branch
         """
         super().__init__()
-        self.da3 = create_object(anyview)
-        self.da3_metric = create_object(metric)
+        self.da3 = create_object(anyview)           # da3.DepthAnything3Net
+        self.da3_metric = create_object(metric)     # da3.DepthAnything3Net
+        breakpoint()
 
     def forward(
         self,
@@ -358,12 +361,14 @@ class NestedDepthAnything3Net(nn.Module):
         Returns:
             Dictionary containing aligned depth predictions and camera parameters
         """
+        # breakpoint()
         # Get predictions from both branches
         output = self.da3(
             x, extrinsics, intrinsics, export_feat_layers=export_feat_layers, infer_gs=infer_gs, use_ray_pose=use_ray_pose, ref_view_strategy=ref_view_strategy
         )
         metric_output = self.da3_metric(x)
 
+        breakpoint()
         # Apply metric scaling and alignment
         output = self._apply_metric_scaling(output, metric_output)
         output = self._apply_depth_alignment(output, metric_output)

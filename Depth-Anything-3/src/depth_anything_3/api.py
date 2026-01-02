@@ -86,7 +86,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
 
         # Build the underlying network
         self.config = load_config(MODEL_REGISTRY[self.model_name])
-        self.model = create_object(self.config)
+        self.model = create_object(self.config)     # da3.NestedDepthAnything3Net
         self.model.eval()
 
         # Initialize processors
@@ -122,11 +122,12 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         Returns:
             Dictionary containing model predictions
         """
+        # breakpoint()
         # Determine optimal autocast dtype
         autocast_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
         with torch.no_grad():
             with torch.autocast(device_type=image.device.type, dtype=autocast_dtype):
-                return self.model(
+                return self.model(  # da3.NestedDepthAnything3Net
                     image, extrinsics, intrinsics, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy
                 )
 
@@ -192,6 +193,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         if "colmap" in export_format:
             assert isinstance(image[0], str), "`image` must be image paths for COLMAP export."
 
+        breakpoint()
         # Preprocess images
         imgs_cpu, extrinsics, intrinsics = self._preprocess_inputs(
             image, extrinsics, intrinsics, process_res, process_res_method
@@ -212,7 +214,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
 
         # Convert raw output to prediction
         prediction = self._convert_to_prediction(raw_output)
-
+        
+        breakpoint()
         # Align prediction to extrinsincs
         prediction = self._align_to_input_extrinsics_intrinsics(
             extrinsics, intrinsics, prediction, align_to_input_ext_scale

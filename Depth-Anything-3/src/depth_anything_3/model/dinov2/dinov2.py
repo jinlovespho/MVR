@@ -57,6 +57,8 @@ class DinoV2(nn.Module):
         )
 
     def forward(self, x, **kwargs):
+        # breakpoint()
+        # self.pretrained -> vision_transformer.py DinoVisionTransformer (original dinov2 repo)
         return self.pretrained.get_intermediate_layers(
             x,
             self.out_layers,

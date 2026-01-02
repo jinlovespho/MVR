@@ -3,7 +3,7 @@ data:
   # The code still looks too complicated. I should refactor this again (do I have time?...)
   train:
     _target_: data.dynamic_dataloader.DynamicTorchDataset
-    num_workers: 8
+    num_workers: 4
     max_img_per_gpu: 48
     # Shuffling in PyTorch DataLoader can sometimes copy large dicts and exceed CPU memory
     # (see: https://github.com/pytorch/pytorch/issues/13246).
