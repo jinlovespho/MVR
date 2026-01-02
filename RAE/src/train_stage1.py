@@ -46,6 +46,8 @@ from utils.model_utils import instantiate_from_config
 from utils.train_utils import parse_configs
 from utils.optim_utils import build_optimizer, build_scheduler
 
+from torchvision.utils import save_image 
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train Stage-1 RAE with GAN and LPIPS losses.")
@@ -258,22 +260,35 @@ def main():
     torch.cuda.manual_seed_all(seed)
     if rank == 0:
         os.makedirs(args.results_dir, exist_ok=True)
-        experiment_index = len(glob(f"{args.results_dir}/*")) - 1
-        model_target = str(rae_config.get("target", "stage1"))
-        model_string_name = model_target.split(".")[-1]
-        precision_suffix = f"-{args.precision}" if args.precision == "bf16" else ""
-        experiment_name = (
-            f"{experiment_index:03d}-{model_string_name}{precision_suffix}"
-        )
+        # experiment_index = len(glob(f"{args.results_dir}/*")) - 1
+        # model_target = str(rae_config.get("target", "stage1"))
+        # model_string_name = model_target.split(".")[-1]
+        # precision_suffix = f"-{args.precision}" if args.precision == "bf16" else ""
+        # experiment_name = (
+        #     f"{experiment_index:03d}-{model_string_name}{precision_suffix}"
+        # )
+        
+        
+        # pho
+        vis_lr = training_cfg["optimizer"]["lr"]
+        experiment_name = f'train__{args.precision}__img-{args.image_size}__lr-{vis_lr:.0e}__bs-{training_cfg["batch_size"]}__{os.environ["EXPERIMENT_NOTE"]}'
+        
+        
         experiment_dir = os.path.join(args.results_dir, experiment_name)
         checkpoint_dir = os.path.join(experiment_dir, "checkpoints")
         os.makedirs(checkpoint_dir, exist_ok=True)
+        # pho 
+        vis_recon_dir = f'{experiment_dir}/vis_recon'
+        os.makedirs(vis_recon_dir, exist_ok=True)
+        
+        
         logger = create_logger(experiment_dir)
         logger.info(f"Experiment directory created at {experiment_dir}")
         if args.wandb:
             entity = os.environ["ENTITY"]
             project = os.environ["PROJECT"]
-            wandb_utils.initialize(args, entity, experiment_name, project)
+            wandb_exp_name = f'serv20-gpu{str(os.environ["CUDA"])}__{experiment_name}'
+            wandb_utils.initialize(args, entity, wandb_exp_name, project)
     else:
         experiment_dir = None
         checkpoint_dir = None
@@ -383,6 +398,7 @@ def main():
         epoch_metrics: Dict[str, torch.Tensor] = defaultdict(lambda: torch.zeros(1, device=device))
         num_batches = 0
         for step, (images, _) in enumerate(loader):
+            
             use_gan = global_step >= gan_start_step and disc_weight > 0.0
             train_disc = global_step >= disc_update_step and disc_weight > 0.0
             use_lpips = global_step >= lpips_start_step and perceptual_weight > 0.0
@@ -393,17 +409,31 @@ def main():
 
             with autocast(**autocast_kwargs):
                 with torch.no_grad():
-                    z = model_woddp.encode(images)
-                recon = model_woddp.decode(z)
+                    z = model_woddp.encode(images)  # b 768 16 16 
+                recon = model_woddp.decode(z)       # b 3 256 256 (reconstructed pixel image)
+
+
+                # pho - log at the first step and every 1000 steps
+                if global_step == 0 or global_step % 1000 ==0:
+                    if rank==0:
+                        num_log_img = 8
+                        vis_img = images[:num_log_img]
+                        vis_recon = recon[:num_log_img]
+                        vis_recon = (vis_recon + 1) / 2
+                        vis_recon = vis_recon.clamp(0, 1)
+                        vis_img_recon = torch.cat([vis_img, vis_recon], dim=0)
+                        save_image(vis_img_recon, f'{vis_recon_dir}/{global_step:07d}.png')
+                
+
                 recon_normed = recon * 2.0 - 1.0
                 rec_loss = F.l1_loss(recon, images)
-                if use_lpips:
+                if use_lpips:   # t
                     lpips_loss = lpips(real_normed, recon_normed)
                 else:
                     lpips_loss = rec_loss.new_zeros(())
                 recon_total = rec_loss + perceptual_weight * lpips_loss
 
-                if use_gan:
+                if use_gan: # f
                     fake_aug = disc_aug.aug(recon_normed)
                     logits_fake, _ = discriminator(fake_aug, None)
                     gan_loss = gen_loss_fn(logits_fake)

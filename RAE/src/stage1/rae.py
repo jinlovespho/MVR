@@ -79,32 +79,32 @@ class RAE(nn.Module):
         # normalize input
         _, _, h, w = x.shape
         if h != self.encoder_input_size or w != self.encoder_input_size:
-            x = nn.functional.interpolate(x, size=(self.encoder_input_size, self.encoder_input_size), mode='bicubic', align_corners=False)
+            x = nn.functional.interpolate(x, size=(self.encoder_input_size, self.encoder_input_size), mode='bicubic', align_corners=False)  # b 3 224 224 
         x = (x - self.encoder_mean.to(x.device)) / self.encoder_std.to(x.device)
-        z = self.encoder(x)
+        z = self.encoder(x)  # b 256 768, obtain dinov2 last layer feature
         if self.training and self.noise_tau > 0:
-            z = self.noising(z)
-        if self.reshape_to_2d:
+            z = self.noising(z) # b 256 768
+        if self.reshape_to_2d:  # t
             b, n, c = z.shape
             h = w = int(sqrt(n))
-            z = z.transpose(1, 2).view(b, c, h, w)
-        if self.do_normalization:
+            z = z.transpose(1, 2).view(b, c, h, w)  # b 768 16 16 
+        if self.do_normalization:   # f
             latent_mean = self.latent_mean.to(z.device) if self.latent_mean is not None else 0
             latent_var = self.latent_var.to(z.device) if self.latent_var is not None else 1
             z = (z - latent_mean) / torch.sqrt(latent_var + self.eps)
         return z
     
     def decode(self, z: torch.Tensor) -> torch.Tensor:
-        if self.do_normalization:
+        if self.do_normalization:    # f
             latent_mean = self.latent_mean.to(z.device) if self.latent_mean is not None else 0
             latent_var = self.latent_var.to(z.device) if self.latent_var is not None else 1
             z = z * torch.sqrt(latent_var + self.eps) + latent_mean
-        if self.reshape_to_2d:
-            b, c, h, w = z.shape
+        if self.reshape_to_2d:  # t
+            b, c, h, w = z.shape    # b 768 16 16
             n = h * w
-            z = z.view(b, c, n).transpose(1, 2)
-        output = self.decoder(z, drop_cls_token=False).logits
-        x_rec = self.decoder.unpatchify(output)
+            z = z.view(b, c, n).transpose(1, 2) # b 256 768
+        output = self.decoder(z, drop_cls_token=False).logits   # b 256 768
+        x_rec = self.decoder.unpatchify(output)                 # b 3 256 256 
         x_rec = x_rec * self.encoder_std.to(x_rec.device) + self.encoder_mean.to(x_rec.device)
         return x_rec
     

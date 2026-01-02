@@ -29,7 +29,7 @@ class Dinov2withNorm(nn.Module):
     def dinov2_forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.encoder(x, output_hidden_states=True)
         unused_token_num = 5  # 1 CLS + 4 register tokens
-        image_features = x.last_hidden_state[:, unused_token_num:]
+        image_features = x.last_hidden_state[:, unused_token_num:]  # b 256 768
         return image_features
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
