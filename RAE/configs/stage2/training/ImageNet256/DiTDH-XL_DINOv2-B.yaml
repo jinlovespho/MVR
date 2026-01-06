@@ -7,11 +7,11 @@ stage_1:
     encoder_params:
       dinov2_path: 'facebook/dinov2-with-registers-base'
       normalize: true
-    decoder_config_path: 'configs/decoder/ViTXL'
-    pretrained_decoder_path: 'models/decoders/dinov2/wReg_base/ViTXL_n08/model.pt'
+    decoder_config_path: 'RAE/configs/decoder/ViTXL'
+    pretrained_decoder_path: 'RAE/models/decoders/dinov2/wReg_base/ViTXL_n08/model.pt'
     noise_tau: 0.0
     reshape_to_2d: true
-    normalization_stat_path: 'models/stats/dinov2/wReg_base/imagenet1k/stat.pt'
+    normalization_stat_path: 'RAE/models/stats/dinov2/wReg_base/imagenet1k/stat.pt'
 
 stage_2:
   target: stage2.models.DDT.DiTwDDTHead
@@ -31,6 +31,7 @@ stage_2:
     use_rmsnorm: true
     wo_shift: false
     use_pos_embed: true
+  # ckpt: RAE/models/DiTs/Dinov2/wReg_base/ImageNet256/DiTDH-XL/stage2_model.pt
 
 transport:
   params:
@@ -60,22 +61,22 @@ misc:
   time_dist_shift_dim: 196608 # 16*16*768
   time_dist_shift_base: 4096
   
-eval:
-  eval_interval: 25000 # every 10 epochs
-  eval_model: true
-  data_path: 'data/imagenet/val/'
-  reference_npz_path: 'data/imagenet/VIRTUAL_imagenet256_labeled.npz'
+# eval:
+#   eval_interval: 25000 # every 10 epochs
+#   eval_model: true
+#   data_path: 'data/imagenet/val/'
+#   reference_npz_path: 'data/imagenet/VIRTUAL_imagenet256_labeled.npz'
 
 
 training:
   epochs: 1400
-  global_batch_size: 1024
+  global_batch_size: 32
   grad_accum_steps: 1 # change according to your GPU memory
   ema_decay: 0.9995
-  num_workers: 16
+  num_workers: 8
   log_interval: 100
-  checkpoint_interval: 10
-  sample_every: 10000
+  checkpoint_interval: 1
+  sample_every: 1000
   clip_grad: 1.0
   global_seed: 42
   optimizer:

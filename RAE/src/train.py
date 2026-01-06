@@ -50,6 +50,8 @@ from utils.dist_utils import *
 ##### Eval utils
 from eval import evaluate_generation_distributed
 
+from torchvision.utils import save_image 
+
 def save_checkpoint(
     path: str,
     step: int,
@@ -91,7 +93,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", type=str, required=True, help="YAML config containing stage_1 and stage_2 sections.")
     parser.add_argument("--data-path", type=Path, required=True, help="Directory with ImageFolder structure for training.")
     parser.add_argument("--results-dir", type=str, default="ckpts", help="Directory to store training outputs.")
-    parser.add_argument("--image-size", type=int, choices=[256, 512], default=256, help="Input image resolution.")
+    parser.add_argument("--image-size", type=int, choices=[256, 512], default=512, help="Input image resolution.")
     parser.add_argument("--precision", type=str, choices=["fp32", "fp16", "bf16"], default="fp32", help="Compute precision for training.")
     parser.add_argument("--wandb", action="store_true", help="Enable Weights & Biases logging.")
     parser.add_argument("--compile", action="store_true", help="Use torch compile (for rae.encode and model.forward).")
@@ -212,6 +214,12 @@ def main():
     t_max = float(guidance_value("t_max", 1.0))
     
     experiment_dir, checkpoint_dir, logger = configure_experiment_dirs(args, rank)
+    
+    
+    # pho
+    vis_recon_dir = f'{experiment_dir}/vis_recon'
+    os.makedirs(vis_recon_dir, exist_ok=True)
+    
     
     #### Model init
     rae: RAE = instantiate_from_config(rae_config).to(device)
@@ -441,19 +449,23 @@ def main():
                 model.eval()
                 logger.info("Generating EMA samples...")
                 with torch.no_grad():
-                    zs_samples = zs[:8] # at most 8 samples
+                    vis_num_sample=8
+                    vis_images = images[:vis_num_sample]
+                    zs_samples = zs[:vis_num_sample] # at most 8 samples
                     visual_sample_model_kwargs = deepcopy(sample_model_kwargs)
-                    visual_sample_model_kwargs['y'] = labels[:8] 
+                    visual_sample_model_kwargs['y'] = labels[:vis_num_sample] 
                     with autocast(**autocast_kwargs):
                         samples = eval_sampler(zs_samples, ema_model_fn, **visual_sample_model_kwargs)[-1]
                     samples.float()
                     if use_guidance:
                         samples, _ = samples.chunk(2, dim=0)
                     samples = rae.decode(samples)
-                    samples = samples.cpu().float()
+                    vis_recon = torch.cat([vis_images, samples], dim=-2)
+                    save_image(vis_recon, f'{vis_recon_dir}/{global_step:07d}.png')
+                    # samples = samples.cpu().float()
                     dist.barrier()
-                    if args.wandb and rank == 0:
-                        wandb_utils.log_image(samples, global_step)
+                    # if args.wandb and rank == 0:
+                    #     wandb_utils.log_image(samples, global_step)
                 logger.info("Generating EMA samples done.")
                 model.train()
             if do_eval and (eval_interval > 0 and global_step % eval_interval == 0):

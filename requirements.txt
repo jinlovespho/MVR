@@ -37,7 +37,9 @@ tensorboard
 
 # rae 
 transformers==4.57.3 
+torchdiffeq==0.2.5
 torch-fidelity
+
 
 
 
