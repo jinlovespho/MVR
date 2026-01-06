@@ -1,0 +1,78 @@
+stage_1:
+  target: stage1.RAE
+  params:
+    encoder_cls: 'Dinov2withNorm'
+    encoder_config_path: 'facebook/dinov2-with-registers-base'
+    encoder_input_size: 448
+    encoder_params:
+      dinov2_path: 'facebook/dinov2-with-registers-base'
+      normalize: true
+    decoder_config_path: 'RAE/configs/decoder/ViTXL'
+    # pretrained_decoder_path: 'RAE/models/decoders/dinov2/wReg_base/ViTXL_n08_i512/model.pt'
+    pretrained_decoder_path: result_ckpts/RAE/train__ep-8__bf16__img-512__lr-2e-04__bs-8__gan-ep4/checkpoints/0170000.pt
+    noise_tau: 0.8 # training 0.8, at inference time always set to 0
+    reshape_to_2d: true
+    # normalization_stat_path: 'RAE/models/stats/dinov2/wReg_base/imagenet1k_512/stat.pt'
+
+
+training:
+  epochs: 8
+  # epochs: 16
+  ema_decay: 0.9978
+  batch_size: 8 # per-proc bs
+  num_workers: 4
+  clip_grad: 0.0
+  log_interval: 100
+  checkpoint_interval: 10000
+  sample_interval: 0
+  optimizer:
+    lr: 2.0e-4
+    betas: [0.9, 0.95]
+    weight_decay: 0.0
+  scheduler:
+    type: cosine
+    warmup_epochs: 1
+    decay_end_epoch: 16
+    base_lr: 2.0e-4
+    final_lr: 2.0e-5
+
+gan:
+  disc:
+    arch:
+      dino_ckpt_path: 'RAE/models/discs/dino_vit_small_patch8_224.pth'
+      ks: 9
+      norm_type: 'bn'
+      using_spec_norm: true
+      recipe: 'S_8'
+    optimizer:
+      lr: 2.0e-4
+      betas: [0.9, 0.95]
+      weight_decay: 0.0
+    scheduler:
+      type: cosine
+      warmup_epochs: 1
+      decay_end_epoch: 16
+      base_lr: 2.0e-4
+      final_lr: 2.0e-5
+    augment:
+      prob: 1.0
+      cutout: 0.0
+  loss:
+    disc_loss: hinge
+    gen_loss: vanilla
+    disc_weight: 0.75
+    perceptual_weight: 1.0
+
+
+    disc_start: 4
+    disc_upd_start: 3
+
+
+    # disc_start: 8
+    # disc_upd_start: 6
+    # disc_start: 16
+    # disc_upd_start: 16
+
+    lpips_start: 0
+    max_d_weight: 10000.0
+    disc_updates: 1

@@ -56,14 +56,7 @@ class RAE(nn.Module):
         if pretrained_decoder_path is not None:
             print(f"Loading pretrained decoder from {pretrained_decoder_path}")
             state_dict = torch.load(pretrained_decoder_path, map_location='cpu')
-
-            # pho - modified to load only decoder weights
-            decoder_state_dict = state_dict['model']
-            decoder_state_dict = {k: v for k, v in decoder_state_dict.items() if k.startswith('decoder.')}
-            decoder_state_dict = {k.replace('decoder.', ''): v for k, v in decoder_state_dict.items() if k.startswith('decoder.')}
-            
-            
-            keys = self.decoder.load_state_dict(decoder_state_dict, strict=False)
+            keys = self.decoder.load_state_dict(state_dict, strict=False)
             if len(keys.missing_keys) > 0:
                 print(f"Missing keys when loading pretrained decoder: {keys.missing_keys}")
         self.noise_tau = noise_tau
@@ -81,37 +74,37 @@ class RAE(nn.Module):
         noise_sigma = self.noise_tau * torch.rand((x.size(0),) + (1,) * (len(x.shape) - 1), device=x.device)
         noise = noise_sigma * torch.randn_like(x)
         return x + noise
-
+    @torch.no_grad()
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         # normalize input
         _, _, h, w = x.shape
         if h != self.encoder_input_size or w != self.encoder_input_size:
-            x = nn.functional.interpolate(x, size=(self.encoder_input_size, self.encoder_input_size), mode='bicubic', align_corners=False)  # b 3 224 224 
+            x = nn.functional.interpolate(x, size=(self.encoder_input_size, self.encoder_input_size), mode='bicubic', align_corners=False)
         x = (x - self.encoder_mean.to(x.device)) / self.encoder_std.to(x.device)
-        z = self.encoder(x)  # b 256 768, obtain dinov2 last layer feature
+        z = self.encoder(x)
         if self.training and self.noise_tau > 0:
-            z = self.noising(z) # b 256 768
-        if self.reshape_to_2d:  # t
+            z = self.noising(z)
+        if self.reshape_to_2d:
             b, n, c = z.shape
             h = w = int(sqrt(n))
-            z = z.transpose(1, 2).view(b, c, h, w)  # b 768 16 16 
-        if self.do_normalization:   # f
+            z = z.transpose(1, 2).view(b, c, h, w)
+        if self.do_normalization:
             latent_mean = self.latent_mean.to(z.device) if self.latent_mean is not None else 0
             latent_var = self.latent_var.to(z.device) if self.latent_var is not None else 1
             z = (z - latent_mean) / torch.sqrt(latent_var + self.eps)
         return z
     
     def decode(self, z: torch.Tensor) -> torch.Tensor:
-        if self.do_normalization:    # f
+        if self.do_normalization:
             latent_mean = self.latent_mean.to(z.device) if self.latent_mean is not None else 0
             latent_var = self.latent_var.to(z.device) if self.latent_var is not None else 1
             z = z * torch.sqrt(latent_var + self.eps) + latent_mean
-        if self.reshape_to_2d:  # t
-            b, c, h, w = z.shape    # b 768 16 16
+        if self.reshape_to_2d:
+            b, c, h, w = z.shape
             n = h * w
-            z = z.view(b, c, n).transpose(1, 2) # b 256 768
-        output = self.decoder(z, drop_cls_token=False).logits   # b 256 768
-        x_rec = self.decoder.unpatchify(output)                 # b 3 256 256 
+            z = z.view(b, c, n).transpose(1, 2)
+        output = self.decoder(z, drop_cls_token=False).logits
+        x_rec = self.decoder.unpatchify(output)
         x_rec = x_rec * self.encoder_std.to(x_rec.device) + self.encoder_mean.to(x_rec.device)
         return x_rec
     

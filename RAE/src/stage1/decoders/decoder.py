@@ -645,25 +645,20 @@ class GeneralDecoder(nn.Module):
             `torch.FloatTensor` of shape `(batch_size, num_channels, height, width)`:
                 Pixel values.
         """
-        # breakpoint()
-        patch_size, num_channels = self.config.patch_size, self.config.num_channels     # 16 3
-        original_image_size = (     # 256 256 
+        patch_size, num_channels = self.config.patch_size, self.config.num_channels
+        original_image_size = (
             original_image_size
             if original_image_size is not None
             else (self.config.image_size, self.config.image_size)
         )
-        original_height, original_width = original_image_size   # 256 256 
-        num_patches_h = original_height // patch_size   # 16
-        num_patches_w = original_width // patch_size    # 16
+        original_height, original_width = original_image_size
+        num_patches_h = original_height // patch_size
+        num_patches_w = original_width // patch_size
         # sanity check
         if num_patches_h * num_patches_w != patchified_pixel_values.shape[1]:
             raise ValueError(
                 f"The number of patches in the patchified pixel values {patchified_pixel_values.shape[1]}, does not match the number of patches on original image {num_patches_h}*{num_patches_w}"
             )
-            
-        '''
-            hidden_state: b n d -> b (num_pH num_pW) (pH pW c) -> b c (num_pH pH) (num_pW pW)
-        '''
 
         # unpatchify
         batch_size = patchified_pixel_values.shape[0]
@@ -692,11 +687,10 @@ class GeneralDecoder(nn.Module):
         interpolate_pos_encoding: bool = False,
         drop_cls_token: bool = False,
     ):
-        # breakpoint()
         # embed tokens
-        x = self.decoder_embed(hidden_states)   # b 256 1152
+        x = self.decoder_embed(hidden_states)
         #print(f"x.shape = {x.shape}")
-        if drop_cls_token:  # f
+        if drop_cls_token:
             x_ = x[:, 1:, :]  # no cls token
             x_ = self.interpolate_latent(x_)
         else:
@@ -715,7 +709,7 @@ class GeneralDecoder(nn.Module):
         all_hidden_states = () if output_hidden_states else None
         all_self_attentions = () if output_attentions else None
         for i, layer_module in enumerate(self.decoder_layers):
-            if output_hidden_states:    # f
+            if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
             if self.gradient_checkpointing and self.training:
@@ -725,27 +719,26 @@ class GeneralDecoder(nn.Module):
                     None,
                     output_attentions,
                 )
-            else:   # t
+            else:
                 layer_outputs = layer_module(hidden_states, head_mask=None, output_attentions=output_attentions)
 
             hidden_states = layer_outputs[0]
 
-            if output_attentions:   # f
+            if output_attentions:
                 all_self_attentions = all_self_attentions + (layer_outputs[1],)
 
-        if output_hidden_states:    # f
+        if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
 
         hidden_states = self.decoder_norm(hidden_states)
 
-        # breakpoint()
         # predictor projection
         logits = self.decoder_pred(hidden_states)
-        
+
         # remove cls token
         logits = logits[:, 1:, :]
 
-        if not return_dict: # f
+        if not return_dict:
             return tuple(v for v in [logits, all_hidden_states, all_self_attentions] if v is not None)
         return ViTMAEDecoderOutput(
             logits=logits,

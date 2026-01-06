@@ -37,6 +37,8 @@ tensorboard
 
 # rae 
 transformers==4.57.3 
+torch-fidelity
+
 
 
 

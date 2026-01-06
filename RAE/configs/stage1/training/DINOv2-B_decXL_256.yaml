@@ -8,22 +8,22 @@ stage_1:
       dinov2_path: 'facebook/dinov2-with-registers-base'
       normalize: true
     decoder_config_path: 'RAE/configs/decoder/ViTXL'
-    # pretrained_decoder_path: 'RAE/models/decoders/dinov2/wReg_base/ViTXL_n08/model.pt'
+    pretrained_decoder_path: 'RAE/models/decoders/dinov2/wReg_base/ViTXL_n08/model.pt'
     noise_tau: 0.8 # training 0.8, at inference time always set to 0
     reshape_to_2d: true
-    # normalization_stat_path: 'RAE/models/stats/dinov2/wReg_base/imagenet1k/stat.pt'
+    #normalization_stat_path: 'models/stats/dinov2/wReg_base/imagenet1k/stat.pt'
 
 
 training:
   epochs: 8
   # epochs: 16
   ema_decay: 0.9978
-  batch_size: 32 # per-proc bs
-  num_workers: 4
+  global_batch_size: 32
+  num_workers: 8
   clip_grad: 0.0
   log_interval: 100
-  checkpoint_interval: 10000
-  sample_interval: 0
+  checkpoint_interval: 1 # every 1 epoch
+  sample_every: 2500
   optimizer:
     lr: 2.0e-4
     betas: [0.9, 0.95]
@@ -31,9 +31,18 @@ training:
   scheduler:
     type: cosine
     warmup_epochs: 1
-    decay_end_epoch: 16
+    # decay_end_epoch: 16
+    decay_end_epoch: 8
     base_lr: 2.0e-4
     final_lr: 2.0e-5
+    warmup_from_zero: true
+
+# eval:
+#   eval_interval: 2500
+#   eval_model: true
+#   data_path: 'data/imagenet/val/'
+#   reference_npz_path: 'data/imagenet/val_256.npz'
+#   metrics: ['psnr', 'ssim', 'rfid']
 
 gan:
   disc:
@@ -53,6 +62,7 @@ gan:
       decay_end_epoch: 16
       base_lr: 2.0e-4
       final_lr: 2.0e-5
+      warmup_from_zero: true
     augment:
       prob: 1.0
       cutout: 0.0
@@ -61,17 +71,13 @@ gan:
     gen_loss: vanilla
     disc_weight: 0.75
     perceptual_weight: 1.0
-
-
+    
     disc_start: 4
     disc_upd_start: 3
-
     # disc_start: 8
     # disc_upd_start: 6
-    # disc_start: 16
-    # disc_upd_start: 16
-
 
     lpips_start: 0
     max_d_weight: 10000.0
     disc_updates: 1
+    
