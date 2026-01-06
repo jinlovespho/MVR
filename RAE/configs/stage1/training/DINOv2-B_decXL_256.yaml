@@ -15,13 +15,14 @@ stage_1:
 
 
 training:
-  epochs: 16
+  epochs: 8
+  # epochs: 16
   ema_decay: 0.9978
   batch_size: 32 # per-proc bs
   num_workers: 4
   clip_grad: 0.0
-  log_interval: 50
-  checkpoint_interval: 1000
+  log_interval: 100
+  checkpoint_interval: 10000
   sample_interval: 0
   optimizer:
     lr: 2.0e-4
@@ -61,10 +62,14 @@ gan:
     disc_weight: 0.75
     perceptual_weight: 1.0
 
+
+    disc_start: 4
+    disc_upd_start: 3
+
     # disc_start: 8
     # disc_upd_start: 6
-    disc_start: 16
-    disc_upd_start: 16
+    # disc_start: 16
+    # disc_upd_start: 16
 
 
     lpips_start: 0

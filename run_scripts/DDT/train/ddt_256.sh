@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=7 python DDT/main.py fit -c DDT/configs/repa_improved_ddt_xlen22de6_256.yaml

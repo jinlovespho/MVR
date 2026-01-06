@@ -262,12 +262,12 @@ class DinoVisionTransformer(nn.Module):
         B, S, nc, w, h = x.shape
         x = rearrange(x, "b s c h w -> (b s) c h w")
         x = self.patch_embed(x)
-        if masks is not None:
+        if masks is not None:   # f
             x = torch.where(masks.unsqueeze(-1), self.mask_token.to(x.dtype).unsqueeze(0), x)
         cls_token = self.prepare_cls_token(B, S)
         x = torch.cat((cls_token, x), dim=1)
         x = x + self.interpolate_pos_encoding(x, w, h)
-        if self.register_tokens is not None:
+        if self.register_tokens is not None:    # f
             x = torch.cat(
                 (
                     x[:, :1],
@@ -299,44 +299,50 @@ class DinoVisionTransformer(nn.Module):
 
     def _get_intermediate_layers_not_chunked(self, x, n=1, export_feat_layers=[], **kwargs):
         B, S, _, H, W = x.shape
+        # add cls and register tokens, also add positional encodings
         x = self.prepare_tokens_with_masks(x)
         output, total_block_len, aux_output = [], len(self.blocks), []
         blocks_to_take = range(total_block_len - n, total_block_len) if isinstance(n, int) else n
         pos, pos_nodiff = self._prepare_rope(B, S, H, W, x.device)
 
         for i, blk in enumerate(self.blocks):
-            if i < self.rope_start or self.rope is None:
+            if i < self.rope_start or self.rope is None:    # f
                 g_pos, l_pos = None, None
-            else:
+            else:   # t
                 g_pos = pos_nodiff
                 l_pos = pos
 
-            if self.alt_start != -1 and (i == self.alt_start - 1) and x.shape[1] >= THRESH_FOR_REF_SELECTION and kwargs.get("cam_token", None) is None:
+            # alternating frame_attn+glob_attn starts for (13th layer) and (input frame num>3)
+            if self.alt_start != -1 and (i == self.alt_start - 1) and x.shape[1] >= THRESH_FOR_REF_SELECTION and kwargs.get("cam_token", None) is None: # f
                 # Select reference view using configured strategy
                 strategy = kwargs.get("ref_view_strategy", "saddle_balanced")
                 logger.info(f"Selecting reference view using strategy: {strategy}")
-                b_idx = select_reference_view(x, strategy=strategy)
+                b_idx = select_reference_view(x, strategy=strategy) # ouputs the selected reference frame index
                 # Reorder views to place reference view first
                 x = reorder_by_reference(x, b_idx)
                 local_x = reorder_by_reference(local_x, b_idx)
 
-            if self.alt_start != -1 and i == self.alt_start:
-                if kwargs.get("cam_token", None) is not None:
+            if self.alt_start != -1 and i == self.alt_start:    
+                if kwargs.get("cam_token", None) is not None:   
                     logger.info("Using camera conditions provided by the user")
                     cam_token = kwargs.get("cam_token")
-                else:
+                else:   # t
+                    # similar to vggt, we have two camera tokens, one for ref view and one for all other src views.
                     ref_token = self.camera_token[:, :1].expand(B, -1, -1)
                     src_token = self.camera_token[:, 1:].expand(B, S - 1, -1)
                     cam_token = torch.cat([ref_token, src_token], dim=1)
                 x[:, :, 0] = cam_token
 
-            if self.alt_start != -1 and i >= self.alt_start and i % 2 == 1:
+            if self.alt_start != -1 and i >= self.alt_start and i % 2 == 1: # f
+                # print(i, 'global')
                 x = self.process_attention(
                     x, blk, "global", pos=g_pos, attn_mask=kwargs.get("attn_mask", None)
                 )
-            else:
+            else:   # t
+                # print(i, 'local')
                 x = self.process_attention(x, blk, "local", pos=l_pos)
                 local_x = x
+
 
             if i in blocks_to_take:
                 out_x = torch.cat([local_x, x], dim=-1) if self.cat_token else x
@@ -352,7 +358,7 @@ class DinoVisionTransformer(nn.Module):
         b, s, n = x.shape[:3]
         if attn_type == "local":
             x = rearrange(x, "b s n c -> (b s) n c")
-            if pos is not None:
+            if pos is not None: # f
                 pos = rearrange(pos, "b s n c -> (b s) n c")
         elif attn_type == "global":
             x = rearrange(x, "b s n c -> b (s n) c")
@@ -377,14 +383,16 @@ class DinoVisionTransformer(nn.Module):
         **kwargs,
     ) -> Tuple[Union[torch.Tensor, Tuple[torch.Tensor]]]:
         
-        # breakpoint()
         outputs, aux_outputs = self._get_intermediate_layers_not_chunked(
             x, n, export_feat_layers=export_feat_layers, **kwargs
         )
+        
         camera_tokens = [out[0] for out in outputs]
-        if outputs[0][1].shape[-1] == self.embed_dim:
+        if outputs[0][1].shape[-1] == self.embed_dim:   # f
             outputs = [self.norm(out[1]) for out in outputs]
-        elif outputs[0][1].shape[-1] == (self.embed_dim * 2):
+        elif outputs[0][1].shape[-1] == (self.embed_dim * 2):   # t 
+            # for DPT head input, one feature is concatenation of frame_attn+global_attn
+            # the following code, just normalizes the global_attn dim with self.norm
             outputs = [
                 torch.cat(
                     [out[1][..., : self.embed_dim], self.norm(out[1][..., self.embed_dim :])],
@@ -395,7 +403,7 @@ class DinoVisionTransformer(nn.Module):
         else:
             raise ValueError(f"Invalid output shape: {outputs[0][1].shape}")
         aux_outputs = [self.norm(out) for out in aux_outputs]
-        outputs = [out[..., 1 + self.num_register_tokens :, :] for out in outputs]
+        outputs = [out[..., 1 + self.num_register_tokens :, :] for out in outputs]  # gets rid of the cls(camera) token
         aux_outputs = [out[..., 1 + self.num_register_tokens :, :] for out in aux_outputs]
         return tuple(zip(outputs, camera_tokens)), aux_outputs
 

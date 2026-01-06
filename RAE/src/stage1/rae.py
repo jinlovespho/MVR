@@ -56,7 +56,14 @@ class RAE(nn.Module):
         if pretrained_decoder_path is not None:
             print(f"Loading pretrained decoder from {pretrained_decoder_path}")
             state_dict = torch.load(pretrained_decoder_path, map_location='cpu')
-            keys = self.decoder.load_state_dict(state_dict, strict=False)
+
+            # pho - modified to load only decoder weights
+            decoder_state_dict = state_dict['model']
+            decoder_state_dict = {k: v for k, v in decoder_state_dict.items() if k.startswith('decoder.')}
+            decoder_state_dict = {k.replace('decoder.', ''): v for k, v in decoder_state_dict.items() if k.startswith('decoder.')}
+            
+            
+            keys = self.decoder.load_state_dict(decoder_state_dict, strict=False)
             if len(keys.missing_keys) > 0:
                 print(f"Missing keys when loading pretrained decoder: {keys.missing_keys}")
         self.noise_tau = noise_tau

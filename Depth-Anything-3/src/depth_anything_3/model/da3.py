@@ -122,29 +122,37 @@ class DepthAnything3Net(nn.Module):
         Returns:
             Dictionary containing predictions and auxiliary features
         """
-        # breakpoint()
+        breakpoint()
         # Extract features using backbone
-        if extrinsics is not None:
+        if extrinsics is not None:  # f
             with torch.autocast(device_type=x.device.type, enabled=False):
                 cam_token = self.cam_enc(extrinsics, intrinsics, x.shape[-2:])
-        else:
+        else:   # t
             cam_token = None
 
         # dinov2 backbone
         feats, aux_feats = self.backbone(
             x, cam_token=cam_token, export_feat_layers=export_feat_layers, ref_view_strategy=ref_view_strategy
         )
+        '''
+            feats: zip(outputs, camera_tokens)
+            where, 
+            outputs: (b s n 2d)         where, 2d=frame_attn_dim + global_attn_dim 
+            camera_tokens: (b s 2d)     where, 2d=frame_attn_dim + global_attn_dim 
+        '''
+        
         # feats = [[item for item in feat] for feat in feats]
         H, W = x.shape[-2], x.shape[-1]
 
+        breakpoint()
         # Process features through depth head
         with torch.autocast(device_type=x.device.type, enabled=False):
             output = self._process_depth_head(feats, H, W)
-            if use_ray_pose:
+            if use_ray_pose:    # f
                 output = self._process_ray_pose_estimation(output, H, W)
-            else:
+            else:   # t
                 output = self._process_camera_estimation(feats, H, W, output)
-            if infer_gs:
+            if infer_gs:    # f
                 output = self._process_gs_head(feats, H, W, output, x, extrinsics, intrinsics)
         
         output = self._process_mono_sky_estimation(output)    
@@ -332,9 +340,9 @@ class NestedDepthAnything3Net(nn.Module):
             second_preset: Configuration for metric depth branch
         """
         super().__init__()
-        self.da3 = create_object(anyview)           # da3.DepthAnything3Net
-        self.da3_metric = create_object(metric)     # da3.DepthAnything3Net
-        breakpoint()
+        self.da3 = create_object(anyview)           # configs/da3-giant.yaml
+        self.da3_metric = create_object(metric)     # configs/da3metric-large.yaml
+        # breakpoint()
 
     def forward(
         self,
@@ -361,7 +369,7 @@ class NestedDepthAnything3Net(nn.Module):
         Returns:
             Dictionary containing aligned depth predictions and camera parameters
         """
-        # breakpoint()
+        breakpoint()
         # Get predictions from both branches
         output = self.da3(
             x, extrinsics, intrinsics, export_feat_layers=export_feat_layers, infer_gs=infer_gs, use_ray_pose=use_ray_pose, ref_view_strategy=ref_view_strategy

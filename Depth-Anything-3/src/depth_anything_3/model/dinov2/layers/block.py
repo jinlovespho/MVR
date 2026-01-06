@@ -81,7 +81,8 @@ class Block(nn.Module):
         def ffn_residual_func(x: Tensor) -> Tensor:
             return self.ls2(self.mlp(self.norm2(x)))
 
-        if self.training and self.sample_drop_ratio > 0.1:
+        # breakpoint()
+        if self.training and self.sample_drop_ratio > 0.1:  # f
             # the overhead is compensated only for a drop path rate larger than 0.1
             x = drop_add_residual_stochastic_depth(
                 x,
@@ -94,10 +95,10 @@ class Block(nn.Module):
                 residual_func=ffn_residual_func,
                 sample_drop_ratio=self.sample_drop_ratio,
             )
-        elif self.training and self.sample_drop_ratio > 0.0:
+        elif self.training and self.sample_drop_ratio > 0.0:    # f
             x = x + self.drop_path1(attn_residual_func(x, pos=pos, attn_mask=attn_mask))
             x = x + self.drop_path1(ffn_residual_func(x))  # FIXME: drop_path2
-        else:
+        else:   # t
             x = x + attn_residual_func(x, pos=pos, attn_mask=attn_mask)
             x = x + ffn_residual_func(x)
         return x

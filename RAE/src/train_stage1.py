@@ -271,7 +271,7 @@ def main():
         
         # pho
         vis_lr = training_cfg["optimizer"]["lr"]
-        experiment_name = f'train__{args.precision}__img-{args.image_size}__lr-{vis_lr:.0e}__bs-{training_cfg["batch_size"]}__{os.environ["EXPERIMENT_NOTE"]}'
+        experiment_name = f'train__ep-{num_epochs}__{args.precision}__img-{args.image_size}__lr-{vis_lr:.0e}__bs-{training_cfg["batch_size"]}__{os.environ["EXPERIMENT_NOTE"]}'
         
         
         experiment_dir = os.path.join(args.results_dir, experiment_name)
@@ -413,16 +413,18 @@ def main():
                 recon = model_woddp.decode(z)       # b 3 256 256 (reconstructed pixel image)
 
 
-                # pho - log at the first step and every 1000 steps
-                if global_step == 0 or global_step % 1000 ==0:
+                # pho - log at the first step and every 5000 steps
+                if global_step == 0 or global_step % 5000 ==0:
+                # if True:
                     if rank==0:
                         num_log_img = 8
                         vis_img = images[:num_log_img]
                         vis_recon = recon[:num_log_img]
-                        vis_recon = (vis_recon + 1) / 2
-                        vis_recon = vis_recon.clamp(0, 1)
+                        # vis_recon = (vis_recon + 1) / 2
+                        # vis_recon = vis_recon.clamp(0, 1)
                         vis_img_recon = torch.cat([vis_img, vis_recon], dim=0)
                         save_image(vis_img_recon, f'{vis_recon_dir}/{global_step:07d}.png')
+                        # breakpoint()
                 
 
                 recon_normed = recon * 2.0 - 1.0

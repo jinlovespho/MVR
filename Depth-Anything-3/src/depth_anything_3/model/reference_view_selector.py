@@ -48,6 +48,7 @@ def select_reference_view(
     Returns:
         b_idx: Tensor of shape (B,) containing the selected view index for each batch
     """
+    # breakpoint()
     B, S, N, C = x.shape
     
     # For single view, no reordering needed
@@ -63,13 +64,15 @@ def select_reference_view(
     
     # Feature-based strategies require normalized class tokens
     # Extract and normalize class tokens (first token of each view)
+    # making a unit direction vector by applying l2 norm
     img_class_feat = x[:, :, 0] / x[:, :, 0].norm(dim=-1, keepdim=True)  # B S C
+    # img_class_feat.norm(dim=-1) will give all ones
     
     if strategy == "saddle_balanced":
         # Select view with balanced features across multiple metrics
         # Compute similarity matrix
         sim = torch.matmul(img_class_feat, img_class_feat.transpose(1, 2))  # B S S
-        sim_no_diag = sim - torch.eye(S, device=sim.device).unsqueeze(0)
+        sim_no_diag = sim - torch.eye(S, device=sim.device).unsqueeze(0)    # remove self similarity -> leaves only cross-view similarity
         sim_score = sim_no_diag.sum(dim=-1) / (S - 1)  # B S
         
         feat_norm = x[:, :, 0].norm(dim=-1)  # B S
@@ -91,7 +94,7 @@ def select_reference_view(
             (norm_norm - 0.5).abs() +
             (var_norm - 0.5).abs()
         )
-        b_idx = balance_score.argmin(dim=1)
+        b_idx = balance_score.argmin(dim=1) # selected ref frame index
         
     elif strategy == "saddle_sim_range":
         # Select view with largest similarity range (max - min)

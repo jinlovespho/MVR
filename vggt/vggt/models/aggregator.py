@@ -192,6 +192,7 @@ class Aggregator(nn.Module):
                 The list of outputs from the attention blocks,
                 and the patch_start_idx indicating where patch tokens begin.
         """
+        # breakpoint()
         B, S, C_in, H, W = images.shape
 
         if C_in != 3:
@@ -202,25 +203,36 @@ class Aggregator(nn.Module):
 
         # Reshape to [B*S, C, H, W] for patch embedding
         images = images.view(B * S, C_in, H, W)
+        # forward images to dinov2, where this is the following output
+        # {
+        #     "x_norm_clstoken": x_norm[:, 0],
+        #     "x_norm_regtokens": x_norm[:, 1 : self.num_register_tokens + 1],
+        #     "x_norm_patchtokens": x_norm[:, self.num_register_tokens + 1 :],
+        #     "x_prenorm": x,
+        #     "masks": masks,
+        # }
         patch_tokens = self.patch_embed(images)
 
-        if isinstance(patch_tokens, dict):
-            patch_tokens = patch_tokens["x_norm_patchtokens"]
+        if isinstance(patch_tokens, dict):  # t
+            patch_tokens = patch_tokens["x_norm_patchtokens"]   # bring only the patch tokens(cls+register tokens are not included)
 
-        _, P, C = patch_tokens.shape
+        _, P, C = patch_tokens.shape    # b*s n d -> b*s 1258 1024
 
         # Expand camera and register tokens to match batch size and sequence length
+        # similar to adding pos encoding, we have to learnable embeddings, we apply the first one to the first sequence and the second one to the rest of the sequences
+        # for (B S 3 H W) -> we add one embedding to (B 1 3 H W) and the other to all (B S-1 3 H W)
         camera_token = slice_expand_and_flatten(self.camera_token, B, S)
         register_token = slice_expand_and_flatten(self.register_token, B, S)
 
         # Concatenate special tokens with patch tokens
         tokens = torch.cat([camera_token, register_token, patch_tokens], dim=1)
 
+        # breakpoint()
         pos = None
-        if self.rope is not None:
+        if self.rope is not None:   # t 
             pos = self.position_getter(B * S, H // self.patch_size, W // self.patch_size, device=images.device)
 
-        if self.patch_start_idx > 0:
+        if self.patch_start_idx > 0:    # t
             # do not use position embedding for special tokens (camera and register tokens)
             # so set pos to 0 for the special tokens
             pos = pos + 1
@@ -234,6 +246,7 @@ class Aggregator(nn.Module):
         global_idx = 0
         output_list = []
 
+        breakpoint()
         for _ in range(self.aa_block_num):
             for attn_type in self.aa_order:
                 if attn_type == "frame":
@@ -261,6 +274,7 @@ class Aggregator(nn.Module):
         """
         Process frame attention blocks. We keep tokens in shape (B*S, P, C).
         """
+        # breakpoint()
         # If needed, reshape tokens or positions:
         if tokens.shape != (B * S, P, C):
             tokens = tokens.view(B, S, P, C).view(B * S, P, C)
@@ -285,6 +299,7 @@ class Aggregator(nn.Module):
         """
         Process global attention blocks. We keep tokens in shape (B, S*P, C).
         """
+        # breakpoint()
         if tokens.shape != (B, S * P, C):
             tokens = tokens.view(B, S, P, C).view(B, S * P, C)
 
@@ -319,6 +334,7 @@ def slice_expand_and_flatten(token_tensor, B, S):
         torch.Tensor: Processed tokens with shape (B*S, X, C)
     """
 
+    # breakpoint()
     # Slice out the "query" tokens => shape (1, 1, ...)
     query = token_tensor[:, 0:1, ...].expand(B, 1, *token_tensor.shape[2:])
     # Slice out the "other" tokens => shape (1, S-1, ...)

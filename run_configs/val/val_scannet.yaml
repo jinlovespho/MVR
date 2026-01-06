@@ -32,8 +32,8 @@ model:
   train:
   val:
     mv_3dff:
-      model: vggt
-      # model: da3
+      # model: vggt
+      model: da3
 
     mv_restoration:
       model: 

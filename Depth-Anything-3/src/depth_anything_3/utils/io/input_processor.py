@@ -53,7 +53,7 @@ class InputProcessor:
       - Order of outputs matches the input order.
     """
 
-    NORMALIZE = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    NORMALIZE = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # dinov2 imagenet normalization
     PATCH_SIZE = 14
 
     def __init__(self):
@@ -225,6 +225,7 @@ class InputProcessor:
         process_res: int,
         process_res_method: str,
     ) -> tuple[torch.Tensor, tuple[int, int], np.ndarray | None, np.ndarray | None]:
+        # breakpoint()
         # Load & remember original size
         pil_img = self._load_image(img)
         orig_w, orig_h = pil_img.size
@@ -234,6 +235,7 @@ class InputProcessor:
         w, h = pil_img.size
         intrinsic = self._resize_ixt(intrinsic, orig_w, orig_h, w, h)
 
+        # breakpoint()
         # Enforce divisibility by PATCH_SIZE
         if process_res_method.endswith("resize"):
             pil_img = self._make_divisible_by_resize(pil_img, self.PATCH_SIZE)

@@ -75,6 +75,7 @@ class Block(nn.Module):
         self.sample_drop_ratio = drop_path
 
     def forward(self, x: Tensor, pos=None) -> Tensor:
+        # breakpoint()
         def attn_residual_func(x: Tensor, pos=None) -> Tensor:
             return self.ls1(self.attn(self.norm1(x), pos=pos))
 
@@ -237,6 +238,7 @@ class NestedTensorBlock(Block):
             return attn_bias.split(x)
 
     def forward(self, x_or_x_list):
+        # breakpoint()
         if isinstance(x_or_x_list, Tensor):
             return super().forward(x_or_x_list)
         elif isinstance(x_or_x_list, list):

@@ -178,27 +178,32 @@ class DinoVisionTransformer(nn.Module):
         named_apply(init_weights_vit_timm, self)
 
     def interpolate_pos_encoding(self, x, w, h):
+        '''
+            Just, for a predefined learnable position embedding tensor, 
+            excluding the cls_token, interpolate the rest of the patch tokens shape to the image,
+            and put back together with the cls_token embedding.
+        '''
         previous_dtype = x.dtype
-        npatch = x.shape[1] - 1
+        npatch = x.shape[1] - 1             # num_token
         N = self.pos_embed.shape[1] - 1
         if npatch == N and w == h:
             return self.pos_embed
         pos_embed = self.pos_embed.float()
-        class_pos_embed = pos_embed[:, 0]
-        patch_pos_embed = pos_embed[:, 1:]
+        class_pos_embed = pos_embed[:, 0]       # pos_enc for cls token
+        patch_pos_embed = pos_embed[:, 1:]      # pos_enc for the rest of the patch tokens
         dim = x.shape[-1]
-        w0 = w // self.patch_size
-        h0 = h // self.patch_size
+        w0 = w // self.patch_size   # num_pH
+        h0 = h // self.patch_size   # num_pW
         M = int(math.sqrt(N))  # Recover the number of patches in each dimension
         assert N == M * M
         kwargs = {}
-        if self.interpolate_offset:
+        if self.interpolate_offset: # f
             # Historical kludge: add a small number to avoid floating point error in the interpolation, see https://github.com/facebookresearch/dino/issues/8
             # Note: still needed for backward-compatibility, the underlying operators are using both output size and scale factors
             sx = float(w0 + self.interpolate_offset) / M
             sy = float(h0 + self.interpolate_offset) / M
             kwargs["scale_factor"] = (sx, sy)
-        else:
+        else:   # t
             # Simply specify an output size instead of a scale factor
             kwargs["size"] = (w0, h0)
         patch_pos_embed = nn.functional.interpolate(
@@ -213,11 +218,11 @@ class DinoVisionTransformer(nn.Module):
 
     def prepare_tokens_with_masks(self, x, masks=None):
         B, nc, w, h = x.shape
-        x = self.patch_embed(x)
+        x = self.patch_embed(x) # b*s n d -> 45 1258 1024
         if masks is not None:
             x = torch.where(masks.unsqueeze(-1), self.mask_token.to(x.dtype).unsqueeze(0), x)
 
-        x = torch.cat((self.cls_token.expand(x.shape[0], -1, -1), x), dim=1)
+        x = torch.cat((self.cls_token.expand(x.shape[0], -1, -1), x), dim=1)    # for b*s n d -> add the same cls token for all batches -> b*s n+1 d 
         x = x + self.interpolate_pos_encoding(x, w, h)
 
         if self.register_tokens is not None:
@@ -250,11 +255,13 @@ class DinoVisionTransformer(nn.Module):
         return output
 
     def forward_features(self, x, masks=None):
-        if isinstance(x, list):
+        if isinstance(x, list): # f
             return self.forward_features_list(x, masks)
 
+        # add cls and register tokens, also add positional encodings
         x = self.prepare_tokens_with_masks(x, masks)
 
+        # breakpoint()
         for blk in self.blocks:
             if self.training:
                 x = checkpoint(blk, x, use_reentrant=self.use_reentrant)

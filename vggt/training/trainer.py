@@ -570,41 +570,11 @@ class Trainer:
                 imgs = batch['images'][i]                       # (b 3 H W)
                 depths = batch['depths'][i].unsqueeze(1)        # (b 1 H W)
                 
-                
-                import matplotlib.pyplot as plt
-                import numpy as np
-
-                def get_cam_center(extr):
-                    R = extr[:3, :3]
-                    t = extr[:3, 3]
-                    return -R.T @ t
-
-                centers = []
-                for b in range(extrinsics.shape[0]):
-                    centers.append(get_cam_center(extrinsics[b].cpu().numpy()))
-
-                centers = np.stack(centers)
-
-                plt.figure(figsize=(6, 6))
-                plt.scatter(centers[:, 0], centers[:, 2], s=10)
-                plt.xlabel("X")
-                plt.ylabel("Z")
-                plt.title("Camera centers (top-down)")
-                plt.axis("equal")
-
-                plt.savefig("./img_camera_centers_topdown.png", dpi=200, bbox_inches="tight")
-                plt.close()
-                
-                
                 print(f'{seq_name} - ids: {ids.tolist()}')
                 save_image(imgs, './img.jpg', normalize=True)
                 save_image(depths, './img_depth.jpg', normalize=True)
-                breakpoint()
-                
-                
-                
-            
-            
+
+                            
             accum_steps = self.accum_steps
 
             if accum_steps==1:
@@ -722,7 +692,7 @@ class Trainer:
                         chunked_batch, self.model, phase, loss_meters
                     )
 
-
+                breakpoint()
                 loss = loss_dict["objective"]
                 loss_key = f"Loss/{phase}_loss_objective"
                 batch_size = chunked_batch["images"].shape[0]
@@ -790,10 +760,13 @@ class Trainer:
         Returns:
             A dictionary containing the computed losses.
         """
+        breakpoint()
         # Forward pass
         y_hat = model(images=batch["images"])
         
         # Loss computation
+        # where, y_hat is the vggt output predictions, including camera pose and depth map 
+        # batch is the input data including images, camera intrinsics and extrinsics, 3D points, etc.
         loss_dict = self.loss(y_hat, batch)
         
         # Combine all data for logging

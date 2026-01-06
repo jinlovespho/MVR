@@ -122,7 +122,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         Returns:
             Dictionary containing model predictions
         """
-        # breakpoint()
+        breakpoint()
         # Determine optimal autocast dtype
         autocast_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
         with torch.no_grad():
@@ -193,7 +193,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         if "colmap" in export_format:
             assert isinstance(image[0], str), "`image` must be image paths for COLMAP export."
 
-        breakpoint()
+        # breakpoint()
         # Preprocess images
         imgs_cpu, extrinsics, intrinsics = self._preprocess_inputs(
             image, extrinsics, intrinsics, process_res, process_res_method

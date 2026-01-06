@@ -48,6 +48,7 @@ class Attention(nn.Module):
         self.rope = rope
 
     def forward(self, x: Tensor, pos=None) -> Tensor:
+        # breakpoint()
         B, N, C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
         q, k, v = qkv.unbind(0)
@@ -57,7 +58,7 @@ class Attention(nn.Module):
             q = self.rope(q, pos)
             k = self.rope(k, pos)
 
-        if self.fused_attn:
+        if self.fused_attn: # t
             x = F.scaled_dot_product_attention(q, k, v, dropout_p=self.attn_drop.p if self.training else 0.0)
         else:
             q = q * self.scale

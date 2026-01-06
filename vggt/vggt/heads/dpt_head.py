@@ -134,6 +134,8 @@ class DPTHead(nn.Module):
                 - If feature_only=True: Feature maps with shape [B, S, C, H, W]
                 - Otherwise: Tuple of (predictions, confidence) both with shape [B, S, 1, H, W]
         """
+        
+        # breakpoint()
         B, S, _, H, W = images.shape
 
         # If frames_chunk_size is not specified or greater than S, process all frames at once
@@ -151,12 +153,12 @@ class DPTHead(nn.Module):
             frames_end_idx = min(frames_start_idx + frames_chunk_size, S)
 
             # Process batch of frames
-            if self.feature_only:
+            if self.feature_only:   # f
                 chunk_output = self._forward_impl(
                     aggregated_tokens_list, images, patch_start_idx, frames_start_idx, frames_end_idx
                 )
                 all_preds.append(chunk_output)
-            else:
+            else:   # t
                 chunk_preds, chunk_conf = self._forward_impl(
                     aggregated_tokens_list, images, patch_start_idx, frames_start_idx, frames_end_idx
                 )
@@ -192,6 +194,7 @@ class DPTHead(nn.Module):
         Returns:
             Tensor or Tuple[Tensor, Tensor]: Feature maps or (predictions, confidence).
         """
+        # breakpoint()
         if frames_start_idx is not None and frames_end_idx is not None:
             images = images[:, frames_start_idx:frames_end_idx].contiguous()
 
@@ -202,6 +205,8 @@ class DPTHead(nn.Module):
         out = []
         dpt_idx = 0
 
+        # len(aggregated_tokens_list) = 24
+        # self.intermediate_layer_idx = [4,11,17,23]
         for layer_idx in self.intermediate_layer_idx:
             x = aggregated_tokens_list[layer_idx][:, :, patch_start_idx:]
 
@@ -239,6 +244,7 @@ class DPTHead(nn.Module):
         if self.feature_only:
             return out.view(B, S, *out.shape[1:])
 
+        breakpoint()
         out = self.scratch.output_conv2(out)
         preds, conf = activate_head(out, activation=self.activation, conf_activation=self.conf_activation)
 

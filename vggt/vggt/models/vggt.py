@@ -51,6 +51,7 @@ class VGGT(nn.Module, PyTorchModelHubMixin):
                 - vis (torch.Tensor): Visibility scores for tracked points with shape [B, S, N]
                 - conf (torch.Tensor): Confidence scores for tracked points with shape [B, S, N]
         """        
+        breakpoint()
         # If without batch dimension, add it
         if len(images.shape) == 4:
             images = images.unsqueeze(0)
@@ -58,24 +59,30 @@ class VGGT(nn.Module, PyTorchModelHubMixin):
         if query_points is not None and len(query_points.shape) == 2:
             query_points = query_points.unsqueeze(0)
 
+        # self.aggregator is the vggt model 
+        # vggt has 24 transformer blocks, each block has frame attention block and global attention block
+        # aggregated_tokens_list is a list of length 24, each element containing the concat tokens of frame+global attention blocks
+        # for each of the 24 blocks of vggt 
+        # for example, aggregated_tokens_list[0]: (5,9,1263,2048) = (b, s, n, d) = (b, s, camera(1)+register(4)+patch(1258), d)
         aggregated_tokens_list, patch_start_idx = self.aggregator(images)
 
         predictions = {}
 
         with torch.cuda.amp.autocast(enabled=False):
-            if self.camera_head is not None:
+            breakpoint()
+            if self.camera_head is not None:    # t
                 pose_enc_list = self.camera_head(aggregated_tokens_list)
                 predictions["pose_enc"] = pose_enc_list[-1]  # pose encoding of the last iteration
                 predictions["pose_enc_list"] = pose_enc_list
                 
-            if self.depth_head is not None:
+            if self.depth_head is not None: # t
                 depth, depth_conf = self.depth_head(
                     aggregated_tokens_list, images=images, patch_start_idx=patch_start_idx
                 )
                 predictions["depth"] = depth
                 predictions["depth_conf"] = depth_conf
 
-            if self.point_head is not None:
+            if self.point_head is not None: # f
                 pts3d, pts3d_conf = self.point_head(
                     aggregated_tokens_list, images=images, patch_start_idx=patch_start_idx
                 )
