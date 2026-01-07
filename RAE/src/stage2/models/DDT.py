@@ -26,6 +26,7 @@ def DDTModulate(x: torch.Tensor, shift: torch.Tensor, scale: torch.Tensor) -> to
         Tensor of shape (B, L_x, D): x * (1 + scale) + shift, 
         with shift and scale repeated to match L_x if necessary.
     """
+    # breakpoint()
     B, Lx, D = x.shape
     _, L, _ = shift.shape
     if Lx % L != 0:
@@ -33,6 +34,7 @@ def DDTModulate(x: torch.Tensor, shift: torch.Tensor, scale: torch.Tensor) -> to
     repeat = Lx // L
     if repeat != 1:
         # repeat each of the L segments 'repeat' times along the length dim
+        # if shift has shape (1,d) -> repeat_interleave(n, dim=0) -> (n,d)
         shift = shift.repeat_interleave(repeat, dim=1)
         scale = scale.repeat_interleave(repeat, dim=1)
     # apply modulation
@@ -135,20 +137,31 @@ class LightningDDTBlock(nn.Module):
         self.wo_shift = wo_shift
 
     def forward(self, x, c, feat_rope=None):
-        if len(c.shape) < len(x.shape):
+
+        if len(c.shape) < len(x.shape): # t
             c = c.unsqueeze(1)  # (B, 1, C)
-        if self.wo_shift:
-            scale_msa, gate_msa, scale_mlp, gate_mlp = self.adaLN_modulation(
-                c).chunk(4, dim=-1)
+        if self.wo_shift:   # f
+            scale_msa, gate_msa, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(4, dim=-1)
             shift_msa = None
             shift_mlp = None
-        else:
-            shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(
-                c).chunk(6, dim=-1)
-        x = x + DDTGate(self.attn(DDTModulate(self.norm1(x),
-                        shift_msa, scale_msa), rope=feat_rope), gate_msa)
-        x = x + DDTGate(self.mlp(DDTModulate(self.norm2(x),
-                        shift_mlp, scale_mlp)), gate_mlp)
+        else:   # t
+            '''
+                c: concated (time and label) used for condition 
+                for adaptive layer normalization, the shift, scale, and gate are computed from the condition c 
+                    attention - shift,scale,gate
+                    mlp - shift,scale, gate 
+                ANOTHER UNDERSTANDING
+                    layernorm -> for (n,d) tokens, it normalizes each tokens independently, 
+                    first, for one vector token (1,d) normalize it as (v - v.mean() / v.std()), then apply scale SC and shift SH
+                    this is done for all tokens, the same scale SC and shift SH is applied. 
+                    However, for adaptiveLN, while (v-v.mean())/v.std() is the same, every tokens gets a different SC and SH value.
+                    this value is learnable. Also the scale and shift equation is computed as x*(1+scale) + shift, instead of x*scale + shift
+            '''
+            # c: (b 1 1152)
+            # all shift_xxx, scale_xxx, and gate_xxx have the same shape as (b1 1 1152)
+            shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=-1)
+        x = x + DDTGate(self.attn(DDTModulate(self.norm1(x), shift_msa, scale_msa), rope=feat_rope), gate_msa)
+        x = x + DDTGate(self.mlp(DDTModulate(self.norm2(x), shift_mlp, scale_mlp)), gate_mlp)
         return x
 
 
@@ -338,24 +351,25 @@ class DiTwDDTHead(nn.Module):
 
     def forward(self, x, t, y, s=None, mask=None):
         # x = self.x_embedder(x) + self.pos_embed
-        t = self.t_embedder(t)
-        y = self.y_embedder(y, self.training)
+        t = self.t_embedder(t)                  # b 1152
+        y = self.y_embedder(y, self.training)   # b 1152
         c = nn.functional.silu(t + y)
-        if s is None:
-            s = self.s_embedder(x)
-            if self.use_pos_embed:
-                s = s + self.pos_embed
-            # print(f"t shape: {t.shape}, y shape: {y.shape}, c shape: {c.shape}, s shape: {s.shape}, pos_embed shape: {self.pos_embed.shape}")
-            for i in range(self.num_encoder_blocks):
+        if s is None:   # t
+            s = self.s_embedder(x)  # (b 768 32 32) -> (b 32*32 1152) = (b 1024 1152)
+            if self.use_pos_embed:  # t
+                s = s + self.pos_embed  # b 1024 1152
+            for i in range(self.num_encoder_blocks):    # len: 28
                 s = self.blocks[i](s, c, feat_rope=self.enc_feat_rope)
+            # breakpoint()
             # broadcast t to s
             t = t.unsqueeze(1).repeat(1, s.shape[1], 1)
             s = nn.functional.silu(t + s)
         s = self.s_projector(s)
         x = self.x_embedder(x)
+        # breakpoint()
         if self.use_pos_embed and self.x_pos_embed is not None:
             x = x + self.x_pos_embed
-        for i in range(self.num_encoder_blocks, self.num_blocks):
+        for i in range(self.num_encoder_blocks, self.num_blocks):   # len: 2
             x = self.blocks[i](x, s, feat_rope=self.dec_feat_rope)
         x = self.final_layer(x, s)
         x = self.unpatchify(x)

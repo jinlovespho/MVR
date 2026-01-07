@@ -101,6 +101,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--global-seed", type=int, default=None, help="Override training.global_seed from the config.")
     args = parser.parse_args()
     return args
+
 def main():
     """Trains a new SiT model using config-driven hyperparameters."""
     args = parse_args()
@@ -213,13 +214,8 @@ def main():
     t_min = float(guidance_value("t_min", 0.0))
     t_max = float(guidance_value("t_max", 1.0))
     
-    experiment_dir, checkpoint_dir, logger = configure_experiment_dirs(args, rank)
-    
-    
-    # pho
-    vis_recon_dir = f'{experiment_dir}/vis_recon'
-    os.makedirs(vis_recon_dir, exist_ok=True)
-    
+    experiment_dir, checkpoint_dir, vis_recon_dir, logger = configure_experiment_dirs(args, rank)
+
     
     #### Model init
     rae: RAE = instantiate_from_config(rae_config).to(device)
@@ -234,8 +230,10 @@ def main():
             model.forward = torch.compile(model.forward)
         except:
             print('MODEL FORWARD compile meets error, falling back to no compile')
+    # else:
+    #     raise NotImplementedError('ARGS>COMPILE')
     else:
-        raise NotImplementedError('ARGS>COMPILE')
+        print("Running without torch.compile")
     ema_model = deepcopy(model).to(device)
     ema_model.requires_grad_(False)
     ema_model.eval()
@@ -254,7 +252,7 @@ def main():
     ### AMP init
     scaler, autocast_kwargs = get_autocast_scaler(args)
     
-    
+    # breakpoint()
     ### Data init
     stage2_transform = transforms.Compose([
         transforms.Lambda(lambda pil_image: center_crop_arr(pil_image, args.image_size)),
@@ -298,7 +296,7 @@ def main():
     else:
         raise NotImplementedError(f"Invalid sampling mode {sampler_mode}.")
     
-    
+    # breakpoint()
     ### Guidance Init
     guid_model_forward = None
     if guidance_scale > 1.0 and guidance_method == "autoguidance":
@@ -313,6 +311,7 @@ def main():
     running_loss = 0.0
     start_time = time()
     use_guidance = guidance_scale > 1.0
+    # make noise latent 
     zs = torch.randn(micro_batch_size, *latent_size, device=device, dtype=torch.float32) # always use float for noise sampling
     n = micro_batch_size
     if use_guidance:
@@ -399,20 +398,23 @@ def main():
                 scheduler,
             )
         for step, (images, labels) in enumerate(loader):
-            images = images.to(device)
+            # breakpoint()
+            images = images.to(device)  # b 3 512 512 [0,1]
             labels = labels.to(device)
-            with torch.no_grad(): # TODO: wrap this in autocast?
-                z = rae.encode(images)
+            # latent encoding
+            with torch.no_grad():
+                with autocast(**autocast_kwargs):
+                    z = rae.encode(images)          # b 768 32 32 
             optimizer.zero_grad(set_to_none=True)
             model_kwargs = dict(y=labels)
             with autocast(**autocast_kwargs):
                 loss = transport.training_losses(ddp_model, z, model_kwargs)["loss"].mean()
             loss.float()
-            if scaler:
+            if scaler:  # f
                 scaler.scale(loss / grad_accum_steps).backward()
             else:
                 (loss / grad_accum_steps).backward()
-            if clip_grad:
+            if clip_grad:   # t
                 if scaler:
                     scaler.unscale_(optimizer) 
                 torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), clip_grad)
@@ -428,6 +430,7 @@ def main():
             running_loss += loss.item()
             epoch_metrics['loss'] += loss.detach()
             
+            # breakpoint()
             if log_interval > 0 and global_step % log_interval == 0 and rank == 0:
                 avg_loss = running_loss / log_interval # flow loss often has large variance so we record avg loss
                 steps = torch.tensor(log_interval, device=device)

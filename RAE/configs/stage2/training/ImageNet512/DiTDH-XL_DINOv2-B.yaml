@@ -59,6 +59,8 @@ misc:
   time_dist_shift_dim: 786432 # 32*32*768
   time_dist_shift_base: 4096
 
+
+
 training:
   epochs: 1400
   global_batch_size: 8
@@ -81,3 +83,37 @@ training:
     base_lr: 2.0e-4
     final_lr: 2.0e-5
     warmup_from_zero: false
+
+
+# eval:
+#   eval_interval: 1 # Eval interval by optimization step
+#   eval_model: true # By default only evaluates EMA model. Set to true to eval non-EMA model as well.
+#   data_path: /media/data1/ImageNet2012/pho_val # path to ImageNet val images
+#   reference_npz_path: /media/data1/ImageNet2012/pho_val.npz # packed npz of ImageNet val images for FID calculation
+#   metrics: ['psnr', 'ssim', 'rfid'] # metrics to calculate
+
+
+
+
+log:
+  save_root_dir: result_train/RAE/imagenet512/stage2
+
+
+data:
+  train:
+    image_size: 512 
+    list: [hypersim, tartanair, ]
+    hypersim:
+      hq_path: 
+      depth_path: 
+    tartanair:
+      hq_path:
+      depth_path: 
+  val:
+    image_size: 512 
+    list: [eth3d]
+    eth3d:
+      hq_path:
+      depth_path: 
+  
+

@@ -157,14 +157,14 @@ class Transport:
           Args:
             x1 - data point; [batch, *dim]
         """
-        
-        x0 = th.randn_like(x1)
+        # breakpoint()
+        x0 = th.randn_like(x1)  # b 768 32 32 
         dist_options = self.time_dist_type.split("_")
         t0, t1 = self.check_interval(self.train_eps, self.sample_eps)
-        if dist_options[0] == "uniform":
+        if dist_options[0] == "uniform":    # f
             t = th.rand((x1.shape[0],)) * (t1 - t0) + t0
             # print('UNIFORM IS CALLED')
-        elif dist_options[0] == "logit-normal":
+        elif dist_options[0] == "logit-normal": # t
             assert len(dist_options) == 3, "Logit-normal distribution must specify the mean and variance."
             mu, sigma = float(dist_options[1]), float(dist_options[2])
             assert sigma > 0, "Logit-normal distribution must have positive variance."
@@ -175,7 +175,7 @@ class Transport:
         else:
             raise NotImplementedError(f"Unknown time distribution type {self.time_dist_type}")
 
-        t = t.to(x1)
+        t = t.to(x1)    # put t as same device and dtype as x1
 
         #sqrt_size_ratio = 1 / self.time_dist_shift # already sqrted
         t = self.time_dist_shift * t / (1 + (self.time_dist_shift - 1) * t)
@@ -191,14 +191,18 @@ class Transport:
         """Loss for training the score model
         Args:
         - model: backbone model; could be score, noise, or velocity
-        - x1: datapoint
+        - x1: datapoint (latent)
         - model_kwargs: additional arguments for the model
         """
         if model_kwargs == None:
             model_kwargs = {}
         
+        # x1: clean latent 
+        # x0: pure noise latent 
+        # t: timestep, normalized to [0,1]
         t, x0, x1 = self.sample(x1)
         t, xt, ut = self.path_sampler.plan(t, x0, x1)
+        # breakpoint()
         model_output = model(xt, t, **model_kwargs)
         B, *_, C = xt.shape
         assert model_output.size() == (B, *xt.size()[1:-1], C)

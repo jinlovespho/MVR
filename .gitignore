@@ -188,3 +188,7 @@ result_ckpts/
 
 # DDT 
 universal_flow_workdirs/
+
+
+# DA3
+da3_ds/
