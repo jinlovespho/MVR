@@ -67,6 +67,7 @@ class BaseDataset(Dataset):
         Returns:
             Dataset item as returned by get_data()
         """
+        breakpoint()
         seq_index, img_per_seq, aspect_ratio = idx_N
         return self.get_data(
             seq_index=seq_index, img_per_seq=img_per_seq, aspect_ratio=aspect_ratio

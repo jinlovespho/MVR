@@ -34,7 +34,6 @@ from omegaconf import OmegaConf
 
 
 ##### model imports
-from stage1 import RAE
 from stage2.models import Stage2ModelProtocol
 from stage2.transport import create_transport, Sampler
 
@@ -91,12 +90,12 @@ def load_checkpoint(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train Stage-2 transport model on RAE latents.")
     parser.add_argument("--config", type=str, required=True, help="YAML config containing stage_1 and stage_2 sections.")
-    parser.add_argument("--data-path", type=Path, required=True, help="Directory with ImageFolder structure for training.")
+    # parser.add_argument("--data-path", type=Path, required=True, help="Directory with ImageFolder structure for training.")
     parser.add_argument("--results-dir", type=str, default="ckpts", help="Directory to store training outputs.")
-    parser.add_argument("--image-size", type=int, choices=[256, 512], default=512, help="Input image resolution.")
+    # parser.add_argument("--image-size", type=int, choices=[256, 512], default=512, help="Input image resolution.")
     parser.add_argument("--precision", type=str, choices=["fp32", "fp16", "bf16"], default="fp32", help="Compute precision for training.")
     parser.add_argument("--wandb", action="store_true", help="Enable Weights & Biases logging.")
-    parser.add_argument("--compile", action="store_true", help="Use torch compile (for rae.encode and model.forward).")
+    parser.add_argument("--compile", action="store_true", help="Use torch compile (for stage1_enc.encode and model.forward).")
     parser.add_argument("--ckpt", type=str, default=None, help="Optional checkpoint path to resume training.")
     parser.add_argument("--global-seed", type=int, default=None, help="Override training.global_seed from the config.")
     args = parser.parse_args()
@@ -110,8 +109,8 @@ def main():
     rank, world_size, device = setup_distributed()
     full_cfg = OmegaConf.load(args.config)
     (
-        rae_config,
-        model_config,
+        stage1_cfg,
+        stage2_cfg,
         transport_config,
         sampler_config,
         guidance_config,
@@ -119,9 +118,7 @@ def main():
         training_config,
         eval_config
     ) = parse_configs(full_cfg)
-
-    if rae_config is None or model_config is None:
-        raise ValueError("Config must provide both stage_1 and stage_2 sections.")
+    
 
     def to_dict(cfg_section):
         if cfg_section is None:
@@ -216,14 +213,29 @@ def main():
     
     experiment_dir, checkpoint_dir, vis_recon_dir, logger = configure_experiment_dirs(args, rank)
 
+
+    # load stage1 encoder 
+    if full_cfg.stage_1.model == 'rae':
+        from stage1 import RAE
+        stage1_enc: RAE = instantiate_from_config(stage1_cfg).to(device)
+        stage1_enc.eval()
+        
+    elif full_cfg.stage_1.model == 'da3':
+        from depth_anything_3.api import DepthAnything3
+        stage1_enc = DepthAnything3.from_pretrained(full_cfg.stage_1.da3.ckpt).to(device)
+        stage1_enc.eval()
+        
+    elif full_cfg.stage_1.model == 'vggt':
+        from vggt.models.vggt import VGGT
+        from vggt.utils.load_fn import load_and_preprocess_images
+        stage1_enc = VGGT.from_pretrained(full_cfg.stage_1.vggt.ckpt).to(device)
+        stage1_enc.eval()
     
-    #### Model init
-    rae: RAE = instantiate_from_config(rae_config).to(device)
-    rae.eval()
-    model: Stage2ModelProtocol = instantiate_from_config(model_config).to(device) 
+        
+    model: Stage2ModelProtocol = instantiate_from_config(stage2_cfg).to(device) 
     if args.compile:
         try:
-            rae.encode = torch.compile(rae.encode)
+            stage1_enc.encode = torch.compile(stage1_enc.encode)
         except:
             print('RAE ENCODE compile meets error, falling back to no compile')
         try:
@@ -234,6 +246,8 @@ def main():
     #     raise NotImplementedError('ARGS>COMPILE')
     else:
         print("Running without torch.compile")
+        
+        
     ema_model = deepcopy(model).to(device)
     ema_model.requires_grad_(False)
     ema_model.eval()
@@ -253,15 +267,8 @@ def main():
     scaler, autocast_kwargs = get_autocast_scaler(args)
     
     # breakpoint()
-    ### Data init
-    stage2_transform = transforms.Compose([
-        transforms.Lambda(lambda pil_image: center_crop_arr(pil_image, args.image_size)),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-    ])
-    loader, sampler = prepare_dataloader(
-        args.data_path, micro_batch_size, num_workers, rank, world_size, transform=stage2_transform
-    )
+    loader, sampler = prepare_dataloader(full_cfg.data, micro_batch_size, num_workers, rank, world_size)
+    
     if do_eval:
         eval_dataset = ImageFolder(
             str(eval_data),
@@ -361,7 +368,7 @@ def main():
             logger.info(f"Saved training worktree and config to {experiment_dir}.")
     ### Logging experiment details
     if rank == 0:
-        num_params = sum(p.numel() for p in rae.parameters())
+        num_params = sum(p.numel() for p in stage1_enc.parameters())
         logger.info(f"Stage-1 RAE parameters: {num_params/1e6:.2f}M")
         num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
         logger.info(f"Stage-2 Model parameters: {num_params/1e6:.2f}M")
@@ -397,18 +404,28 @@ def main():
                 optimizer,
                 scheduler,
             )
-        for step, (images, labels) in enumerate(loader):
-            # breakpoint()
+        for step, batch in enumerate(loader):
+            
+            
+            if 'imagenet' in full_cfg.data.train.list:
+                (images, label) = batch
+            else:
+                pass 
+            
+            
+            breakpoint()
             images = images.to(device)  # b 3 512 512 [0,1]
             labels = labels.to(device)
             # latent encoding
             with torch.no_grad():
                 with autocast(**autocast_kwargs):
-                    z = rae.encode(images)          # b 768 32 32 
+                    z = stage1_enc.encode(images)          # b 768 32 32 
             optimizer.zero_grad(set_to_none=True)
             model_kwargs = dict(y=labels)
             with autocast(**autocast_kwargs):
-                loss = transport.training_losses(ddp_model, z, model_kwargs)["loss"].mean()
+                transport_output = transport.training_losses(ddp_model, z, model_kwargs)
+                loss = transport_output["loss"].mean()
+            # breakpoint()
             loss.float()
             if scaler:  # f
                 scaler.scale(loss / grad_accum_steps).backward()
@@ -462,7 +479,7 @@ def main():
                     samples.float()
                     if use_guidance:
                         samples, _ = samples.chunk(2, dim=0)
-                    samples = rae.decode(samples)
+                    samples = stage1_enc.decode(samples)
                     vis_recon = torch.cat([vis_images, samples], dim=-2)
                     save_image(vis_recon, f'{vis_recon_dir}/{global_step:07d}.png')
                     # samples = samples.cpu().float()
@@ -484,7 +501,7 @@ def main():
                         latent_size,
                         sample_model_kwargs,
                         use_guidance,
-                        rae, 
+                        stage1_enc, 
                         eval_dataset,
                         len(eval_dataset),
                         rank = rank,

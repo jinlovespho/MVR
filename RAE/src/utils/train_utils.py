@@ -1,3 +1,6 @@
+import os 
+import sys 
+sys.path.append(os.getcwd())
 from omegaconf import OmegaConf, DictConfig
 from typing import List, Tuple, Union
 from PIL import Image
@@ -14,19 +17,30 @@ from .dist_utils import setup_distributed
 
 
 
-def parse_configs(config: Union[DictConfig, str]) -> Tuple[DictConfig, DictConfig, DictConfig, DictConfig, DictConfig, DictConfig, DictConfig]:
+def parse_configs(full_cfg: Union[DictConfig, str]) -> Tuple[DictConfig, DictConfig, DictConfig, DictConfig, DictConfig, DictConfig, DictConfig]:
     """Load a config file and return component sections as DictConfigs."""
-    if isinstance(config, str):
-        config = OmegaConf.load(config)
-    rae_config = config.get("stage_1", None)
-    stage2_config = config.get("stage_2", None)
-    transport_config = config.get("transport", None)
-    sampler_config = config.get("sampler", None)
-    guidance_config = config.get("guidance", None)
-    misc = config.get("misc", None)
-    training_config = config.get("training", None)
-    eval_config = config.get("eval", None)
-    return rae_config, stage2_config, transport_config, sampler_config, guidance_config, misc, training_config, eval_config
+    if isinstance(full_cfg, str):
+        full_cfg = OmegaConf.load(full_cfg)
+
+    # load stage1 config
+    if full_cfg.stage_1.model == 'rae':
+        print('stage1_config: RAE')
+        stage1_cfg = full_cfg.stage_1.get("rae", None)
+    elif full_cfg.stage_1.model == 'da3':
+        print('stage1_config: DA3')
+        stage1_cfg = full_cfg.stage_1.get("da3", None)
+    elif full_cfg.stage_1.model == 'vggt':
+        print('stage1_config: VGGT')
+        stage1_cfg = full_cfg.stage_1.get("vggt", None)
+
+    stage2_cfg = full_cfg.get("stage_2", None)
+    transport_config = full_cfg.get("transport", None)
+    sampler_config = full_cfg.get("sampler", None)
+    guidance_config = full_cfg.get("guidance", None)
+    misc = full_cfg.get("misc", None)
+    training_config = full_cfg.get("training", None)
+    eval_config = full_cfg.get("eval", None)
+    return stage1_cfg, stage2_cfg, transport_config, sampler_config, guidance_config, misc, training_config, eval_config
 
 def none_or_str(value):
     if value == 'None':
@@ -73,24 +87,44 @@ def update_ema(ema_model, model, decay=0.9999):
     model_params = OrderedDict(model.named_parameters())
 
     for name, param in model_params.items():
-        # TODO: Consider applying only to params that require_grad to avoid small numerical changes of pos_embed
+        if not param.requires_grad:
+            continue
         ema_params[name].mul_(decay).add_(param.data, alpha=1 - decay)
 
 def prepare_dataloader(
-    data_path: Path,
+    data_cfg,
     batch_size: int,
     workers: int,
     rank: int,
     world_size: int,
-    transform: List= None,
 ) -> Tuple[DataLoader, DistributedSampler]:
-    dataset = ImageFolder(str(data_path), transform=transform)
+    
+    # load dataset
+    if 'imagenet' in data_cfg.train.list:
+        data_path = data_cfg.train.imagenet.hq_path
+        transform = transforms.Compose([
+            transforms.Lambda(lambda pil_image: center_crop_arr(pil_image, data_cfg.train.image_size)),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+        ])
+        dataset = ImageFolder(str(data_path), transform=transform)
+        
+    elif 'hypersim' in data_cfg.train.list:
+        from mvr.dataset.hypersim import Hypersim
+        data_path = data_cfg.train.hypersim.hq_path
+        dataset = Hypersim(data_cfg.train, mode='train')
+
+    
+    elif 'tartanair' in data_cfg.train.list:
+        data_path = data_cfg.train.tartanair.hq_path
+
+
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True)
     loader = DataLoader(
         dataset,
         batch_size=batch_size,
         sampler=sampler,
-        num_workers=workers,
+        num_workers=0,
         pin_memory=True,
         drop_last=True,
     )

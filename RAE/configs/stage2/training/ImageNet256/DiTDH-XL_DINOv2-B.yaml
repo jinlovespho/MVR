@@ -1,3 +1,8 @@
+stage1_cfg:
+  # choose from [rae, da3, vggt]
+  stage1_model: rae
+
+
 stage_1:
   target: stage1.RAE
   params:
@@ -12,6 +17,16 @@ stage_1:
     noise_tau: 0.0
     reshape_to_2d: true
     normalization_stat_path: 'RAE/models/stats/dinov2/wReg_base/imagenet1k/stat.pt'
+
+
+da3:
+  target:
+  params:
+
+
+vggt:
+  target:
+  params:
 
 stage_2:
   target: stage2.models.DDT.DiTwDDTHead
@@ -32,6 +47,7 @@ stage_2:
     wo_shift: false
     use_pos_embed: true
   # ckpt: RAE/models/DiTs/Dinov2/wReg_base/ImageNet256/DiTDH-XL/stage2_model.pt
+
 
 transport:
   params:

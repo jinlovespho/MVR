@@ -51,7 +51,7 @@ class VGGT(nn.Module, PyTorchModelHubMixin):
                 - vis (torch.Tensor): Visibility scores for tracked points with shape [B, S, N]
                 - conf (torch.Tensor): Confidence scores for tracked points with shape [B, S, N]
         """        
-        breakpoint()
+        # breakpoint()
         # If without batch dimension, add it
         if len(images.shape) == 4:
             images = images.unsqueeze(0)
@@ -69,7 +69,7 @@ class VGGT(nn.Module, PyTorchModelHubMixin):
         predictions = {}
 
         with torch.cuda.amp.autocast(enabled=False):
-            breakpoint()
+            # breakpoint()
             if self.camera_head is not None:    # t
                 pose_enc_list = self.camera_head(aggregated_tokens_list)
                 predictions["pose_enc"] = pose_enc_list[-1]  # pose encoding of the last iteration

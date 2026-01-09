@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=0 python mvr/degradation/kernel_blur_eth3d.py

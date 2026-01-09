@@ -46,7 +46,7 @@ class MultitaskLoss(torch.nn.Module):
         total_loss = 0
         loss_dict = {}
         
-        breakpoint()
+        # breakpoint()
         # Camera pose loss - if pose encodings are predicted
         if "pose_enc_list" in predictions:
             camera_loss_dict = compute_camera_loss(predictions, batch, **self.camera)   

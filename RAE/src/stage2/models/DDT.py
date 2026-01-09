@@ -137,7 +137,7 @@ class LightningDDTBlock(nn.Module):
         self.wo_shift = wo_shift
 
     def forward(self, x, c, feat_rope=None):
-
+        
         if len(c.shape) < len(x.shape): # t
             c = c.unsqueeze(1)  # (B, 1, C)
         if self.wo_shift:   # f
@@ -355,25 +355,23 @@ class DiTwDDTHead(nn.Module):
         y = self.y_embedder(y, self.training)   # b 1152
         c = nn.functional.silu(t + y)
         if s is None:   # t
-            s = self.s_embedder(x)  # (b 768 32 32) -> (b 32*32 1152) = (b 1024 1152)
+            s = self.s_embedder(x)  # b 1024 768 -> linear -> b 1024 1152 
             if self.use_pos_embed:  # t
                 s = s + self.pos_embed  # b 1024 1152
             for i in range(self.num_encoder_blocks):    # len: 28
                 s = self.blocks[i](s, c, feat_rope=self.enc_feat_rope)
-            # breakpoint()
             # broadcast t to s
             t = t.unsqueeze(1).repeat(1, s.shape[1], 1)
             s = nn.functional.silu(t + s)
-        s = self.s_projector(s)
-        x = self.x_embedder(x)
-        # breakpoint()
-        if self.use_pos_embed and self.x_pos_embed is not None:
+        s = self.s_projector(s) # prepare for wider dimension
+        x = self.x_embedder(x)  # b 1024 768 -> linear -> b 1024 2048 (DDT head has wider dimension)
+        if self.use_pos_embed and self.x_pos_embed is not None: # f
             x = x + self.x_pos_embed
         for i in range(self.num_encoder_blocks, self.num_blocks):   # len: 2
             x = self.blocks[i](x, s, feat_rope=self.dec_feat_rope)
-        x = self.final_layer(x, s)
-        x = self.unpatchify(x)
-        return x
+        x = self.final_layer(x, s)  # last adaLN and restore to original dim: 2048 -> 768
+        x = self.unpatchify(x)  # b n d -> b num_pH*num_pW pH*pW*c -> b c num_pH*pH num_pW*pW -> b c h w 
+        return x    # b 768 32 32 
 
     def forward_with_cfg(self, x, t, y, cfg_scale, cfg_interval=(0, 1)):
         """

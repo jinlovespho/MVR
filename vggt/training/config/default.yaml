@@ -3,7 +3,7 @@ defaults:
 
 exp_name: exp001
 img_size: 518
-num_workers: 4
+num_workers: 0
 seed_value: 42
 accum_steps: 1    # We did not use gradient accumulation in our training, while if you suffer from OOM, you can try to use it.
 patch_size: 14
@@ -32,6 +32,11 @@ data:
           split: train
           CO3D_DIR: /media/data1/co3d/co3d_train
           CO3D_ANNOTATION_DIR: /mnt/dataset1/MV_Restoration/co3d/co3d_anno
+        # - _target_: data.datasets.vkitti.VKittiDataset
+        #   split: train
+        #   VKitti_DIR: /YOUR/PATH/TO/VKitti
+        #   len_train: 100000
+        #   expand_ratio: 8 
   val:
     _target_: data.dynamic_dataloader.DynamicTorchDataset
     num_workers: ${num_workers}

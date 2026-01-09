@@ -202,16 +202,23 @@ class Transport:
         # t: timestep, normalized to [0,1]
         t, x0, x1 = self.sample(x1)
         t, xt, ut = self.path_sampler.plan(t, x0, x1)
-        # breakpoint()
+        '''
+            t: b
+            x0: b 768 32 32 
+            x1: b 768 32 32 
+            xt: b 768 32 32 
+            ut: b 768 32 32 
+            model_output = pred_ut = b 768 32 32 
+        '''
         model_output = model(xt, t, **model_kwargs)
         B, *_, C = xt.shape
         assert model_output.size() == (B, *xt.size()[1:-1], C)
 
         terms = {}
         terms['pred'] = model_output
-        if self.model_type == ModelType.VELOCITY:
-            terms['loss'] = mean_flat(((model_output - ut) ** 2))
-        else: 
+        if self.model_type == ModelType.VELOCITY:   # t
+            terms['loss'] = mean_flat(((model_output - ut) ** 2))   # b
+        else:   # f
             _, drift_var = self.path_sampler.compute_drift(xt, t)
             sigma_t, _ = self.path_sampler.compute_sigma_t(path.expand_t_like_x(t, xt))
             if self.loss_type in [WeightType.VELOCITY]:

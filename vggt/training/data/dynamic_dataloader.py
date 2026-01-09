@@ -41,6 +41,7 @@ class DynamicTorchDataset(ABC):
         self.seed = seed
         self.max_img_per_gpu = max_img_per_gpu
 
+        breakpoint()
         # Instantiate the dataset
         self.dataset = instantiate(dataset, common_config=common_config, _recursive_=False)
 

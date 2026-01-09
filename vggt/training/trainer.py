@@ -105,7 +105,7 @@ class Trainer:
         self._setup_env_variables(env_variables)
         self._setup_timers()
 
-        # Store Hydra configurations
+        # load default.yaml configuration
         self.data_conf = data
         self.model_conf = model
         self.loss_conf = loss
@@ -276,7 +276,9 @@ class Trainer:
         self.train_dataset = None
         self.val_dataset = None
 
+        breakpoint()
         if self.mode in ["train", "val"]:
+            # default.yaml -> data.val
             self.val_dataset = instantiate(
                 self.data_conf.get('val', None), _recursive_=False
             )
@@ -552,6 +554,7 @@ class Trainer:
             data_time.update(time.time() - end)
             data_times.append(data_time.val)
 
+            breakpoint()
             with torch.cuda.amp.autocast(enabled=False):
                 batch = self._process_batch(batch)
 
@@ -692,7 +695,7 @@ class Trainer:
                         chunked_batch, self.model, phase, loss_meters
                     )
 
-                breakpoint()
+                # breakpoint()
                 loss = loss_dict["objective"]
                 loss_key = f"Loss/{phase}_loss_objective"
                 batch_size = chunked_batch["images"].shape[0]

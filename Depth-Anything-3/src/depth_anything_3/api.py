@@ -122,7 +122,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         Returns:
             Dictionary containing model predictions
         """
-        breakpoint()
+        # breakpoint()
         # Determine optimal autocast dtype
         autocast_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
         with torch.no_grad():
@@ -208,14 +208,22 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         # Run model forward pass
         export_feat_layers = list(export_feat_layers) if export_feat_layers is not None else []
 
+
         raw_output = self._run_model_forward(
             imgs, ex_t_norm, in_t, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy
         )
+        
+        feat_19 = raw_output['aux']['feat_layer_19']
+        feat_27 = raw_output['aux']['feat_layer_27']
+        feat_33 = raw_output['aux']['feat_layer_33']
+        feat_39 = raw_output['aux']['feat_layer_39']
 
+
+        breakpoint()
         # Convert raw output to prediction
         prediction = self._convert_to_prediction(raw_output)
         
-        breakpoint()
+        # breakpoint()
         # Align prediction to extrinsincs
         prediction = self._align_to_input_extrinsics_intrinsics(
             extrinsics, intrinsics, prediction, align_to_input_ext_scale

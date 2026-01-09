@@ -1,6 +1,6 @@
 stage_1:
   # select from [rae, da3, vggt]
-  model: rae
+  model: da3
   rae:
     target: stage1.RAE
     params:
@@ -117,11 +117,13 @@ log:
 data:
   train:
     image_size: 512 
-    list: [imagenet]
+    # list: [imagenet]
+    list: [hypersim]
     # list: [hypersim, tartanair, ]
 
     imagenet:
       hq_path: /media/data1/ImageNet2012/train
+      lq_path: 
 
     hypersim:
       hq_path: 

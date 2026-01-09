@@ -92,6 +92,7 @@ class Co3dDataset(BaseDataset):
         """
         super().__init__(common_conf=common_conf)
 
+        breakpoint()
         self.debug = common_conf.debug
         self.training = common_conf.training
         self.get_nearby = common_conf.get_nearby
@@ -158,6 +159,7 @@ class Co3dDataset(BaseDataset):
                     total_frame_num += len(seq_data)
                     self.data_store[seq_name] = seq_data
 
+        breakpoint()
         self.sequence_list = sorted(list(self.data_store.keys()))
         self.sequence_list_len = len(self.sequence_list)
         self.total_frame_num = total_frame_num
@@ -187,6 +189,7 @@ class Co3dDataset(BaseDataset):
         Returns:
             dict: A batch of data including images, depths, and other metadata.
         """
+        breakpoint()
         if self.inside_random:
             seq_index = random.randint(0, self.sequence_list_len - 1)
             

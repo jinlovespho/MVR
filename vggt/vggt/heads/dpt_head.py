@@ -244,7 +244,7 @@ class DPTHead(nn.Module):
         if self.feature_only:
             return out.view(B, S, *out.shape[1:])
 
-        breakpoint()
+        # breakpoint()
         out = self.scratch.output_conv2(out)
         preds, conf = activate_head(out, activation=self.activation, conf_activation=self.conf_activation)
 

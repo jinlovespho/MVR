@@ -1,0 +1,15 @@
+
+
+data:
+  train:
+    data_list: [hypersim, tartanair]
+    hypersim:
+      image_size: 512
+      hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data
+      lq_root_path: 
+    tartanair:
+      image_size: 512 
+      hq_root_path: /mnt/dataset1/MV_Restoration/tartanair/data
+    
+
+  val:

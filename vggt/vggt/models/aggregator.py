@@ -246,7 +246,7 @@ class Aggregator(nn.Module):
         global_idx = 0
         output_list = []
 
-        breakpoint()
+        # breakpoint()
         for _ in range(self.aa_block_num):
             for attn_type in self.aa_order:
                 if attn_type == "frame":

@@ -36,6 +36,7 @@ class ComposedDataset(Dataset, ABC):
             common_config (dict): Shared configurations (augs, tracks, mode, etc.).
             **kwargs: Additional arguments (unused).
         """
+        breakpoint()
         base_dataset_list = []
 
         # Instantiate each base dataset with common configuration
@@ -43,6 +44,7 @@ class ComposedDataset(Dataset, ABC):
             baseset = instantiate(baseset_dict, common_conf=common_config)
             base_dataset_list.append(baseset)
 
+        breakpoint()
         # Use custom concatenation class that supports tuple indexing
         self.base_dataset = TupleConcatDataset(base_dataset_list, common_config)
 
@@ -95,6 +97,7 @@ class ComposedDataset(Dataset, ABC):
         Returns:
             dict: A dictionary containing the sequence data (images, poses, tracks, etc.).
         """
+        breakpoint()
         # If fixed settings are provided, override the tuple values
         if self.fixed_num_images > 0:
             seq_idx = idx_tuple[0] if isinstance(idx_tuple, tuple) else idx_tuple
