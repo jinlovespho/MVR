@@ -91,13 +91,13 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train Stage-2 transport model on RAE latents.")
     parser.add_argument("--config", type=str, required=True, help="YAML config containing stage_1 and stage_2 sections.")
     # parser.add_argument("--data-path", type=Path, required=True, help="Directory with ImageFolder structure for training.")
-    parser.add_argument("--results-dir", type=str, default="ckpts", help="Directory to store training outputs.")
+    # parser.add_argument("--results-dir", type=str, default="ckpts", help="Directory to store training outputs.")
     # parser.add_argument("--image-size", type=int, choices=[256, 512], default=512, help="Input image resolution.")
-    parser.add_argument("--precision", type=str, choices=["fp32", "fp16", "bf16"], default="fp32", help="Compute precision for training.")
-    parser.add_argument("--wandb", action="store_true", help="Enable Weights & Biases logging.")
+    # parser.add_argument("--precision", type=str, choices=["fp32", "fp16", "bf16"], default="fp32", help="Compute precision for training.")
+    # parser.add_argument("--wandb", action="store_true", help="Enable Weights & Biases logging.")
     parser.add_argument("--compile", action="store_true", help="Use torch compile (for stage1_enc.encode and model.forward).")
-    parser.add_argument("--ckpt", type=str, default=None, help="Optional checkpoint path to resume training.")
-    parser.add_argument("--global-seed", type=int, default=None, help="Override training.global_seed from the config.")
+    # parser.add_argument("--ckpt", type=str, default=None, help="Optional checkpoint path to resume training.")
+    # parser.add_argument("--global-seed", type=int, default=None, help="Override training.global_seed from the config.")
     args = parser.parse_args()
     return args
 
@@ -159,7 +159,7 @@ def main():
     sample_every = int(training_cfg.get("sample_every", 2500)) 
     checkpoint_interval = int(training_cfg.get("checkpoint_interval", 4)) # ckpt interval is epoch based
     cfg_scale_override = training_cfg.get("cfg_scale", None)
-    default_seed = int(training_cfg.get("global_seed", 0))
+    global_seed = int(training_cfg.get("global_seed", 0))
     
     if eval_config:
         """
@@ -174,13 +174,12 @@ def main():
         assert reference_npz_path, "eval.reference_npz_path must be specified to enable evaluation."
     else:
         do_eval = False
-    global_seed = args.global_seed if args.global_seed is not None else default_seed
     seed = global_seed * world_size + rank
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     micro_batch_size = global_batch_size // (world_size * grad_accum_steps)
-    use_fp16 = args.precision == "fp16"
-    use_bf16 = args.precision == "bf16"
+    use_fp16 = full_cfg.training.precision == "fp16"
+    use_bf16 = full_cfg.training.precision == "bf16"
     if use_bf16 and not torch.cuda.is_bf16_supported():
         raise ValueError("Requested bf16 precision, but the current CUDA device does not support bfloat16.")
     autocast_dtype = torch.float16 if use_fp16 else torch.bfloat16
@@ -211,7 +210,7 @@ def main():
     t_min = float(guidance_value("t_min", 0.0))
     t_max = float(guidance_value("t_max", 1.0))
     
-    experiment_dir, checkpoint_dir, vis_recon_dir, logger = configure_experiment_dirs(args, rank)
+    experiment_dir, checkpoint_dir, vis_recon_dir, logger = configure_experiment_dirs(full_cfg, rank)
 
 
     # load stage1 encoder 
@@ -222,6 +221,10 @@ def main():
         
     elif full_cfg.stage_1.model == 'da3':
         from depth_anything_3.api import DepthAnything3
+        from depth_anything_3.utils.io.input_processor import InputProcessor
+        from depth_anything_3.utils.io.output_processor import OutputProcessor
+        stage1_input_processor = InputProcessor()
+        stage1_output_processor = OutputProcessor()
         stage1_enc = DepthAnything3.from_pretrained(full_cfg.stage_1.da3.ckpt).to(device)
         stage1_enc.eval()
         
@@ -264,22 +267,21 @@ def main():
     optimizer, optim_msg = build_optimizer([p for p in model.parameters() if p.requires_grad], training_cfg)
 
     ### AMP init
-    scaler, autocast_kwargs = get_autocast_scaler(args)
+    scaler, autocast_kwargs = get_autocast_scaler(full_cfg)
     
-    # breakpoint()
-    loader, sampler = prepare_dataloader(full_cfg.data, micro_batch_size, num_workers, rank, world_size)
+    train_loader, train_sampler = prepare_dataloader(full_cfg, micro_batch_size, num_workers, rank, world_size)
     
-    if do_eval:
-        eval_dataset = ImageFolder(
-            str(eval_data),
-            transform=transforms.Compose([
-                transforms.Lambda(lambda pil_image: center_crop_arr(pil_image, args.image_size)),
-                transforms.ToTensor(),
-            ])
-        )
-        logger.info(f"Evaluation dataset loaded from {eval_data}, containing {len(eval_dataset)} images.")
-        
-    loader_batches = len(loader)
+    # if do_eval:
+    #     eval_dataset = ImageFolder(
+    #         str(eval_data),
+    #         transform=transforms.Compose([
+    #             transforms.Lambda(lambda pil_image: center_crop_arr(pil_image, args.image_size)),
+    #             transforms.ToTensor(),
+    #         ])
+    #     )
+    #     logger.info(f"Evaluation dataset loaded from {eval_data}, containing {len(eval_dataset)} images.")
+    
+    loader_batches = len(train_loader)
     if loader_batches % grad_accum_steps != 0:
         raise ValueError("Number of loader batches must be divisible by grad_accum_steps when drop_last=True.")
     steps_per_epoch = loader_batches // grad_accum_steps
@@ -380,14 +382,14 @@ def main():
         logger.info(optim_msg)
         print(sched_msg if sched_msg else "No LR scheduler.")
         logger.info(f"Training for {num_epochs} epochs, batch size {micro_batch_size} per GPU.")
-        logger.info(f"Dataset contains {len(loader.dataset)} samples, {steps_per_epoch} steps per epoch.")
+        logger.info(f"Dataset contains {len(train_loader.dataset)} samples, {steps_per_epoch} steps per epoch.")
         logger.info(f"Running with world size {world_size}, starting from epoch {start_epoch} to {num_epochs}.")
 
     dist.barrier() 
     for epoch in range(start_epoch, num_epochs):
         model.train()
-        sampler.set_epoch(epoch)
-        epoch_metrics: Dict[str, torch.Tensor] = defaultdict(lambda: torch.zeros(1, device=device))
+        train_sampler.set_epoch(epoch)
+        epoch_metrics = defaultdict(lambda: torch.zeros(1, device=device))
         num_batches = 0
         optimizer.zero_grad()
         accum_counter = 0
@@ -404,22 +406,34 @@ def main():
                 optimizer,
                 scheduler,
             )
-        for step, batch in enumerate(loader):
-            
-            
+        for train_step, batch in enumerate(train_loader):
+                        
+
             if 'imagenet' in full_cfg.data.train.list:
-                (images, label) = batch
+                (images, labels) = batch            
+                images = images.to(device)  # b 3 512 512 [0,1]
+                labels = labels.to(device)
+                # latent encoding
+                with torch.no_grad():
+                    with autocast(**autocast_kwargs):
+                        z = stage1_enc.encode(images)          # b 768 32 32 
             else:
-                pass 
-            
-            
-            breakpoint()
-            images = images.to(device)  # b 3 512 512 [0,1]
-            labels = labels.to(device)
-            # latent encoding
-            with torch.no_grad():
-                with autocast(**autocast_kwargs):
-                    z = stage1_enc.encode(images)          # b 768 32 32 
+                frame_ids = batch['frame_ids']
+                hq_ids = batch['hq_ids']
+                hq_views = batch['hq_views'].to(device)
+                
+                with torch.no_grad():
+                    # breakpoint()
+                    # hq_views = stage1_input_processor(hq_views)
+                    stage1_out_raw = stage1_enc(hq_views, export_feat_layers=[])
+                    stage1_out = stage1_output_processor(stage1_out_raw)
+                    # stage1_out = stage1_enc.inference(hq_views, export_feat_layers=[19, 27, 33, 39])
+                    pred_depth = torch.from_numpy(stage1_out.depth).to(device)                 # (F, 336 504)
+                    save_image(pred_depth.view(-1,1,378,504), './img_depth.jpg', normalize=True)
+                    save_image(hq_views.view(-1,3,378, 504), 'img.jpg', normalize=True)
+                    breakpoint()
+
+                
             optimizer.zero_grad(set_to_none=True)
             model_kwargs = dict(y=labels)
             with autocast(**autocast_kwargs):
@@ -459,7 +473,7 @@ def main():
                     f"[Epoch {epoch} | Step {global_step}] "
                     + ", ".join(f"{k}: {v:.4f}" for k, v in stats.items())
                 )
-                if args.wandb:
+                if full_cfg.log.tracker.name == 'wandb':
                     wandb_utils.log(
                         stats,
                         step=global_step,
@@ -515,7 +529,7 @@ def main():
                     )
                     # log with prefix
                     eval_stats = {f"eval_{mod_name}/{k}": v for k, v in eval_stats.items()} if eval_stats is not None else {}
-                    if args.wandb:
+                    if full_cfg.log.tracker.name == 'wandb':
                         wandb_utils.log(eval_stats, step=global_step)
                     model.train()
                 logger.info("Evaluation done.")
@@ -530,7 +544,7 @@ def main():
                 f"[Epoch {epoch}] "
                 + ", ".join(f"{k}: {v:.4f}" for k, v in epoch_stats.items())
             )
-            if args.wandb:
+            if full_cfg.log.tracker.name == 'wandb':
                 wandb_utils.log(epoch_stats, step=global_step)
     # save the final ckpt
     if rank == 0:

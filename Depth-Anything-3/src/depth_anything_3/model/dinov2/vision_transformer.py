@@ -344,6 +344,7 @@ class DinoVisionTransformer(nn.Module):
                 local_x = x
 
 
+            # breakpoint()
             if i in blocks_to_take:
                 out_x = torch.cat([local_x, x], dim=-1) if self.cat_token else x
                 # Restore original view order if reordering was applied
@@ -383,6 +384,7 @@ class DinoVisionTransformer(nn.Module):
         **kwargs,
     ) -> Tuple[Union[torch.Tensor, Tuple[torch.Tensor]]]:
         
+        # breakpoint()
         outputs, aux_outputs = self._get_intermediate_layers_not_chunked(
             x, n, export_feat_layers=export_feat_layers, **kwargs
         )

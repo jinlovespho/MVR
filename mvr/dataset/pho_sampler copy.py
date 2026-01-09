@@ -11,40 +11,35 @@ class PhoBatchSampler(Sampler):
         
         self.sampler = sampler 
         self.batch_size = batch_size 
+        self.epoch = 0
         
     
     def set_epoch(self, epoch):
-        self.sampler.set_epoch(epoch)
+        self.epoch = epoch
+        random.seed(epoch)
         
     
     def __iter__(self):
-        print('batch sampler')
-        # HARD CODED 
         image_num = 4
-        aspect_ratio = 1.0 
-        
-        # update the sampler algorithm before sampling
-        self.sampler.update_parameters(image_num=image_num, aspect_ratio=aspect_ratio)    
+        aspect_ratio = 1.0
+
+        self.sampler.update_parameters(
+            image_num=image_num,
+            aspect_ratio=aspect_ratio
+        )
+
         sampler_iter = iter(self.sampler)
-        
-        # breakpoint()
-        while True: 
-            batch = []
-            try:
-                for _ in range(self.batch_size):
-                    # sample indexes using self.sampler=PhoSampler 
-                    items = next(sampler_iter) 
-                    print('batchsampler: ', items)
-                    batch.append(items)
-            except StopIteration:
-                pass 
-            
-            if len(batch) == 0:
-                break 
-            
-            # batch = [items1, items2, . . . ]
+        batch = []
+
+        for item in sampler_iter:
+            batch.append(item)
+            if len(batch) == self.batch_size:
+                yield batch
+                batch = []
+
+        if len(batch) > 0:
             yield batch
-        
+            
     
     def __len__(self):
         return len(self.sampler) // self.batch_size 

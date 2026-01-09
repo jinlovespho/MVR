@@ -66,19 +66,20 @@ def generate_run_id(exp_name):
     return str(int(hashlib.sha256(exp_name.encode('utf-8')).hexdigest(), 16) % 10 ** 8)
 
 
-def initialize(args, entity, exp_name, project_name):
-    config_dict = namespace_to_dict(args)
+def initialize(cfg, entity, exp_name, project_name):
+    # config_dict = namespace_to_dict(cfg)
     if is_main_process():
-        if "WANDB_KEY" in os.environ:
-            wandb.login(key=os.environ["WANDB_KEY"])
-        else:
-            # assert already logged in
-            pass
+        wandb.login(key=cfg.log.tracker.wandb.key)
+        # if "WANDB_KEY" in os.environ:
+        #     wandb.login(key=os.environ["WANDB_KEY"])
+        # else:
+        #     # assert already logged in
+        #     pass
         wandb.init(
             entity=entity,
             project=project_name,
             name=exp_name,
-            config=config_dict,
+            # config=config_dict,
             id=generate_run_id(exp_name),
             resume="allow",
             reinit=True,

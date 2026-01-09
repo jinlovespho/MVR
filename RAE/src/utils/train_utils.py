@@ -92,7 +92,7 @@ def update_ema(ema_model, model, decay=0.9999):
         ema_params[name].mul_(decay).add_(param.data, alpha=1 - decay)
 
 def prepare_dataloader(
-    data_cfg,
+    cfg,
     batch_size: int,
     workers: int,
     rank: int,
@@ -100,41 +100,46 @@ def prepare_dataloader(
 ) -> Tuple[DataLoader, DistributedSampler]:
     
     # load dataset
-    if 'imagenet' in data_cfg.train.list:
-        data_path = data_cfg.train.imagenet.hq_path
+    if 'imagenet' in cfg.data.train.list:
         transform = transforms.Compose([
-            transforms.Lambda(lambda pil_image: center_crop_arr(pil_image, data_cfg.train.image_size)),
+            transforms.Lambda(lambda pil_image: center_crop_arr(pil_image, cfg.data.train.image_size)),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
         ])
-        dataset = ImageFolder(str(data_path), transform=transform)
-        
-    elif 'hypersim' in data_cfg.train.list:
-        from mvr.dataset.hypersim import Hypersim
-        data_path = data_cfg.train.hypersim.hq_path
-        dataset = Hypersim(data_cfg.train, mode='train')
-
+        dataset = ImageFolder(str(cfg.data.train.imagenet.hq_root_path), transform=transform)
     
-    elif 'tartanair' in data_cfg.train.list:
-        data_path = data_cfg.train.tartanair.hq_path
+        train_sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True)
+        train_loader = DataLoader(dataset, batch_size=batch_size, sampler=train_sampler, num_workers=workers, pin_memory=True, drop_last=False)
+        
+    else:
+        from mvr.dataset.pho_sampler import PhoSampler, PhoBatchSampler
+        from mvr.dataset.pho_concat_ds import PhoConcatDataset, multiview_collate_fn
+        
+        datasets=[]
+        if 'hypersim' in cfg.data.train.list:
+            from mvr.dataset.pho_hypersim import PhoHypersim
+            hypersim_ds = PhoHypersim(cfg.data.train.hypersim)
+            datasets.append(hypersim_ds)
+        
+        if 'tartanair' in cfg.data.train.list:
+            from mvr.dataset.pho_tartanair import PhoTartanAir
+            tartanair_ds = PhoTartanAir(cfg.data.train.tartanair)
+            datasets.append(tartanair_ds)
+            
+        train_ds = PhoConcatDataset(datasets, cfg)
+        train_sampler = PhoSampler(train_ds, shuffle=True)
+        train_batchsampler = PhoBatchSampler(sampler=train_sampler, batch_size=batch_size)
+        
+        train_loader = DataLoader(train_ds, batch_sampler=train_batchsampler, num_workers=workers, pin_memory=True, collate_fn=multiview_collate_fn)
+        
+    return train_loader, train_sampler
 
 
-    sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True)
-    loader = DataLoader(
-        dataset,
-        batch_size=batch_size,
-        sampler=sampler,
-        num_workers=0,
-        pin_memory=True,
-        drop_last=True,
-    )
-    return loader, sampler
-
-def get_autocast_scaler(args) -> Tuple[dict, torch.cuda.amp.GradScaler | None]:
-    if args.precision == "fp16":
+def get_autocast_scaler(cfg) -> Tuple[dict, torch.cuda.amp.GradScaler | None]:
+    if cfg.training.precision == "fp16":
         scaler = GradScaler()
         autocast_kwargs = dict(enabled=True, dtype=torch.float16)
-    elif args.precision == "bf16":
+    elif cfg.training.precision == "bf16":
         scaler = None
         autocast_kwargs = dict(enabled=True, dtype=torch.bfloat16)
     else:

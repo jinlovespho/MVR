@@ -37,7 +37,6 @@ def main(cfg):
         model.eval()
 
 
-
     gamma = 1.0 / 2.2
     inv_gamma = 1.0 / gamma
     percentile = 90
@@ -85,7 +84,6 @@ def main(cfg):
 
         rgb_tm = np.power(np.maximum(scale * rgb_color, 0), gamma)
         rgb_tm = np.clip(rgb_tm, 0.0, 1.0)
-        # rgb_tm = rgb_tm.astype(np.float32)
         rgb_tm = (rgb_tm * 255.0).round().astype(np.uint8)
         
 
@@ -104,11 +102,15 @@ def main(cfg):
             # da3 inference 
             elif cfg.model.val.mv_3dff.model == 'da3':
                 # pred_da3 = model.inference(imgs_path)
-                pred_da3 = model.inference([rgb_tm], export_feat_layers=[19, 27, 33, 39])
-                pred_depth = torch.from_numpy(pred_da3.depth).to(device)                 # (F, 336 504)
-                save_image(pred_depth, './tmp2.jpg', normalize=True)
-
+                
                 breakpoint()
+                pred_da3 = model.inference([rgb_tm], export_feat_layers=[19, 27, 33, 39])
+                
+                pred_da3 = model()
+                
+                pred_depth = torch.from_numpy(pred_da3.depth).to(device)                 # (F, 336 504)
+                save_image(pred_depth, './depth_norm.jpg', normalize=True)
+
             
         # Safety check
         assert len(pred_depth) == len(imgs_path)

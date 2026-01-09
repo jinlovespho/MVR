@@ -219,7 +219,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         feat_39 = raw_output['aux']['feat_layer_39']
 
 
-        breakpoint()
+        # breakpoint()
         # Convert raw output to prediction
         prediction = self._convert_to_prediction(raw_output)
         

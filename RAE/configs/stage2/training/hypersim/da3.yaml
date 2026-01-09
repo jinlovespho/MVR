@@ -1,6 +1,6 @@
 stage_1:
   # select from [rae, da3, vggt]
-  model: da3
+  model: rae
   rae:
     target: stage1.RAE
     params:
@@ -13,20 +13,18 @@ stage_1:
       noise_tau: 0.
       reshape_to_2d: True
       normalization_stat_path: 'RAE/models/stats/dinov2/wReg_base/imagenet1k_512/stat.pt'
-    
   da3:
     # ckpt: depth-anything/DA3NESTED-GIANT-LARGE
     ckpt: depth-anything/DA3-GIANT-1.1
     target:
     params:
-  
   vggt:
     ckpt: facebook/VGGT-1B
     target:
     params:
 
-  
 stage_2:
+  model: DiTwDDTHead
   target: stage2.models.DDT.DiTwDDTHead
   params:
     input_size: 32
@@ -52,8 +50,8 @@ transport:
     prediction: 'velocity'
     loss_weight: null
     time_dist_type: 'logit-normal_0_1'
-
 sampler:
+
   mode: ODE
   params:
     sampling_method: 'euler'
@@ -61,8 +59,8 @@ sampler:
     atol: 1.0e-6
     rtol: 1.0e-3
     reverse: false
-
 guidance:
+
   method: 'cfg'
   scale: 1.0
   t_min: 0.0
@@ -74,19 +72,18 @@ misc:
   time_dist_shift_dim: 786432 # 32*32*768
   time_dist_shift_base: 4096
 
-
-
 training:
+  global_seed: 42
+  precision: fp32
   epochs: 1400
-  global_batch_size: 4
-  grad_accum_steps: 1 # change according to your GPU memory
+  global_batch_size: 4    # this is the final total batch size
+  grad_accum_steps: 1     # by controling grad_accum_step, the batch_size is adjusted automatically
   ema_decay: 0.9995
-  num_workers: 8
+  num_workers: 0
   log_interval: 100
   checkpoint_interval: 1
   sample_every: 1000
   clip_grad: 1.0
-  global_seed: 42
   optimizer:
     lr: 2.0e-4
     betas: [0.9, 0.95]
@@ -95,10 +92,9 @@ training:
     type: linear
     warmup_epochs: 40
     decay_end_epoch: 800
-    base_lr: 2.0e-4
-    final_lr: 2.0e-5
+    base_lr: 2e-4
+    final_lr: 2e-5
     warmup_from_zero: false
-
 
 # eval:
 #   eval_interval: 1 # Eval interval by optimization step
@@ -108,36 +104,44 @@ training:
 #   metrics: ['psnr', 'ssim', 'rfid'] # metrics to calculate
 
 
-
-
 log:
-  save_root_dir: result_train/RAE/imagenet512/stage2
-
-
+  result_root_dir: result_train/rae_stage2/imagenet512
+  tracker:
+    name: wandb 
+    wandb:
+      key: e32eed0c2509bf898b850b0065ab62345005fb73
+      entity: jinlovespho
+      project: eccv26_mv_restoration
+      msg: "stage2training-nocompile"
+      
 data:
   train:
     image_size: 512 
-    # list: [imagenet]
-    list: [hypersim]
-    # list: [hypersim, tartanair, ]
-
+    num_input_view: 1
+    list: [imagenet]
+    # list: [hypersim]
+    # list: [tartanair]
+    # list: [hypersim, tartanair,]
     imagenet:
-      hq_path: /media/data1/ImageNet2012/train
-      lq_path: 
-
+      hq_root_path: /media/data1/ImageNet2012/train
+      lq_root_path: 
     hypersim:
-      hq_path: 
-      lq_path: /mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel50_intensity01
-      depth_path: 
-    
+      hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data
+      hq_latent_root_path: /mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/singleview
+      lq_root_path:
+      lq_latent_root_path: 
+      view_sel_strategy:
+      # lq_root_path: /mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel50_intensity01
     tartanair:
-      hq_path:
-      depth_path: 
+      hq_root_path: /mnt/dataset1/MV_Restoration/tartanair/data
+      hq_latent_root_path: 
+      lq_root_path:
+      lq_latent_root_path: 
+      view_sel_strategy:
   val:
     image_size: 512 
     list: [eth3d]
     eth3d:
-      hq_path:
-      depth_path: 
+      hq_root_path:
+      lq_root_path:
   
-

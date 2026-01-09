@@ -7,26 +7,31 @@ import shutil
 from .wandb_utils import initialize, create_logger
 import logging
 
-def configure_experiment_dirs(args, rank) -> Tuple[str, str, logging.Logger]:
-    experiment_name = os.environ.get("EXPERIMENT_NAME")
-    assert experiment_name is not None, "Please set the EXPERIMENT_NAME environment variable."
-    experiment_dir = os.path.join(args.results_dir, experiment_name)
+def configure_experiment_dirs(cfg, rank) -> Tuple[str, str, logging.Logger]:
+    experiment_name = f'TRAIN__{cfg.training.precision}__{"-".join(cfg.data.train.list)}__stage1-{cfg.stage_1.model}__stage2-{cfg.stage_2.model}__bs-{cfg.training.global_batch_size}-accum-{cfg.training.grad_accum_steps}__lr-{cfg.training.optimizer.lr:.0e}__msg-{cfg.log.tracker.wandb.msg}'
+    # experiment_name = os.environ.get("EXPERIMENT_NAME")
+    # assert experiment_name is not None, "Please set the EXPERIMENT_NAME environment variable."
+    experiment_dir = os.path.join(cfg.log.result_root_dir, experiment_name)
     checkpoint_dir = os.path.join(experiment_dir, "checkpoints") 
     vis_recon_dir = f'{experiment_dir}/vis_recon'
     if rank == 0:
-        os.makedirs(args.results_dir, exist_ok=True)
+        os.makedirs(cfg.log.result_root_dir, exist_ok=True)
         os.makedirs(checkpoint_dir, exist_ok=True)
         os.makedirs(vis_recon_dir, exist_ok=True)
         logger = create_logger(experiment_dir, 'rae')
         logger.info(f"Experiment directory created at {experiment_dir}")
-        if args.wandb:
-            entity = os.environ["ENTITY"]
-            project = os.environ["PROJECT"]
+        if cfg.log.tracker.name == 'wandb':
+            # entity = os.environ["ENTITY"]
+            # project = os.environ["PROJECT"]
             server = os.environ.get("SERVER", "")
             gpu = os.environ.get("CUDA", "")
+            
+            entity = cfg.log.tracker.wandb.entity
+            project = cfg.log.tracker.wandb.project
+            
             # breakpoint()
             wandb_exp_name = f's{server}-g{gpu}__{experiment_name}'
-            initialize(args, entity, wandb_exp_name, project)
+            initialize(cfg, entity, wandb_exp_name, project)
     else:
         logger = create_logger(None, 'rae')
     return experiment_dir, checkpoint_dir, vis_recon_dir, logger
