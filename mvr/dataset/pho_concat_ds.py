@@ -94,19 +94,33 @@ def multiview_collate_fn(batch):
 
     # ---- ids (keep as Python) ----
     hq_ids = [b["hq_ids"] for b in batch]   # [B][V]
+    lq_ids = [b["lq_ids"] for b in batch]   # [B][V]
 
-    # ---- images ----
-    views = []
+    # ---- hq images ----
+    hq_views = []
     for b in batch:                 # over B
         v_imgs = []
         for img in b["hq_views"]:   # over V
             v_imgs.append(to_tensor(img))
-        views.append(torch.stack(v_imgs, dim=0))  # [V,C,H,W]
+        hq_views.append(torch.stack(v_imgs, dim=0))  # [V,C,H,W]
+    hq_views = torch.stack(hq_views, dim=0)  # [B,V,C,H,W]
 
-    hq_views = torch.stack(views, dim=0)  # [B,V,C,H,W]
+    # ---- lq images ----
+    lq_views = []
+    for b in batch:                 # over B
+        v_imgs = []
+        for img in b["lq_views"]:   # over V
+            v_imgs.append(to_tensor(img))
+        lq_views.append(torch.stack(v_imgs, dim=0))  # [V,C,H,W]
+    lq_views = torch.stack(lq_views, dim=0)  # [B,V,C,H,W]
+    
 
     return {
         "frame_ids": frame_ids,
+        
         "hq_ids": hq_ids,
         "hq_views": hq_views,
+        
+        'lq_ids': lq_ids,
+        'lq_views': lq_views,
     }

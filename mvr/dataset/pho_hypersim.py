@@ -15,17 +15,17 @@ class PhoHypersim(Dataset):
         self.data = {}
         
         if data_cfg.hq_root_path is not None:
-            self.data['hq_img'] = sorted(glob.glob(f'{data_cfg.hq_root_path }/*/images/*final_hdf5*/*color*'))
+            self.data['hq_img'] = sorted(glob.glob(f'{data_cfg.hq_root_path}/*/images/*final_hdf5*/*color*'))
+            # filter only hypersim volume 001~010
 
         if data_cfg.hq_latent_root_path is not None:
-            self.data['hq_latent'] = sorted(glob.glob(f'{data_cfg.hq_root_path }/*/images/*final_hdf5*/*color*'))
+            self.data['hq_latent'] = sorted(glob.glob(f'{data_cfg.hq_latent_root_path}/*/*/*'))
+            # filter only hypersim volume 001~010
             
         if data_cfg.lq_root_path is not None:
-            self.data['lq_img'] = sorted(glob.glob(f'{data_cfg.hq_root_path }/*/images/*final_hdf5*/*color*'))
-        
-        if data_cfg.lq_latent_root_path is not None:
-            self.data['lq_latent'] = sorted(glob.glob(f'{data_cfg.hq_root_path }/*/images/*final_hdf5*/*color*'))
-        
+            self.data['lq_img'] = sorted(glob.glob(f'{data_cfg.lq_root_path}/*/*/*.png'))
+            # filter only hypersim volume 001~010
+            
 
         self.view_sel_strategy = data_cfg.view_sel_strategy 
         
@@ -56,6 +56,30 @@ class PhoHypersim(Dataset):
             replace = (len(candidates) < num_frames - 1),
         )
         return np.concatenate([[anchor], sampled])
+    
+
+    def convert_imgpath(self, img_path: str) -> np.ndarray:
+        """
+        Load a TartanAir PNG image and return RGB uint8 numpy array.
+
+        Args:
+            img_path: path to *.png image
+
+        Returns:
+            img: np.ndarray [H, W, 3], uint8, RGB
+        """
+        if not os.path.exists(img_path):
+            raise FileNotFoundError(f"Image not found: {img_path}")
+
+        # cv2 loads as BGR uint8
+        img_bgr = cv2.imread(img_path, cv2.IMREAD_COLOR)
+        if img_bgr is None:
+            raise RuntimeError(f"Failed to load image: {img_path}")
+
+        # BGR -> RGB
+        img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+
+        return img_rgb
 
 
     def convert_hdf5(self, hdf5_path):
@@ -146,7 +170,9 @@ class PhoHypersim(Dataset):
         idx, num_input_view = items
         # print('hypersim: ', idx, num_input_view)
         frame_ids = self.get_nearby_ids(anchor=idx, num_frames=num_input_view)
+        
         hq_views = [self.data['hq_img'][i] for i in frame_ids]
+        lq_views = [self.data['lq_img'][i] for i in frame_ids]
         
         hq_view_id=[] 
         hq_view_list=[]
@@ -155,19 +181,30 @@ class PhoHypersim(Dataset):
             scene = hq_view.split('/')[-4].split('_')[-1]
             camera = hq_view.split('/')[-2].split('_')[-3]
             view_id = hq_view.split('/')[-1].split('.')[-3]
-            
             hq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
             hq_view_list.append(self.resize(self.convert_hdf5(hq_view)))
-            
-
             # hq_view_list.append({f'hypersim_{volume}_{scene}_{camera}_{view_id}': self.convert_hdf5(hq_view)})
-                    
+            # /mnt/dataset1/MV_Restoration/hypersim/deg_data/kernel_50/ai_001_001/scene_cam_00_final_hdf5/frame_0000.png
+            
+        lq_view_id=[]
+        lq_view_list=[]
+        for lq_view in lq_views:
+            volume = lq_view.split('/')[-3].split('_')[-2]
+            scene = lq_view.split('/')[-3].split('_')[-1]
+            camera = lq_view.split('/')[-2].split('_')[-3]
+            view_id = lq_view.split('/')[-1].split('.')[-2].split('_')[-1]
+            lq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
+            lq_view_list.append(self.resize(self.convert_imgpath(lq_view)))
+            
         return {
             "frame_ids": frame_ids,
+            
             "hq_ids": hq_view_id,
             "hq_views": hq_view_list,
+            
+            'lq_ids': lq_view_id,
+            'lq_views': lq_view_list,
         }        
 
     def __len__(self):
         return len(self.data['hq_img'])
-

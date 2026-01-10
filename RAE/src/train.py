@@ -421,147 +421,153 @@ def main():
                 frame_ids = batch['frame_ids']
                 hq_ids = batch['hq_ids']
                 hq_views = batch['hq_views'].to(device)
+                lq_views = batch['lq_views'].to(device)
                 
                 with torch.no_grad():
-                    # breakpoint()
-                    # hq_views = stage1_input_processor(hq_views)
                     stage1_out_raw = stage1_enc(hq_views, export_feat_layers=[])
                     stage1_out = stage1_output_processor(stage1_out_raw)
                     # stage1_out = stage1_enc.inference(hq_views, export_feat_layers=[19, 27, 33, 39])
                     pred_depth = torch.from_numpy(stage1_out.depth).to(device)                 # (F, 336 504)
-                    save_image(pred_depth.view(-1,1,378,504), './img_depth.jpg', normalize=True)
-                    save_image(hq_views.view(-1,3,378, 504), 'img.jpg', normalize=True)
+                    save_image(pred_depth.view(-1,1,378,504), './img_hq_depth.jpg', normalize=True)
+                    save_image(hq_views.view(-1,3,378, 504), 'img_hq.jpg', normalize=True)
+
+                    stage1_out_raw = stage1_enc(lq_views, export_feat_layers=[])
+                    stage1_out = stage1_output_processor(stage1_out_raw)
+                    # stage1_out = stage1_enc.inference(hq_views, export_feat_layers=[19, 27, 33, 39])
+                    pred_depth = torch.from_numpy(stage1_out.depth).to(device)                 # (F, 336 504)
+                    save_image(pred_depth.view(-1,1,378,504), './img_lq_depth.jpg', normalize=True)
+                    save_image(lq_views.view(-1,3,378, 504), 'img_lq.jpg', normalize=True)
                     breakpoint()
 
                 
-            optimizer.zero_grad(set_to_none=True)
-            model_kwargs = dict(y=labels)
-            with autocast(**autocast_kwargs):
-                transport_output = transport.training_losses(ddp_model, z, model_kwargs)
-                loss = transport_output["loss"].mean()
-            # breakpoint()
-            loss.float()
-            if scaler:  # f
-                scaler.scale(loss / grad_accum_steps).backward()
-            else:
-                (loss / grad_accum_steps).backward()
-            if clip_grad:   # t
-                if scaler:
-                    scaler.unscale_(optimizer) 
-                torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), clip_grad)
-            if global_step % grad_accum_steps == 0:
-                if scaler:
-                    scaler.step(optimizer)
-                    scaler.update()
-                else:
-                    optimizer.step()
-                if scheduler is not None:
-                    scheduler.step()
-                update_ema(ema_model, ddp_model.module, decay=ema_decay)
-            running_loss += loss.item()
-            epoch_metrics['loss'] += loss.detach()
+    #         optimizer.zero_grad(set_to_none=True)
+    #         model_kwargs = dict(y=labels)
+    #         with autocast(**autocast_kwargs):
+    #             transport_output = transport.training_losses(ddp_model, z, model_kwargs)
+    #             loss = transport_output["loss"].mean()
+    #         # breakpoint()
+    #         loss.float()
+    #         if scaler:  # f
+    #             scaler.scale(loss / grad_accum_steps).backward()
+    #         else:
+    #             (loss / grad_accum_steps).backward()
+    #         if clip_grad:   # t
+    #             if scaler:
+    #                 scaler.unscale_(optimizer) 
+    #             torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), clip_grad)
+    #         if global_step % grad_accum_steps == 0:
+    #             if scaler:
+    #                 scaler.step(optimizer)
+    #                 scaler.update()
+    #             else:
+    #                 optimizer.step()
+    #             if scheduler is not None:
+    #                 scheduler.step()
+    #             update_ema(ema_model, ddp_model.module, decay=ema_decay)
+    #         running_loss += loss.item()
+    #         epoch_metrics['loss'] += loss.detach()
             
-            # breakpoint()
-            if log_interval > 0 and global_step % log_interval == 0 and rank == 0:
-                avg_loss = running_loss / log_interval # flow loss often has large variance so we record avg loss
-                steps = torch.tensor(log_interval, device=device)
-                stats = {
-                    "train/loss": avg_loss,
-                    "train/lr": optimizer.param_groups[0]["lr"],
-                }
-                logger.info(
-                    f"[Epoch {epoch} | Step {global_step}] "
-                    + ", ".join(f"{k}: {v:.4f}" for k, v in stats.items())
-                )
-                if full_cfg.log.tracker.name == 'wandb':
-                    wandb_utils.log(
-                        stats,
-                        step=global_step,
-                    )
-                running_loss = 0.0
-            if global_step % sample_every == 0:
-                model.eval()
-                logger.info("Generating EMA samples...")
-                with torch.no_grad():
-                    vis_num_sample=8
-                    vis_images = images[:vis_num_sample]
-                    zs_samples = zs[:vis_num_sample] # at most 8 samples
-                    visual_sample_model_kwargs = deepcopy(sample_model_kwargs)
-                    visual_sample_model_kwargs['y'] = labels[:vis_num_sample] 
-                    with autocast(**autocast_kwargs):
-                        samples = eval_sampler(zs_samples, ema_model_fn, **visual_sample_model_kwargs)[-1]
-                    samples.float()
-                    if use_guidance:
-                        samples, _ = samples.chunk(2, dim=0)
-                    samples = stage1_enc.decode(samples)
-                    vis_recon = torch.cat([vis_images, samples], dim=-2)
-                    save_image(vis_recon, f'{vis_recon_dir}/{global_step:07d}.png')
-                    # samples = samples.cpu().float()
-                    dist.barrier()
-                    # if args.wandb and rank == 0:
-                    #     wandb_utils.log_image(samples, global_step)
-                logger.info("Generating EMA samples done.")
-                model.train()
-            if do_eval and (eval_interval > 0 and global_step % eval_interval == 0):
-                logger.info("Starting evaluation...")
-                model.eval()
-                eval_models = [(ema_model_fn, "ema")]
-                if eval_model:
-                    eval_models.append((model_fn, "model"))
-                for fn, mod_name in eval_models:
-                    eval_stats = evaluate_generation_distributed(
-                        fn,
-                        eval_sampler,
-                        latent_size,
-                        sample_model_kwargs,
-                        use_guidance,
-                        stage1_enc, 
-                        eval_dataset,
-                        len(eval_dataset),
-                        rank = rank,
-                        world_size = world_size,
-                        device = device,
-                        batch_size = micro_batch_size,
-                        experiment_dir = experiment_dir,
-                        global_step = global_step,
-                        autocast_kwargs = autocast_kwargs,
-                        reference_npz_path = reference_npz_path
-                    )
-                    # log with prefix
-                    eval_stats = {f"eval_{mod_name}/{k}": v for k, v in eval_stats.items()} if eval_stats is not None else {}
-                    if full_cfg.log.tracker.name == 'wandb':
-                        wandb_utils.log(eval_stats, step=global_step)
-                    model.train()
-                logger.info("Evaluation done.")
-            global_step += 1
-            num_batches += 1
-        if rank == 0 and num_batches > 0:
-            avg_loss = epoch_metrics['loss'].item() / num_batches 
-            epoch_stats = {
-                "epoch/loss": avg_loss,
-            }
-            logger.info(
-                f"[Epoch {epoch}] "
-                + ", ".join(f"{k}: {v:.4f}" for k, v in epoch_stats.items())
-            )
-            if full_cfg.log.tracker.name == 'wandb':
-                wandb_utils.log(epoch_stats, step=global_step)
-    # save the final ckpt
-    if rank == 0:
-        logger.info(f"Saving final checkpoint at epoch {num_epochs}...")
-        ckpt_path = f"{checkpoint_dir}/ep-last.pt" 
-        save_checkpoint(
-            ckpt_path,
-            global_step,
-            num_epochs,
-            ddp_model,
-            ema_model,
-            optimizer,
-            scheduler,
-        )
-    dist.barrier()
-    logger.info("Done!")
-    cleanup_distributed()
+    #         # breakpoint()
+    #         if log_interval > 0 and global_step % log_interval == 0 and rank == 0:
+    #             avg_loss = running_loss / log_interval # flow loss often has large variance so we record avg loss
+    #             steps = torch.tensor(log_interval, device=device)
+    #             stats = {
+    #                 "train/loss": avg_loss,
+    #                 "train/lr": optimizer.param_groups[0]["lr"],
+    #             }
+    #             logger.info(
+    #                 f"[Epoch {epoch} | Step {global_step}] "
+    #                 + ", ".join(f"{k}: {v:.4f}" for k, v in stats.items())
+    #             )
+    #             if full_cfg.log.tracker.name == 'wandb':
+    #                 wandb_utils.log(
+    #                     stats,
+    #                     step=global_step,
+    #                 )
+    #             running_loss = 0.0
+    #         if global_step % sample_every == 0:
+    #             model.eval()
+    #             logger.info("Generating EMA samples...")
+    #             with torch.no_grad():
+    #                 vis_num_sample=8
+    #                 vis_images = images[:vis_num_sample]
+    #                 zs_samples = zs[:vis_num_sample] # at most 8 samples
+    #                 visual_sample_model_kwargs = deepcopy(sample_model_kwargs)
+    #                 visual_sample_model_kwargs['y'] = labels[:vis_num_sample] 
+    #                 with autocast(**autocast_kwargs):
+    #                     samples = eval_sampler(zs_samples, ema_model_fn, **visual_sample_model_kwargs)[-1]
+    #                 samples.float()
+    #                 if use_guidance:
+    #                     samples, _ = samples.chunk(2, dim=0)
+    #                 samples = stage1_enc.decode(samples)
+    #                 vis_recon = torch.cat([vis_images, samples], dim=-2)
+    #                 save_image(vis_recon, f'{vis_recon_dir}/{global_step:07d}.png')
+    #                 # samples = samples.cpu().float()
+    #                 dist.barrier()
+    #                 # if args.wandb and rank == 0:
+    #                 #     wandb_utils.log_image(samples, global_step)
+    #             logger.info("Generating EMA samples done.")
+    #             model.train()
+    #         if do_eval and (eval_interval > 0 and global_step % eval_interval == 0):
+    #             logger.info("Starting evaluation...")
+    #             model.eval()
+    #             eval_models = [(ema_model_fn, "ema")]
+    #             if eval_model:
+    #                 eval_models.append((model_fn, "model"))
+    #             for fn, mod_name in eval_models:
+    #                 eval_stats = evaluate_generation_distributed(
+    #                     fn,
+    #                     eval_sampler,
+    #                     latent_size,
+    #                     sample_model_kwargs,
+    #                     use_guidance,
+    #                     stage1_enc, 
+    #                     eval_dataset,
+    #                     len(eval_dataset),
+    #                     rank = rank,
+    #                     world_size = world_size,
+    #                     device = device,
+    #                     batch_size = micro_batch_size,
+    #                     experiment_dir = experiment_dir,
+    #                     global_step = global_step,
+    #                     autocast_kwargs = autocast_kwargs,
+    #                     reference_npz_path = reference_npz_path
+    #                 )
+    #                 # log with prefix
+    #                 eval_stats = {f"eval_{mod_name}/{k}": v for k, v in eval_stats.items()} if eval_stats is not None else {}
+    #                 if full_cfg.log.tracker.name == 'wandb':
+    #                     wandb_utils.log(eval_stats, step=global_step)
+    #                 model.train()
+    #             logger.info("Evaluation done.")
+    #         global_step += 1
+    #         num_batches += 1
+    #     if rank == 0 and num_batches > 0:
+    #         avg_loss = epoch_metrics['loss'].item() / num_batches 
+    #         epoch_stats = {
+    #             "epoch/loss": avg_loss,
+    #         }
+    #         logger.info(
+    #             f"[Epoch {epoch}] "
+    #             + ", ".join(f"{k}: {v:.4f}" for k, v in epoch_stats.items())
+    #         )
+    #         if full_cfg.log.tracker.name == 'wandb':
+    #             wandb_utils.log(epoch_stats, step=global_step)
+    # # save the final ckpt
+    # if rank == 0:
+    #     logger.info(f"Saving final checkpoint at epoch {num_epochs}...")
+    #     ckpt_path = f"{checkpoint_dir}/ep-last.pt" 
+    #     save_checkpoint(
+    #         ckpt_path,
+    #         global_step,
+    #         num_epochs,
+    #         ddp_model,
+    #         ema_model,
+    #         optimizer,
+    #         scheduler,
+    #     )
+    # dist.barrier()
+    # logger.info("Done!")
+    # cleanup_distributed()
 
 
 

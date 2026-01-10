@@ -1,6 +1,6 @@
 stage_1:
   # select from [rae, da3, vggt]
-  model: rae
+  model: da3
   rae:
     target: stage1.RAE
     params:
@@ -76,7 +76,7 @@ training:
   global_seed: 42
   precision: fp32
   epochs: 1400
-  global_batch_size: 4    # this is the final total batch size
+  global_batch_size: 3    # this is the final total batch size
   grad_accum_steps: 1     # by controling grad_accum_step, the batch_size is adjusted automatically
   ema_decay: 0.9995
   num_workers: 0
@@ -105,7 +105,7 @@ training:
 
 
 log:
-  result_root_dir: result_train/rae_stage2/imagenet512
+  result_root_dir: result_train/stage2
   tracker:
     name: wandb 
     wandb:
@@ -118,8 +118,8 @@ data:
   train:
     image_size: 512 
     num_input_view: 1
-    list: [imagenet]
-    # list: [hypersim]
+    # list: [imagenet]
+    list: [hypersim]
     # list: [tartanair]
     # list: [hypersim, tartanair,]
     imagenet:
@@ -128,7 +128,9 @@ data:
     hypersim:
       hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data
       hq_latent_root_path: /mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/singleview
-      lq_root_path:
+      lq_root_path: /mnt/dataset1/MV_Restoration/hypersim/deg_data/kernel_50
+      # lq_root_path: /mnt/dataset1/MV_Restoration/hypersim/deg_data/kernel_100
+      # lq_root_path: /mnt/dataset1/MV_Restoration/hypersim/deg_data/kernel_200
       lq_latent_root_path: 
       view_sel_strategy:
       # lq_root_path: /mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel50_intensity01
