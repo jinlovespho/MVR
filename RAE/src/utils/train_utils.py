@@ -127,7 +127,7 @@ def prepare_dataloader(
             datasets.append(tartanair_ds)
             
         train_ds = PhoConcatDataset(datasets, cfg)
-        train_sampler = PhoSampler(train_ds, shuffle=True)
+        train_sampler = PhoSampler(train_ds, shuffle=False)
         train_batchsampler = PhoBatchSampler(sampler=train_sampler, batch_size=batch_size)
         
         train_loader = DataLoader(train_ds, batch_sampler=train_batchsampler, num_workers=workers, pin_memory=True, collate_fn=multiview_collate_fn)

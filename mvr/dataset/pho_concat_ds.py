@@ -1,4 +1,5 @@
 import torch 
+import torchvision.transforms as T 
 from torch.utils.data import Dataset 
 import bisect 
 
@@ -54,33 +55,25 @@ class PhoConcatDataset(Dataset):
         return self.datasets[dataset_id][(local_idx, self.num_input_view)]
 
 
+IMAGENET_NORMALIZE = T.Normalize(
+    mean=[0.485, 0.456, 0.406],
+    std=[0.229, 0.224, 0.225],
+)
+
+
 def to_tensor(img):
     """
-    img: np.ndarray (H,W,3) uint8
-    returns: torch.FloatTensor (3,H,W) in [0,1]
+    img: np.ndarray (H,W,3) uint8 RGB
+    returns: torch.FloatTensor (3,H,W) ImageNet-normalized
     """
-    return (
+    x = (
         torch.from_numpy(img)
         .permute(2, 0, 1)
         .contiguous()
         .float() / 255.0
     )
-
-    
-# def multiview_collate_fn(batch):
-#     # batch: List[dict], length = batch_size
-
-#     frame_ids = torch.stack([torch.tensor(b["frame_ids"]) for b in batch], dim=0)
-#     # [B, V]
-
-#     hq_id = [b["hq_ids"] for b in batch]        # List[List[str]] -> [B, V]
-#     hq_view = [b["hq_views"] for b in batch]    # List[List[...]] -> [B, V]
-
-#     return {
-#         "frame_ids": frame_ids,
-#         "hq_ids": hq_id,
-#         "hq_views": hq_view,
-#     }
+    # return x
+    return IMAGENET_NORMALIZE(x)
     
 
 def multiview_collate_fn(batch):

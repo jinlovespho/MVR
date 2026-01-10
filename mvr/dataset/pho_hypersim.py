@@ -23,7 +23,7 @@ class PhoHypersim(Dataset):
             # filter only hypersim volume 001~010
             
         if data_cfg.lq_root_path is not None:
-            self.data['lq_img'] = sorted(glob.glob(f'{data_cfg.lq_root_path}/*/*/*.png'))
+            self.data['lq_img'] = sorted(glob.glob(f'{data_cfg.lq_root_path}/*/*/images/*.png'))
             # filter only hypersim volume 001~010
             
 
@@ -189,10 +189,10 @@ class PhoHypersim(Dataset):
         lq_view_id=[]
         lq_view_list=[]
         for lq_view in lq_views:
-            volume = lq_view.split('/')[-3].split('_')[-2]
-            scene = lq_view.split('/')[-3].split('_')[-1]
-            camera = lq_view.split('/')[-2].split('_')[-3]
-            view_id = lq_view.split('/')[-1].split('.')[-2].split('_')[-1]
+            volume = lq_view.split('/')[-4].split('_')[-2]
+            scene = lq_view.split('/')[-4].split('_')[-1]
+            camera = lq_view.split('/')[-3].split('_')[-3]
+            view_id = lq_view.split('/')[-1].split('.')[-2].split('_')[-2]
             lq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
             lq_view_list.append(self.resize(self.convert_imgpath(lq_view)))
             

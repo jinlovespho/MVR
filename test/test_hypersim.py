@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 import torch
 import torch.nn.functional as F
+import torchvision.transforms as T 
 
 from test_utils import depth_to_colormap, depth_error_to_colormap, depth_error_to_colormap_thresholded
 
@@ -82,6 +83,64 @@ def compute_depth_metrics_nan_safe(pred, gt, valid):
     )
 
 
+IMAGENET_NORMALIZE = T.Normalize(
+    mean=[0.485, 0.456, 0.406],
+    std=[0.229, 0.224, 0.225],
+)
+
+
+def nearest_multiple(x: int, p: int) -> int:
+    down = (x // p) * p
+    up = down + p
+    return up if abs(up - x) <= abs(x - down) else down
+
+
+def preprocess_image(
+    img_path: str,
+    process_res: int = 504,
+    patch_size: int = 14,
+    device: str = "cuda",
+) -> torch.Tensor:
+    """
+    Returns:
+        img_t: torch.Tensor of shape (1, 1, 3, H, W), ImageNet normalized
+    """
+    # --- Load (BGR → RGB) ---
+    img = cv2.imread(img_path, cv2.IMREAD_COLOR)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+    # --- Resize longest side to process_res ---
+    h, w = img.shape[:2]
+    longest = max(h, w)
+    if longest != process_res:
+        scale = process_res / longest
+        new_w, new_h = int(round(w * scale)), int(round(h * scale))
+        interp = cv2.INTER_CUBIC if scale > 1.0 else cv2.INTER_AREA
+        img = cv2.resize(img, (new_w, new_h), interpolation=interp)
+
+    # --- Make divisible by patch_size ---
+    h, w = img.shape[:2]
+    new_w = max(1, nearest_multiple(w, patch_size))
+    new_h = max(1, nearest_multiple(h, patch_size))
+    if (new_w, new_h) != (w, h):
+        upscale = new_w > w or new_h > h
+        interp = cv2.INTER_CUBIC if upscale else cv2.INTER_AREA
+        img = cv2.resize(img, (new_w, new_h), interpolation=interp)
+
+    # --- To tensor + normalize ---
+    img_t = (
+        torch.from_numpy(img)
+        .permute(2, 0, 1)
+        .contiguous()
+        .float()
+        .div_(255.0)
+    )
+    img_t = IMAGENET_NORMALIZE(img_t)
+
+    return img_t.unsqueeze(0).unsqueeze(0).to(device)
+
+
+
 
 def fmt(x, w=9):
     return f"{x:{w}.4f}"
@@ -113,9 +172,9 @@ def write_scene_header(f, name):
 # IMGS_PATH = sorted(glob.glob("/mnt/dataset1/MV_Restoration/hypersim/data/*/images/*final_preview*/*tonemap*"))
 
 
-# # deg blur (kernel50)
-# SAVE_ROOT_PATH = "/mnt/dataset1/MV_Restoration/hypersim/da3/deg_blur_kernel50/input_singleview"
-# IMGS_PATH = sorted(glob.glob("/mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel50_intensity01/*/*final_hdf5*/images/*"))
+# deg blur (kernel50)
+SAVE_ROOT_PATH = "/mnt/dataset1/MV_Restoration/hypersim/da3/deg_blur_kernel50/input_singleview"
+IMGS_PATH = sorted(glob.glob("/mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel50_intensity01/*/*final_hdf5*/images/*"))
 
 
 # # deg blur (kernel30)
@@ -123,9 +182,9 @@ def write_scene_header(f, name):
 # IMGS_PATH = sorted(glob.glob("/mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel30_intensity01/*/*final_hdf5*/images/*"))
 
 
-# deg blur (kernel10)
-SAVE_ROOT_PATH = "/mnt/dataset1/MV_Restoration/hypersim/da3/deg_blur_kernel10/input_singleview"
-IMGS_PATH = sorted(glob.glob("/mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel10_intensity01/*/*final_hdf5*/images/*"))
+# # deg blur (kernel10)
+# SAVE_ROOT_PATH = "/mnt/dataset1/MV_Restoration/hypersim/da3/deg_blur_kernel10/input_singleview"
+# IMGS_PATH = sorted(glob.glob("/mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel10_intensity01/*/*final_hdf5*/images/*"))
 
 
 # gt depth 
@@ -146,7 +205,9 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     from depth_anything_3.api import DepthAnything3
+    from depth_anything_3.utils.io.output_processor import OutputProcessor
     model = DepthAnything3.from_pretrained("depth-anything/DA3-GIANT-1.1").to(device)
+    model_output_processor = OutputProcessor()
     model.eval()
 
     # Hypersim intrinsics
@@ -208,8 +269,10 @@ def main():
         # Prediction
         # -------------------------------
         with torch.no_grad():
-            pred = model.inference([img_path]).depth
-
+            img_t = preprocess_image(img_path)
+            pred = model(img_t, export_feat_layers=[])
+            pred = model_output_processor(pred).depth
+                    
         pred = torch.from_numpy(pred).to(device)
 
         pred = F.interpolate(
@@ -275,8 +338,6 @@ def main():
 
             viz_path = os.path.join(viz_dir, f"{frame}.png")
             cv2.imwrite(viz_path, concat)
-
-
 
         # -------------------------------
         # Metrics
