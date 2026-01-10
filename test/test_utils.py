@@ -61,7 +61,7 @@ def depth_to_colormap(depth, invalid_color=(0, 0, 0), resize=None):
     vis = (vis - vmin) / (vmax - vmin + 1e-8)
     vis = (vis * 255).astype(np.uint8)
 
-    color = cv2.applyColorMap(vis, cv2.COLORMAP_PLASMA)
+    # color = cv2.applyColorMap(vis, cv2.COLORMAP_PLASMA)
     color = cv2.applyColorMap(vis, cv2.COLORMAP_VIRIDIS)
     
     color[~valid] = invalid_color
@@ -97,6 +97,60 @@ def depth_error_to_colormap(gt, pred, invalid_color=(0, 0, 0), resize=None):
 
     vis = cv2.applyColorMap(error, cv2.COLORMAP_TURBO)
     vis[~valid] = invalid_color
+
+    if resize is not None:
+        h, w = resize
+        vis = cv2.resize(vis, (w, h), interpolation=cv2.INTER_LINEAR)
+
+    return vis
+
+
+def depth_error_to_colormap_thresholded(
+    gt,
+    pred,
+    thr=0.5,                 # AbsRel threshold
+    invalid_color=(0, 0, 0),
+    resize=None,
+):
+    """
+    Visualize ONLY high-error regions using TURBO.
+    Low-error pixels are blacked out.
+
+    gt, pred: (H, W) numpy arrays
+    thr: AbsRel threshold
+    """
+
+    valid = np.isfinite(gt) & np.isfinite(pred) & (gt > 0) & (pred > 0)
+    if valid.sum() == 0:
+        h, w = gt.shape
+        vis = np.zeros((h, w, 3), dtype=np.uint8)
+        if resize is not None:
+            vis = cv2.resize(vis, (resize[1], resize[0]), interpolation=cv2.INTER_NEAREST)
+        return vis
+
+    # AbsRel
+    absrel = np.zeros_like(gt, dtype=np.float32)
+    absrel[valid] = np.abs(pred[valid] - gt[valid]) / gt[valid]
+
+    # High-error mask
+    high = valid & (absrel >= thr)
+    if high.sum() == 0:
+        return np.zeros((*gt.shape, 3), dtype=np.uint8)
+
+    # Optional log compression (recommended)
+    err = np.zeros_like(gt, dtype=np.float32)
+    err[high] = np.log10(absrel[high] + 1e-4)
+
+    # Normalize only on high-error pixels
+    vmin, vmax = np.percentile(err[high], [5, 95])
+    err = np.clip(err, vmin, vmax)
+    err = (err - vmin) / (vmax - vmin + 1e-8)
+    err = (err * 255).astype(np.uint8)
+
+    vis = cv2.applyColorMap(err, cv2.COLORMAP_TURBO)
+
+    # Mask everything else
+    vis[~high] = invalid_color
 
     if resize is not None:
         h, w = resize

@@ -1,316 +1,332 @@
 import os
 import sys
 sys.path.append(os.getcwd())
-import glob
-import argparse
-from omegaconf import OmegaConf
-from tqdm import tqdm
 
 import cv2 
-import numpy as np
-import torch 
-import torch.nn.functional as F 
-from torchvision.utils import save_image 
-
-from test_utils import load_depth, align_scale_median, compute_depth_metrics, depth_to_colormap, depth_error_to_colormap, fmt, fmt_int, write_scene_header
+import glob
 import h5py
+import numpy as np
+from tqdm import tqdm
 
-def main(cfg):
-    
-    
-    # set cuda
+import torch
+import torch.nn.functional as F
+
+from test_utils import depth_to_colormap, depth_error_to_colormap, depth_error_to_colormap_thresholded
+
+############################################
+# Utils
+############################################
+
+def safe_mean(x):
+    x = x[torch.isfinite(x)]
+    if x.numel() == 0:
+        return None
+    return x.mean().item()
+
+
+def compute_depth_metrics_nan_safe(pred, gt, valid):
+    eps = 1e-6
+
+    pred = pred[valid]
+    gt = gt[valid]
+
+    finite = torch.isfinite(pred) & torch.isfinite(gt)
+    pred = pred[finite]
+    gt = gt[finite]
+
+    if pred.numel() == 0:
+        return None
+
+    # AbsRel
+    abs_rel = torch.abs(gt - pred) / (gt + eps)
+    abs_rel = abs_rel[torch.isfinite(abs_rel)]
+
+    # SqRel
+    sq_rel = (gt - pred) ** 2 / (gt + eps)
+    sq_rel = sq_rel[torch.isfinite(sq_rel)]
+
+    # RMSE
+    rmse = torch.sqrt(torch.mean((gt - pred) ** 2))
+
+    # RMSE log
+    log_gt = torch.log(gt + eps)
+    log_pred = torch.log(pred + eps)
+    finite_log = torch.isfinite(log_gt) & torch.isfinite(log_pred)
+    rmse_log = torch.sqrt(
+        torch.mean((log_gt[finite_log] - log_pred[finite_log]) ** 2)
+    )
+
+    # Delta metrics
+    ratio = torch.max(gt / (pred + eps), pred / (gt + eps))
+    ratio = ratio[torch.isfinite(ratio)]
+
+    d1 = torch.mean((ratio < 1.25).float()).item()
+    d2 = torch.mean((ratio < 1.25 ** 2).float()).item()
+    d3 = torch.mean((ratio < 1.25 ** 3).float()).item()
+
+    abs_rel_m = safe_mean(abs_rel)
+    sq_rel_m = safe_mean(sq_rel)
+
+    if abs_rel_m is None or sq_rel_m is None:
+        return None
+
+    return (
+        abs_rel_m,
+        sq_rel_m,
+        rmse.item(),
+        rmse_log.item(),
+        d1,
+        d2,
+        d3,
+        int(pred.numel()),
+    )
+
+
+
+def fmt(x, w=9):
+    return f"{x:{w}.4f}"
+
+
+def fmt_int(x, w=10):
+    return f"{x:{w}d}"
+
+
+def write_scene_header(f, name):
+    f.write("\n" + "=" * 90 + "\n")
+    f.write(f"SCENE: {name}\n")
+    f.write("-" * 90 + "\n")
+    f.write(
+        f"{'IMAGE':<16}"
+        f"{'AbsRel':>9}{'SqRel':>9}{'RMSE':>9}{'RMSElog':>10}"
+        f"{'δ1':>9}{'δ2':>9}{'δ3':>9}{'Valid':>10}\n"
+    )
+    f.write("-" * 90 + "\n")
+
+
+############################################
+# Config
+############################################
+
+
+# # clean 
+# SAVE_ROOT_PATH = "/mnt/dataset1/MV_Restoration/hypersim/da3/clean/input_singleview"
+# IMGS_PATH = sorted(glob.glob("/mnt/dataset1/MV_Restoration/hypersim/data/*/images/*final_preview*/*tonemap*"))
+
+
+# # deg blur (kernel50)
+# SAVE_ROOT_PATH = "/mnt/dataset1/MV_Restoration/hypersim/da3/deg_blur_kernel50/input_singleview"
+# IMGS_PATH = sorted(glob.glob("/mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel50_intensity01/*/*final_hdf5*/images/*"))
+
+
+# # deg blur (kernel30)
+# SAVE_ROOT_PATH = "/mnt/dataset1/MV_Restoration/hypersim/da3/deg_blur_kernel30/input_singleview"
+# IMGS_PATH = sorted(glob.glob("/mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel30_intensity01/*/*final_hdf5*/images/*"))
+
+
+# deg blur (kernel10)
+SAVE_ROOT_PATH = "/mnt/dataset1/MV_Restoration/hypersim/da3/deg_blur_kernel10/input_singleview"
+IMGS_PATH = sorted(glob.glob("/mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel10_intensity01/*/*final_hdf5*/images/*"))
+
+
+# gt depth 
+DEPTHS_PATH = sorted(glob.glob("/mnt/dataset1/MV_Restoration/hypersim/data/*/images/*geometry_hdf5*/*depth_meters*"))
+VIS_DEPTH_PATH = os.path.join(SAVE_ROOT_PATH, "vis_depth")
+os.makedirs(SAVE_ROOT_PATH, exist_ok=True)
+os.makedirs(VIS_DEPTH_PATH, exist_ok=True)
+assert len(IMGS_PATH) == len(DEPTHS_PATH)
+
+
+
+############################################
+# Main
+############################################
+
+def main():
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    dtype = (torch.bfloat16 if torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8 else torch.float16)
-    
-    
-    # load 3D Feed Forward (3DFF) model 
-    if cfg.model.val.mv_3dff.model == 'vggt':
-        from vggt.models.vggt import VGGT
-        from vggt.utils.load_fn import load_and_preprocess_images
-        model = VGGT.from_pretrained("facebook/VGGT-1B").to(device)
-        model.eval()
-        
-    elif cfg.model.val.mv_3dff.model == 'da3':
-        from depth_anything_3.api import DepthAnything3
-        # model = DepthAnything3.from_pretrained("depth-anything/DA3NESTED-GIANT-LARGE-1.1").to(device)
-        model = DepthAnything3.from_pretrained("depth-anything/DA3-GIANT-1.1").to(device)
-        model.eval()
 
+    from depth_anything_3.api import DepthAnything3
+    model = DepthAnything3.from_pretrained("depth-anything/DA3-GIANT-1.1").to(device)
+    model.eval()
 
-    gamma = 1.0 / 2.2
-    inv_gamma = 1.0 / gamma
-    percentile = 90
-    brightness_nth_percentile_desired = 0.8
-    eps = 0.0001
+    # Hypersim intrinsics
+    W, H, FOCAL = 1024, 768, 886.81
 
-    
-    imgs_path = sorted(glob.glob(f'/mnt/dataset1/MV_Restoration/hypersim/data/*/images/*final_hdf5*/*color*'))
-    for img_path in imgs_path:
-        
-        volume = img_path.split('/')[-4].split('_')[-2]
-        scene = img_path.split('/')[-4].split('_')[-1]
-        camera = img_path.split('/')[-2].split('_')[-3]
-        img_id = img_path.split('/')[-1].split('.')[-3]
-        
-        # only filter volumes until 001~010
-        if volume not in ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010']:
-            continue
-        
-        print(f'Processing data: ai_{volume}_{scene}/cam_{camera} img-{img_id}')
-        
-        try:
-            with h5py.File(img_path, "r") as f:
-                rgb_color = f["dataset"][:].astype(np.float32) # [H, W, 3]
-            
-            entity_path = img_path.replace("final_hdf5", "geometry_hdf5").replace(".color.hdf5", ".render_entity_id.hdf5")
-            if os.path.exists(entity_path):
-                with h5py.File(entity_path, "r") as f:
-                    render_entity_id = f["dataset"][:].astype(np.int32)
-                valid_mask = render_entity_id != -1
-            else:
-                valid_mask = np.ones(rgb_color.shape[:2], dtype=bool)
-        except Exception as e:
-            print(f"Error loading {img_path}: {e}")
-            continue
+    out_txt = open(os.path.join(SAVE_ROOT_PATH, "hypersim_depth_metrics_nan_safe.txt"),"w",encoding="utf-8",)
 
-        brightness = 0.3 * rgb_color[:, :, 0] + 0.59 * rgb_color[:, :, 1] + 0.11 * rgb_color[:, :, 2]
-        brightness_valid = brightness[valid_mask]
-        
-        if len(brightness_valid) == 0 or np.percentile(brightness_valid, percentile) < eps:
-            scale = 1.0
-        else:
-            current_p = np.percentile(brightness_valid, percentile)
-            scale = np.power(brightness_nth_percentile_desired, inv_gamma) / current_p
+    all_metrics = []
+    scene_metrics = []
+    current_scene_cam = None
 
-        rgb_tm = np.power(np.maximum(scale * rgb_color, 0), gamma)
-        rgb_tm = np.clip(rgb_tm, 0.0, 1.0)
-        rgb_tm = (rgb_tm * 255.0).round().astype(np.uint8)
+    for img_path, depth_path in tqdm(zip(IMGS_PATH, DEPTHS_PATH), total=len(IMGS_PATH)):
+
+        # -------------------------------
+        # Parse IDs
+        # -------------------------------
+        scene = img_path.split("/")[-4]
+        cam_dir = img_path.split("/")[-2]
+        camera = "_".join(cam_dir.split("_")[:3])
+        # frame = img_path.split("/")[-1].split(".")[-3]
+        frame = depth_path.split('/')[-1].split('.')[-3]
         
 
-        # inference
-        with torch.no_grad():
-            
-            # vggt inference 
-            if cfg.model.val.mv_3dff.model == 'vggt':
-                with torch.cuda.amp.autocast(dtype=dtype):
-                    imgs = load_and_preprocess_images(imgs_path).to(device)
-                    pred_vggt = model(imgs)
-                    pred_depth = pred_vggt['depth']  # [F, 350, 518, 1]
-                    pred_depth = pred_depth.squeeze(dim=(0,-1))
-                    # pred_depth = pred_depth.detach().cpu().numpy().astype(np.float32)
-                    
-            # da3 inference 
-            elif cfg.model.val.mv_3dff.model == 'da3':
-                # pred_da3 = model.inference(imgs_path)
-                
-                breakpoint()
-                pred_da3 = model.inference([rgb_tm], export_feat_layers=[19, 27, 33, 39])
-                
-                pred_da3 = model()
-                
-                pred_depth = torch.from_numpy(pred_da3.depth).to(device)                 # (F, 336 504)
-                save_image(pred_depth, './depth_norm.jpg', normalize=True)
+        img_id = f"{camera}_{frame}"
+        scene_cam = f"{scene}/{camera}"
 
-            
-        # Safety check
-        assert len(pred_depth) == len(imgs_path)
-        
-        
-        breakpoint()
-
-
-    
-    # loop through eval data paths
-    for data_path in cfg.data.val.eth3d.data_paths:
-        print(f'Evaluating HYPERSIM - {data_path.split("/")[-1]}')
-        
-        
-        # set save path
-        if cfg.log.save_path is not None:
-            print('Saving path to: ', cfg.log.save_path)
-            save_path = cfg.log.save_path
-        else:
-            print('Saving path set to data path: ', data_path)
-            save_path = data_path
-
-
-        depth_metric_path = f'{save_path}/{cfg.model.val.mv_3dff.model}'
-        os.makedirs(depth_metric_path, exist_ok=True)
-        
-        depth_metric_txt = open(f'{save_path}/eth3d_metric_depth.txt', 'w', encoding='utf-8')
-        all_metrics = []
-        
-        # loop through eth3d scenes
-        for scene in tqdm(cfg.data.val.eth3d.eval_scenes):
-            print('processing scene: ', scene)
-            
-            
-            # load imgs 
-            imgs_path = sorted(glob.glob(f'{data_path}/image/{scene}/*'))
-            tot_num_input_view = len(imgs_path)
-            assert len(imgs_path) != 0
-            
-            # set number of input views
-            if cfg.data.val.eth3d.num_input_view is not None:
-                num_input_view = cfg.data.val.eth3d.num_input_view
-                if num_input_view > tot_num_input_view:
-                    num_input_view = tot_num_input_view
-                imgs_path = imgs_path[:num_input_view]
-            else:
-                num_input_view=tot_num_input_view
-            print(f'Num_input_view: {num_input_view}/{tot_num_input_view}')
-            
-            
-            # if gt depth is provided we calculate the depth metrics
-            if cfg.data.val.eth3d.gt_depth_path is not None:
-                gt_depths_path = sorted(glob.glob(f'{cfg.data.val.eth3d.gt_depth_path}/{scene}_dslr_depth/{scene}/ground_truth_depth/dslr_images/*'))
-
-            
-            # set pred depth save dir
-            save_pred_depth_dir = f'{save_path}/{cfg.model.val.mv_3dff.model}__{cfg.log.msg}/pred_depth/{scene}'
-            os.makedirs(save_pred_depth_dir, exist_ok=True)
-            
-            # set pred depth vis save dir
-            save_pred_depth_vis_dir = f'{save_path}/{cfg.model.val.mv_3dff.model}__{cfg.log.msg}/pred_depth_vis/{scene}'
-            os.makedirs(save_pred_depth_vis_dir, exist_ok=True)
-
-
-            # inference
-            with torch.no_grad():
-                
-                # vggt inference 
-                if cfg.model.val.mv_3dff.model == 'vggt':
-                    with torch.cuda.amp.autocast(dtype=dtype):
-                        imgs = load_and_preprocess_images(imgs_path).to(device)
-                        pred_vggt = model(imgs)
-                        pred_depth = pred_vggt['depth']  # [F, 350, 518, 1]
-                        pred_depth = pred_depth.squeeze(dim=(0,-1))
-                        # pred_depth = pred_depth.detach().cpu().numpy().astype(np.float32)
-                        
-                # da3 inference 
-                elif cfg.model.val.mv_3dff.model == 'da3':
-                    pred_da3 = model.inference(imgs_path)
-                    pred_depth = torch.from_numpy(pred_da3.depth).to(device)                 # (F, 336 504)
-
-                    breakpoint()
-                
-            # Safety check
-            assert len(pred_depth) == len(imgs_path)
-                    
-                    
-            scene_metrics = []
-            wrote_header = False
-            # Save per-image depth
-            for f_idx, img_path in enumerate(imgs_path):
-                                
-                img_id = img_path.split('/')[-1].split('.')[0]
-
-                
-                # pred depth 
-                depth = pred_depth[f_idx]  # [H, W]
-                
-                
-                # Save pred depth as npy 
-                if cfg.log.depth.save_npy:                    
-                    np.save(os.path.join(save_pred_depth_dir, f'{img_id}.npy'), depth.detach().cpu().numpy().astype(np.float32))
-
-
-                # gt depth
-                if cfg.data.val.eth3d.gt_depth_path is not None:
-                    H, W = 4032, 6048
-                    gt_depth = load_depth(gt_depths_path[f_idx], H, W)
-                    gt_depth = torch.from_numpy(gt_depth).to(device)
-
-                    # match pred_depth size to gt_depth
-                    if depth.shape[-2:] != gt_depth.shape[-2:]:
-                        depth = F.interpolate(depth[None, None, :], size=(H,W), mode="bilinear", align_corners=False)[0,0]       
-                            
-                    # median scaling - pred_depth
-                    pred_depth_aligned = align_scale_median(gt_depth, depth)
-                    depth_metrics = compute_depth_metrics(gt_depth, pred_depth_aligned)
-                    
-                    scene_metrics.append(depth_metrics)
-                    all_metrics.append(depth_metrics)
-                    
-                    if not wrote_header:
-                        write_scene_header(depth_metric_txt, scene)
-                        wrote_header = True
-                    
-                    abs_rel, sq_rel, rmse, rmse_log, d1, d2, d3 = depth_metrics
-                    valid_pixels = np.isfinite(gt_depth.detach().cpu().numpy().astype(np.float32)).sum()
-
-                    depth_metric_txt.write(
-                        f"{img_id:<12}"
-                        f"{fmt(abs_rel)}{fmt(sq_rel)}{fmt(rmse,9)}{fmt(rmse_log,10)}"
-                        f"{fmt(d1)}{fmt(d2)}{fmt(d3)}{fmt_int(valid_pixels)}\n"
-                    )
-                                        
-                    rgb = cv2.imread(img_path)
-                    rgb = cv2.resize(rgb, (512, 512), interpolation=cv2.INTER_LINEAR)
-                    gt_vis = depth_to_colormap(gt_depth.detach().cpu().numpy().astype(np.float32), resize=(512,512))
-                    pred_vis = depth_to_colormap(depth.detach().cpu().numpy().astype(np.float32), resize=(512,512))
-                    err_vis = depth_error_to_colormap(
-                                    gt_depth.detach().cpu().numpy().astype(np.float32), 
-                                    depth.detach().cpu().numpy().astype(np.float32),
-                                    resize=(512,512)
-                                )
-                    concat = np.concatenate([rgb, pred_vis, gt_vis, err_vis], axis=1)
-                    cv2.imwrite(f'{save_pred_depth_vis_dir}/{img_id}.png', concat)
-                
-                else:
-                    # --------------------------------------------------
-                    # No GT available: visualize RGB + predicted depth
-                    # --------------------------------------------------
-                    rgb = cv2.imread(img_path)
-                    if rgb is None:
-                        continue
-
-                    # Resize RGB for visualization
-                    rgb = cv2.resize(rgb, (512, 512), interpolation=cv2.INTER_LINEAR)
-
-                    # Pred depth visualization
-                    pred_vis = depth_to_colormap(
-                        depth.detach().cpu().numpy().astype(np.float32),
-                        resize=(512, 512)
-                    )
-
-                    # Concatenate RGB | Pred Depth
-                    concat = np.concatenate([rgb, pred_vis], axis=1)
-
-                    # Save
-                    cv2.imwrite(f'{save_pred_depth_vis_dir}/{img_id}.png',concat)
-
+        if scene_cam != current_scene_cam:
             if len(scene_metrics) > 0:
-                scene_mean = np.mean(scene_metrics, axis=0)
-                depth_metric_txt.write("-" * 90 + "\n")
-                depth_metric_txt.write(
-                    f"{'MEAN':<12}"
-                    f"{fmt(scene_mean[0])}{fmt(scene_mean[1])}"
-                    f"{fmt(scene_mean[2],9)}{fmt(scene_mean[3],10)}"
-                    f"{fmt(scene_mean[4])}{fmt(scene_mean[5])}{fmt(scene_mean[6])}"
+                m = np.mean(scene_metrics, axis=0)
+                out_txt.write("-" * 90 + "\n")
+                out_txt.write(
+                    f"{'MEAN':<16}"
+                    f"{fmt(m[0])}{fmt(m[1])}{fmt(m[2],9)}{fmt(m[3],10)}"
+                    f"{fmt(m[4])}{fmt(m[5])}{fmt(m[6])}"
                     f"{fmt_int(len(scene_metrics))}\n"
                 )
 
-        if len(all_metrics) > 0:
-            global_mean = np.mean(all_metrics, axis=0)
-            depth_metric_txt.write("\n" + "=" * 90 + "\n")
-            depth_metric_txt.write("GLOBAL MEAN (ALL SCENES)\n")
-            depth_metric_txt.write("-" * 90 + "\n")
-            depth_metric_txt.write(
-                f"{'ALL':<12}"
-                f"{fmt(global_mean[0])}{fmt(global_mean[1])}"
-                f"{fmt(global_mean[2],9)}{fmt(global_mean[3],10)}"
-                f"{fmt(global_mean[4])}{fmt(global_mean[5])}{fmt(global_mean[6])}"
-                f"{fmt_int(len(all_metrics))}\n"
+            write_scene_header(out_txt, scene_cam)
+            current_scene_cam = scene_cam
+            scene_metrics = []
+
+        # -------------------------------
+        # GT depth
+        # -------------------------------
+        with h5py.File(depth_path, "r") as f:
+            dist = f["dataset"][:]
+
+        x = np.linspace(-W / 2 + 0.5, W / 2 - 0.5, W)
+        y = np.linspace(-H / 2 + 0.5, H / 2 - 0.5, H)
+        X, Y = np.meshgrid(x, y)
+        Z = np.full_like(X, FOCAL)
+        plane = np.stack([X, Y, Z], axis=-1).astype(np.float32)
+
+        gt_depth = dist / np.linalg.norm(plane, axis=2) * FOCAL
+        gt_depth = torch.from_numpy(gt_depth).to(device)
+        gt_depth = torch.nan_to_num(gt_depth, nan=0.0, posinf=0.0, neginf=0.0)
+
+        # -------------------------------
+        # Prediction
+        # -------------------------------
+        with torch.no_grad():
+            pred = model.inference([img_path]).depth
+
+        pred = torch.from_numpy(pred).to(device)
+
+        pred = F.interpolate(
+            pred.unsqueeze(1),
+            size=gt_depth.shape,
+            mode="bilinear",
+            align_corners=False,
+        ).squeeze()
+
+        # -------------------------------
+        # Valid mask + median scaling
+        # -------------------------------
+        valid = (
+            (gt_depth > 0.1)
+            & (gt_depth < 10.0)
+            & torch.isfinite(gt_depth)
+            & torch.isfinite(pred)
+        )
+
+        if valid.sum() == 0:
+            continue
+
+        gt_med = torch.median(gt_depth[valid])
+        pred_med = torch.median(pred[valid])
+
+        if not torch.isfinite(gt_med) or pred_med <= 1e-6:
+            continue
+
+        pred = pred * (gt_med / pred_med)
+        
+        
+        # -------------------------------
+        # Visualization
+        # -------------------------------
+        img_bgr = cv2.imread(img_path, cv2.IMREAD_COLOR)
+
+        if img_bgr is not None:
+            H, W = gt_depth.shape
+            img_bgr = cv2.resize(img_bgr, (W, H), interpolation=cv2.INTER_LINEAR)
+
+            # Tensor → NumPy
+            pred_np = pred.detach().cpu().numpy()
+            gt_np = gt_depth.detach().cpu().numpy()
+
+            # Depth visualizations
+            pred_vis = depth_to_colormap(pred_np)
+            gt_vis   = depth_to_colormap(gt_np)
+
+            # Error visualization (AbsRel, log-scaled, TURBO)
+            # err_vis = depth_error_to_colormap(gt_np, pred_np)
+            err_vis = depth_error_to_colormap_thresholded(gt_np, pred_np, thr=0.1)
+
+            # Concatenate: [RGB | Pred | GT | Error]
+            concat = np.concatenate(
+                [img_bgr, pred_vis, gt_vis, err_vis],
+                axis=1
             )
-        depth_metric_txt.close()
 
 
-    print('Finish !')
-    
+            # Output path
+            viz_dir = os.path.join(VIS_DEPTH_PATH, scene, camera)
+            os.makedirs(viz_dir, exist_ok=True)
+
+            viz_path = os.path.join(viz_dir, f"{frame}.png")
+            cv2.imwrite(viz_path, concat)
+
+
+
+        # -------------------------------
+        # Metrics
+        # -------------------------------
+        metrics = compute_depth_metrics_nan_safe(pred, gt_depth, valid)
+        if metrics is None:
+            continue
+
+        scene_metrics.append(metrics[:-1])
+        all_metrics.append(metrics[:-1])
+
+        out_txt.write(
+            f"{img_id:<16}"
+            f"{fmt(metrics[0])}{fmt(metrics[1])}"
+            f"{fmt(metrics[2],9)}{fmt(metrics[3],10)}"
+            f"{fmt(metrics[4])}{fmt(metrics[5])}{fmt(metrics[6])}"
+            f"{fmt_int(metrics[7])}\n"
+        )
+
+    # -------------------------------
+    # Final scene
+    # -------------------------------
+    if len(scene_metrics) > 0:
+        m = np.mean(scene_metrics, axis=0)
+        out_txt.write("-" * 90 + "\n")
+        out_txt.write(
+            f"{'MEAN':<16}"
+            f"{fmt(m[0])}{fmt(m[1])}{fmt(m[2],9)}{fmt(m[3],10)}"
+            f"{fmt(m[4])}{fmt(m[5])}{fmt(m[6])}"
+            f"{fmt_int(len(scene_metrics))}\n"
+        )
+
+    # -------------------------------
+    # Global mean
+    # -------------------------------
+    if len(all_metrics) > 0:
+        g = np.mean(all_metrics, axis=0)
+        out_txt.write("\n" + "=" * 90 + "\n")
+        out_txt.write("GLOBAL MEAN (NaN-SAFE)\n")
+        out_txt.write("-" * 90 + "\n")
+        out_txt.write(
+            f"{'ALL':<16}"
+            f"{fmt(g[0])}{fmt(g[1])}{fmt(g[2],9)}{fmt(g[3],10)}"
+            f"{fmt(g[4])}{fmt(g[5])}{fmt(g[6])}"
+            f"{fmt_int(len(all_metrics))}\n"
+        )
+
+    out_txt.close()
+    print("\n NaN-safe Hypersim depth evaluation finished!")
+
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="mvr_val_eth3d")
-    parser.add_argument("--config", type=str, required=True)
-    args = parser.parse_args()
-    cfg = OmegaConf.load(args.config)
-    main(cfg)
+    main()

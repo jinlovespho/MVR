@@ -17,8 +17,10 @@ data:
         # /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/eth3d/deg_blur/kernel800_intensity01,
       ]
       eval_scenes: ['courtyard', 'delivery_area', 'electro', 'facade', 'kicker','meadow', 'office', 'pipes', 'playground', 'relief','relief_2', 'terrace', 'terrains']
-      # eval_scenes: ['terrace']
       num_input_view: 
+    hypersim:
+      hq_root_path:
+      lq_root_path:
 
   
 
