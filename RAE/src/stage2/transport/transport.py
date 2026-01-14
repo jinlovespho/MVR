@@ -1,4 +1,4 @@
-import torch as th
+import torch
 import numpy as np
 import logging
 
@@ -52,17 +52,17 @@ def truncated_logitnormal_sample(
     Returns:
         Tensor of samples with shape = broadcast(shape, mu.shape, ...)
     """
-    mu   = th.as_tensor(mu)
-    sigma= th.as_tensor(sigma)
-    low  = th.as_tensor(low)
-    high = th.as_tensor(high)
+    mu   = torch.as_tensor(mu)
+    sigma= torch.as_tensor(sigma)
+    low  = torch.as_tensor(low)
+    high = torch.as_tensor(high)
 
     # Map truncation bounds to logit space; handles 0/1 → ±inf automatically.
-    z_low  = th.logit(low)   # = -inf if low==0
-    z_high = th.logit(high)  # = +inf if high==1
+    z_low  = torch.logit(low)   # = -inf if low==0
+    z_high = torch.logit(high)  # = +inf if high==1
 
     # Standardize bounds for the base Normal(0,1)
-    base = th.distributions.Normal(th.zeros_like(mu), th.ones_like(sigma))
+    base = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(sigma))
     alpha = (z_low  - mu) / sigma
     beta  = (z_high - mu) / sigma
 
@@ -72,12 +72,12 @@ def truncated_logitnormal_sample(
     cdf_beta  = base.cdf(beta)
 
     # Draw uniforms on the truncated interval
-    out_shape = th.broadcast_shapes(shape, mu.shape, sigma.shape, low.shape, high.shape)
-    U = th.rand(out_shape, device=mu.device, dtype=mu.dtype)
+    out_shape = torch.broadcast_shapes(shape, mu.shape, sigma.shape, low.shape, high.shape)
+    U = torch.rand(out_shape, device=mu.device, dtype=mu.dtype)
     U = cdf_alpha + (cdf_beta - cdf_alpha) * U.clamp_(0, 1)
 
     Z = mu + sigma * base.icdf(U)
-    X = th.sigmoid(Z)
+    X = torch.sigmoid(Z)
 
     # Numerical safety when low/high are extremely close; clamp back into [low, high].
     return X.clamp(low, high)
@@ -116,10 +116,10 @@ class Transport:
             Standard multivariate normal prior
             Assume z is batched
         '''
-        shape = th.tensor(z.size())
-        N = th.prod(shape[1:])
-        _fn = lambda x: -N / 2. * np.log(2 * np.pi) - th.sum(x ** 2) / 2.
-        return th.vmap(_fn)(z)
+        shape = torch.tensor(z.size())
+        N = torch.prod(shape[1:])
+        _fn = lambda x: -N / 2. * np.log(2 * np.pi) - torch.sum(x ** 2) / 2.
+        return torch.vmap(_fn)(z)
     
 
     def check_interval(
@@ -157,12 +157,11 @@ class Transport:
           Args:
             x1 - data point; [batch, *dim]
         """
-        # breakpoint()
-        x0 = th.randn_like(x1)  # b 768 32 32 
+        x0 = torch.randn_like(x1)  # b 768 32 32 
         dist_options = self.time_dist_type.split("_")
         t0, t1 = self.check_interval(self.train_eps, self.sample_eps)
         if dist_options[0] == "uniform":    # f
-            t = th.rand((x1.shape[0],)) * (t1 - t0) + t0
+            t = torch.rand((x1.shape[0],)) * (t1 - t0) + t0
             # print('UNIFORM IS CALLED')
         elif dist_options[0] == "logit-normal": # t
             assert len(dist_options) == 3, "Logit-normal distribution must specify the mean and variance."
@@ -191,29 +190,103 @@ class Transport:
         """Loss for training the score model
         Args:
         - model: backbone model; could be score, noise, or velocity
-        - x1: datapoint (latent)
+        - x1: datapoint
         - model_kwargs: additional arguments for the model
         """
         if model_kwargs == None:
             model_kwargs = {}
-        
-        # x1: clean latent 
-        # x0: pure noise latent 
-        # t: timestep, normalized to [0,1]
         t, x0, x1 = self.sample(x1)
         t, xt, ut = self.path_sampler.plan(t, x0, x1)
-        '''
-            t: b
-            x0: b 768 32 32 
-            x1: b 768 32 32 
-            xt: b 768 32 32 
-            ut: b 768 32 32 
-            model_output = pred_ut = b 768 32 32 
-        '''
         model_output = model(xt, t, **model_kwargs)
         B, *_, C = xt.shape
         assert model_output.size() == (B, *xt.size()[1:-1], C)
+        terms = {}
+        terms['pred'] = model_output
+        if self.model_type == ModelType.VELOCITY:
+            terms['loss'] = mean_flat(((model_output - ut) ** 2))
+        else: 
+            _, drift_var = self.path_sampler.compute_drift(xt, t)
+            sigma_t, _ = self.path_sampler.compute_sigma_t(path.expand_t_like_x(t, xt))
+            if self.loss_type in [WeightType.VELOCITY]:
+                weight = (drift_var / sigma_t) ** 2
+            elif self.loss_type in [WeightType.LIKELIHOOD]:
+                weight = drift_var / (sigma_t ** 2)
+            elif self.loss_type in [WeightType.NONE]:
+                weight = 1
+            else:
+                raise NotImplementedError()
+            
+            if self.model_type == ModelType.NOISE:
+                terms['loss'] = mean_flat(weight * ((model_output - x0) ** 2))
+            else:
+                terms['loss'] = mean_flat(weight * ((model_output * sigma_t + x0) ** 2))
+        return terms
 
+
+
+    def training_losses_mvrm(
+        self, 
+        model,  
+        x1, 
+        model_kwargs=None,
+        cfg=None
+    ):
+        """Loss for training the score model
+        Args:
+        - model: backbone model; could be score, noise, or velocity
+        - x1: datapoint (latent)
+        - model_kwargs: additional arguments for the model
+        """
+        
+        # breakpoint()
+        # multi-view input
+        if len(x1.shape) == 5:
+            b, v, d, h, w = x1.shape
+            x1 = x1.view(b*v, d, h, w)
+        
+        # breakpoint()
+        if model_kwargs == None:
+            model_kwargs = {}
+        
+        
+        ## PHO understanding flow matching sampling
+        # import torch 
+        # import torchvision 
+        # from PIL import Image 
+        # from torchvision.utils import save_image 
+        # img=Image.open('tmp.jpg')
+        # img = torchvision.transforms.ToTensor()(img).unsqueeze(0)
+        # t, x0, x1 = self.sample(img)
+        # t, xt, ut = self.path_sampler.plan(torch.Tensor([0.3]), x0, x1)
+        # save_image(x0, 'img_x0.jpg')
+        # save_image(x1, 'img_x1.jpg')
+        # save_image(xt, 'img_xt.jpg')
+        # save_image(ut, 'img_ut.jpg')
+        
+        
+        # x0: pure noise 
+        # x1: pure data 
+        # xt: noisy data point at t
+        # ut: gt velocity at t 
+        t, x0, x1 = self.sample(x1)
+        t, xt, ut = self.path_sampler.plan(t, x0, x1)
+
+
+        # lq_latent conditioning method 
+        if cfg.mvrm.lq_latent_cond == 'addition':
+            xt = xt + x1
+        elif cfg.mvrm.lq_latent_cond == 'concat':
+            xt = torch.concat([x1,xt], dim=1)   # channel concat
+
+        # breakpoint()
+        # mvrm forward pass 
+        model_output = model(xt, t, **model_kwargs)
+        
+        # B, *_, C = xt.shape
+        # assert model_output.size() == (B, *xt.size()[1:-1], C)
+        assert model_output.shape == xt.shape 
+
+        # breakpoint()
         terms = {}
         terms['pred'] = model_output
         if self.model_type == ModelType.VELOCITY:   # t
@@ -234,9 +307,9 @@ class Transport:
                 terms['loss'] = mean_flat(weight * ((model_output - x0) ** 2))
             else:
                 terms['loss'] = mean_flat(weight * ((model_output * sigma_t + x0) ** 2))
-                
         return terms
     
+
 
     def get_drift(
         self
@@ -408,7 +481,7 @@ class Sampler:
 
         def _sample(init, model, **model_kwargs):
             xs = _sde.sample(init, model, **model_kwargs)
-            ts = th.ones(init.size(0), device=init.device) * (1 - t1)
+            ts = torch.ones(init.size(0), device=init.device) * (1 - t1)
             x = last_step_fn(xs[-1], ts, model, **model_kwargs)
             xs.append(x)
 
@@ -438,7 +511,7 @@ class Sampler:
         - reverse: whether solving the ODE in reverse (data to noise); default to False
         """
         if reverse:
-            drift = lambda x, t, model, **kwargs: self.drift(x, th.ones_like(t) * (1 - t), model, **kwargs)
+            drift = lambda x, t, model, **kwargs: self.drift(x, torch.ones_like(t) * (1 - t), model, **kwargs)
         else:
             drift = self.drift
 

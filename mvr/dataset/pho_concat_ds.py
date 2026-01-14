@@ -72,48 +72,143 @@ def to_tensor(img):
         .contiguous()
         .float() / 255.0
     )
-    # return x
-    return IMAGENET_NORMALIZE(x)
+    return x
+    # return IMAGENET_NORMALIZE(x)
     
 
-def multiview_collate_fn(batch):
-    # batch: List[dict], length = B
+# def multiview_collate_fn(batch):
+#     # batch: List[dict], length = B
 
-    # ---- frame ids ----
+#     # ---- frame ids ----
+#     frame_ids = torch.stack(
+#         [torch.as_tensor(b["frame_ids"]) for b in batch],
+#         dim=0
+#     )  # [B, V]
+
+#     # ---- ids (keep as Python) ----
+#     hq_ids = [b["hq_ids"] for b in batch]   # [B][V]
+#     hq_latent_ids = [b["hq_latent_ids"] for b in batch]   # [B][V]
+#     lq_ids = [b["lq_ids"] for b in batch]   # [B][V]
+#     gt_depth_ids = [b["gt_depth_ids"] for b in batch]   # [B][V]
+
+
+#     # ---- hq images ----
+#     hq_views = []
+#     for b in batch:                 # over B
+#         v_imgs = []
+#         for img in b["hq_views"]:   # over V
+#             v_imgs.append(to_tensor(img))
+#         hq_views.append(torch.stack(v_imgs, dim=0))  # [V,C,H,W]
+#     hq_views = torch.stack(hq_views, dim=0)  # [B,V,C,H,W]
+
+#     # ---- lq images ----
+#     lq_views = []
+#     for b in batch:                 # over B
+#         v_imgs = []
+#         for img in b["lq_views"]:   # over V
+#             v_imgs.append(to_tensor(img))
+#         lq_views.append(torch.stack(v_imgs, dim=0))  # [V,C,H,W]
+#     lq_views = torch.stack(lq_views, dim=0)  # [B,V,C,H,W]
+
+
+#     # ---- depth ----
+#     gt_depth = []
+#     for b in batch:
+#         v_depths = []
+#         for d in b["gt_depths"]:
+#             v_depths.append(torch.from_numpy(d).unsqueeze(0))  # [1,H,W]
+#         gt_depth.append(torch.stack(v_depths, dim=0))  # [V,1,H,W]
+#     gt_depth = torch.stack(gt_depth, dim=0)  # [B,V,1,H,W]
+
+#     return {
+#         "frame_ids": frame_ids,
+        
+#         "hq_ids": hq_ids,
+#         "hq_views": hq_views,
+        
+#         'lq_ids': lq_ids,
+#         'lq_views': lq_views,
+        
+#         'gt_depth_ids': gt_depth_ids,
+#         'gt_depths': gt_depth,
+#     }
+
+def multiview_collate_fn(batch):
+    """
+    batch: List[dict], length = B
+    """
+
+    # ------------------------
+    # frame ids (tensor)
+    # ------------------------
     frame_ids = torch.stack(
         [torch.as_tensor(b["frame_ids"]) for b in batch],
         dim=0
-    )  # [B, V]
+    )  # (B, V)
 
-    # ---- ids (keep as Python) ----
-    hq_ids = [b["hq_ids"] for b in batch]   # [B][V]
-    lq_ids = [b["lq_ids"] for b in batch]   # [B][V]
+    # ------------------------
+    # ids (keep Python lists)
+    # ------------------------
+    hq_ids = [b["hq_ids"] for b in batch]                      # [B][V]
+    hq_latent_ids = [b["hq_latent_ids"] for b in batch]        # [B][V]
+    lq_ids = [b["lq_ids"] for b in batch]                      # [B][V]
+    gt_depth_ids = [b["gt_depth_ids"] for b in batch]          # [B][V]
 
-    # ---- hq images ----
+    # ------------------------
+    # HQ images
+    # ------------------------
     hq_views = []
-    for b in batch:                 # over B
-        v_imgs = []
-        for img in b["hq_views"]:   # over V
-            v_imgs.append(to_tensor(img))
-        hq_views.append(torch.stack(v_imgs, dim=0))  # [V,C,H,W]
-    hq_views = torch.stack(hq_views, dim=0)  # [B,V,C,H,W]
+    for b in batch:
+        v_imgs = [to_tensor(img) for img in b["hq_views"]]     # [V,3,H,W]
+        hq_views.append(torch.stack(v_imgs, dim=0))
+    hq_views = torch.stack(hq_views, dim=0)                    # (B,V,3,H,W)
 
-    # ---- lq images ----
+    # ------------------------
+    # HQ latents
+    # ------------------------
+    hq_latent_views = []
+    for b in batch:
+        # each element already torch.Tensor (972, 3072)
+        v_latents = [latent for latent in b["hq_latent_views"]]
+        hq_latent_views.append(torch.stack(v_latents, dim=0))  # (V,972,3072)
+    hq_latent_views = torch.stack(hq_latent_views, dim=0)      # (B,V,972,3072)
+
+    # ------------------------
+    # LQ images
+    # ------------------------
     lq_views = []
-    for b in batch:                 # over B
-        v_imgs = []
-        for img in b["lq_views"]:   # over V
-            v_imgs.append(to_tensor(img))
-        lq_views.append(torch.stack(v_imgs, dim=0))  # [V,C,H,W]
-    lq_views = torch.stack(lq_views, dim=0)  # [B,V,C,H,W]
-    
+    for b in batch:
+        v_imgs = [to_tensor(img) for img in b["lq_views"]]     # [V,3,H,W]
+        lq_views.append(torch.stack(v_imgs, dim=0))
+    lq_views = torch.stack(lq_views, dim=0)                    # (B,V,3,H,W)
 
+    # ------------------------
+    # Depth
+    # ------------------------
+    gt_depths = []
+    for b in batch:
+        v_depths = [
+            torch.from_numpy(d).unsqueeze(0)                   # (1,H,W)
+            for d in b["gt_depths"]
+        ]
+        gt_depths.append(torch.stack(v_depths, dim=0))         # (V,1,H,W)
+    gt_depths = torch.stack(gt_depths, dim=0)                  # (B,V,1,H,W)
+
+    # ------------------------
+    # return
+    # ------------------------
     return {
         "frame_ids": frame_ids,
-        
+
         "hq_ids": hq_ids,
         "hq_views": hq_views,
-        
-        'lq_ids': lq_ids,
-        'lq_views': lq_views,
+
+        "hq_latent_ids": hq_latent_ids,
+        "hq_latent_views": hq_latent_views,
+
+        "lq_ids": lq_ids,
+        "lq_views": lq_views,
+
+        "gt_depth_ids": gt_depth_ids,
+        "gt_depths": gt_depths,
     }

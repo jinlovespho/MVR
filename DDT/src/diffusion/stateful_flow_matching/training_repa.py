@@ -114,6 +114,7 @@ class REPATrainer(BaseTrainer):
             handle = net.encoder.blocks[self.align_layer - 1].register_forward_hook(forward_hook)
 
         out, _ = net(x_t, t, y)
+        # src_feature is the s feature of the extracted block[self.align_layer-1]
         src_feature = self.proj(src_feature[0])
         handle.remove()
 

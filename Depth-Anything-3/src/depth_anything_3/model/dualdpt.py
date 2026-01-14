@@ -216,6 +216,7 @@ class DualDPT(nn.Module):
         ph, pw = H // self.patch_size, W // self.patch_size
         resized_feats = []
         for stage_idx, take_idx in enumerate(self.intermediate_layer_idx):
+            # breakpoint()
             x = feats[take_idx][:, patch_start_idx:]
             x = self.norm(x)
             x = x.permute(0, 2, 1).reshape(B, C, ph, pw)  # [B*S, C, ph, pw]

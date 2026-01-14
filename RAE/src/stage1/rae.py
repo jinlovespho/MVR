@@ -77,17 +77,17 @@ class RAE(nn.Module):
     @torch.no_grad()
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         # normalize input
-        _, _, h, w = x.shape
+        _, _, h, w = x.shape    # b 3 512 512 
         if h != self.encoder_input_size or w != self.encoder_input_size:
-            x = nn.functional.interpolate(x, size=(self.encoder_input_size, self.encoder_input_size), mode='bicubic', align_corners=False)
-        x = (x - self.encoder_mean.to(x.device)) / self.encoder_std.to(x.device)
-        z = self.encoder(x)
+            x = nn.functional.interpolate(x, size=(self.encoder_input_size, self.encoder_input_size), mode='bicubic', align_corners=False)  # 448 resized
+        x = (x - self.encoder_mean.to(x.device)) / self.encoder_std.to(x.device)    # imagenet normalization
+        z = self.encoder(x)     # b 3 448 448 -> self.encoder(x) -> b 1024 768
         if self.training and self.noise_tau > 0:
             z = self.noising(z)
         if self.reshape_to_2d:
             b, n, c = z.shape
             h = w = int(sqrt(n))
-            z = z.transpose(1, 2).view(b, c, h, w)
+            z = z.transpose(1, 2).view(b, c, h, w)  # b 768 32 32 
         if self.do_normalization:
             latent_mean = self.latent_mean.to(z.device) if self.latent_mean is not None else 0
             latent_var = self.latent_var.to(z.device) if self.latent_var is not None else 1

@@ -8,13 +8,60 @@ net:
     path: depth_anything_3.model.dinov2.dinov2
     name: DinoV2
     args: as_params
-
   name: vitg
   out_layers: [19, 27, 33, 39]
   alt_start: 13
   qknorm_start: 13
   rope_start: 13
   cat_token: True
+
+  # # new DinoV2 for MVRM
+  # __object__:
+  #   path: depth_anything_3.model.dinov2_mvrm.dinov2_mvrm
+  #   name: DinoV2MVRM
+  #   args: as_params
+  # name: vitg
+  # out_layers: [19, 27, 33, 39]
+  # alt_start: 13
+  # qknorm_start: 13
+  # rope_start: 13
+  # cat_token: True
+  
+
+  # mvrm:
+  #   __object__:
+  #     path: RAE.src.stage2.models.DDT
+  #     name: DiTwDDTHead
+  #     args: as_params 
+  #   stage_2:
+  #     model: DiTwDDTHead
+  #     target: stage2.models.DDT.DiTwDDTHead
+  #     params:
+  #       input_size: 32
+  #       patch_size: 1
+  #       in_channels: 768
+  #       hidden_size: [1152, 2048]
+  #       depth: [28, 2]
+  #       num_heads: [16, 16]
+  #       mlp_ratio: 4.0
+  #       class_dropout_prob: 0.1
+  #       num_classes: 1000
+  #       use_qknorm: false
+  #       use_swiglu: true
+  #       use_rope: true
+  #       use_rmsnorm: true
+  #       wo_shift: false
+  #       use_pos_embed: true
+  #     # ckpt: RAE/models/DiTs/Dinov2/wReg_base/ImageNet512/DiTDH-XL_ep400/stage2_model.pt
+  #   transport:
+  #     params:
+  #       path_type: 'Linear'
+  #       prediction: 'velocity'
+  #       loss_weight: null
+  #       time_dist_type: 'logit-normal_0_1'
+
+
+
 
 head:
   __object__:

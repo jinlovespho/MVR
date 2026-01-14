@@ -81,7 +81,7 @@ if __name__ == "__main__":
             tvtf.ToTensor(),
             tvtf.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
         ])
-        dataset = NewImageFolder(root='/media/data1/ImageNet2012/train_pho', transform=transforms,)
+        dataset = NewImageFolder(root='/mnt/dataset1/ImageNet2012/train_pho', transform=transforms,)
         B = 8
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=B, shuffle=False, prefetch_factor=16, num_workers=16)
         vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-ema")#.to('cuda')
@@ -99,8 +99,8 @@ if __name__ == "__main__":
                  new_path_list = []
                  for p in path_list:
                      p = p + ".pt"
-                     p = p.replace("/media/data1/ImageNet2012/train_pho",
-                                   "/media/data1/ImageNet2012/train_pho_256_latent")
+                     p = p.replace("/mnt/dataset1/ImageNet2012/train_pho",
+                                   "/mnt/dataset1/ImageNet2012/train_pho_256_latent")
                      new_path_list.append(p)
                      if not os.path.exists(p):
                          print(p)

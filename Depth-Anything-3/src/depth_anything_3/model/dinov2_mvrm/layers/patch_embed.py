@@ -68,6 +68,7 @@ class PatchEmbed(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         _, _, H, W = x.shape
         patch_H, patch_W = self.patch_size
+
         assert (
             H % patch_H == 0
         ), f"Input image height {H} is not a multiple of patch height {patch_H}"

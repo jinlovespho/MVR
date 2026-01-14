@@ -84,9 +84,11 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         super().__init__()
         self.model_name = model_name
 
+        # breakpoint()
         # Build the underlying network
+        # where MODEL_REGISTRY[self.model_name]='/mnt/dataset1/jinlovespho/eccv26/MVR/Depth-Anything-3/src/depth_anything_3/configs/da3-giant.yaml'
         self.config = load_config(MODEL_REGISTRY[self.model_name])
-        self.model = create_object(self.config)     # da3.NestedDepthAnything3Net
+        self.model = create_object(self.config)     
         self.model.eval()
 
         # Initialize processors
@@ -106,6 +108,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         infer_gs: bool = False,
         use_ray_pose: bool = False,
         ref_view_strategy: str = "saddle_balanced",
+        mvrm_cfg=None,
+        mvrm_module=None
     ) -> dict[str, torch.Tensor]:
         """
         Forward pass through the model.
@@ -122,14 +126,13 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         Returns:
             Dictionary containing model predictions
         """
-        # breakpoint()
         # Determine optimal autocast dtype
         autocast_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
         with torch.no_grad():
             with torch.autocast(device_type=image.device.type, dtype=autocast_dtype):
-                return self.model(  # da3.NestedDepthAnything3Net
-                    image, extrinsics, intrinsics, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy
-                )
+                return self.model(
+                    image, extrinsics, intrinsics, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg, mvrm_module
+                    )
 
     def inference(
         self,

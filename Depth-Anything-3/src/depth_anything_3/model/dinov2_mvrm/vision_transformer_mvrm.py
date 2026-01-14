@@ -37,6 +37,11 @@ from depth_anything_3.utils.constants import THRESH_FOR_REF_SELECTION
 # logger = logging.getLogger("dinov2")
 
 
+# pho RAE 
+from RAE.src.utils.model_utils import instantiate_from_config
+from RAE.src.stage2.transport import create_transport, Sampler
+
+
 def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
     """
     embed_dim: output dimension for each position
@@ -80,7 +85,7 @@ class BlockChunk(nn.ModuleList):
         return x
 
 
-class DinoVisionTransformer(nn.Module):
+class DinoVisionTransformerMVRM(nn.Module):
     def __init__(
         self,
         img_size=224,
@@ -110,6 +115,7 @@ class DinoVisionTransformer(nn.Module):
         rope_freq=100,
         plus_cam_token=False,
         cat_token=True,
+        **kwargs
     ):
         """
         Args:
@@ -137,6 +143,17 @@ class DinoVisionTransformer(nn.Module):
                 positional embeddings
         """
         super().__init__()
+        
+        
+        # pho - MVRM init 
+        self.mvrm = instantiate_from_config(kwargs['mvrm_cfg'])
+        self.transport = create_transport(**kwargs['transport_cfg']['params'], time_dist_shift=None)
+        self.transport_sampler = Sampler(self.transport)
+        breakpoint()
+        
+        
+        
+        # dinov2 init 
         self.patch_start_idx = 1
         norm_layer = nn.LayerNorm
         self.num_features = self.embed_dim = (
@@ -261,13 +278,13 @@ class DinoVisionTransformer(nn.Module):
     def prepare_tokens_with_masks(self, x, masks=None, cls_token=None, **kwargs):
         B, S, nc, w, h = x.shape
         x = rearrange(x, "b s c h w -> (b s) c h w")
-        x = self.patch_embed(x) # b*v 3 h w -> patch_embed(ps=14) -> bv num_pH*num_pW d 
-        if masks is not None:
+        x = self.patch_embed(x)
+        if masks is not None:   # f
             x = torch.where(masks.unsqueeze(-1), self.mask_token.to(x.dtype).unsqueeze(0), x)
         cls_token = self.prepare_cls_token(B, S)
         x = torch.cat((cls_token, x), dim=1)
         x = x + self.interpolate_pos_encoding(x, w, h)
-        if self.register_tokens is not None:
+        if self.register_tokens is not None:    # f
             x = torch.cat(
                 (
                     x[:, :1],
@@ -298,84 +315,75 @@ class DinoVisionTransformer(nn.Module):
         return pos, pos_nodiff
 
     def _get_intermediate_layers_not_chunked(self, x, n=1, export_feat_layers=[], **kwargs):
-        
-        B, S, _, H, W = x.shape     # b v 3 img_H, img_W = b v 3 378 504
-        # patch embeds and then add cls token
-        # (b v 3 h w) -> reshape: (bv 3 h w) -> patchembed(ps=14) -> (bv num_pH*num_pW d) = (bv n d) -> add cls_token: (bv n+1 d) -> reshape: b v n+1 d
-        # final x becomes = b v n+1 d = b 1 972+1 1536
+        B, S, _, H, W = x.shape
+        # add cls and register tokens, also add positional encodings
         x = self.prepare_tokens_with_masks(x)
         output, total_block_len, aux_output = [], len(self.blocks), []
         blocks_to_take = range(total_block_len - n, total_block_len) if isinstance(n, int) else n
         pos, pos_nodiff = self._prepare_rope(B, S, H, W, x.device)
 
+
+        breakpoint()
+        # we can call self.mvrm !!! 
+        
+        
+        
+        
         for i, blk in enumerate(self.blocks):
-            if i < self.rope_start or self.rope is None:
+            if i < self.rope_start or self.rope is None:    # f
                 g_pos, l_pos = None, None
-            else:
+            else:   # t
                 g_pos = pos_nodiff
                 l_pos = pos
 
-            if self.alt_start != -1 and (i == self.alt_start - 1) and x.shape[1] >= THRESH_FOR_REF_SELECTION and kwargs.get("cam_token", None) is None:
-                # print(f'{i} ref selection')
+            # alternating frame_attn+glob_attn starts for (13th layer) and (input frame num>3)
+            if self.alt_start != -1 and (i == self.alt_start - 1) and x.shape[1] >= THRESH_FOR_REF_SELECTION and kwargs.get("cam_token", None) is None: # f
                 # Select reference view using configured strategy
                 strategy = kwargs.get("ref_view_strategy", "saddle_balanced")
                 logger.info(f"Selecting reference view using strategy: {strategy}")
-                b_idx = select_reference_view(x, strategy=strategy)
+                b_idx = select_reference_view(x, strategy=strategy) # ouputs the selected reference frame index
                 # Reorder views to place reference view first
                 x = reorder_by_reference(x, b_idx)
                 local_x = reorder_by_reference(local_x, b_idx)
 
-            if self.alt_start != -1 and i == self.alt_start:
-                # print(f'{i} add camera token')
-                if kwargs.get("cam_token", None) is not None:   # f
+            if self.alt_start != -1 and i == self.alt_start:    
+                if kwargs.get("cam_token", None) is not None:   
                     logger.info("Using camera conditions provided by the user")
                     cam_token = kwargs.get("cam_token")
-                else:
-                    # self.camera_token: 1 2 1536
-                    # the first frame gets one part of self.camera_token[:, :1]
-                    # and the other frames gets the other self.camera_token[:,1:]
-                    # this is to distinguish the reference frame from other frames
+                else:   # t
+                    # similar to vggt, we have two camera tokens, one for ref view and one for all other src views.
                     ref_token = self.camera_token[:, :1].expand(B, -1, -1)
                     src_token = self.camera_token[:, 1:].expand(B, S - 1, -1)
                     cam_token = torch.cat([ref_token, src_token], dim=1)
-                x[:, :, 0] = cam_token  # overrides the cls_token with cam_token
-
-            if self.alt_start != -1 and i >= self.alt_start and i % 2 == 1:
-                # print(f'{i} global attn')
-                x = self.process_attention(x, blk, "global", pos=g_pos, attn_mask=kwargs.get("attn_mask", None))    # b v 972+1 1536
-            else:
-                # print(f'{i} frame attn')        
-                x = self.process_attention(x, blk, "local", pos=l_pos)  # b v 972+1 1536          
-                local_x = x                                             # b v 972+1 1536
+                x[:, :, 0] = cam_token
                 
-                
-            # MVRM restore degraded features
-            if kwargs['mvrm_cfg'] is not None:
-                if i in kwargs['mvrm_cfg'].restore_feat_layers:
-                    breakpoint()
-                    restored_feat = kwargs['mvrm_module'](x)
-                    x = restored_feat[backpart]
-                    local_x = restored_feat[frontpart]        
+            if self.alt_start != -1 and i >= self.alt_start and i % 2 == 1: # f
+                # print(i, 'global')
+                x = self.process_attention(
+                    x, blk, "global", pos=g_pos, attn_mask=kwargs.get("attn_mask", None)
+                )
+            else:   # t
+                # print(i, 'local')
+                x = self.process_attention(x, blk, "local", pos=l_pos)
+                local_x = x
 
-
-            # collect feat layers for DPT Head
             if i in blocks_to_take:
                 out_x = torch.cat([local_x, x], dim=-1) if self.cat_token else x
                 # Restore original view order if reordering was applied
                 if x.shape[1] >= THRESH_FOR_REF_SELECTION and self.alt_start != -1 and 'b_idx' in locals():
                     out_x = restore_original_order(out_x, b_idx)
-                output.append((out_x[:, :, 0], out_x))      # appends (camera_tkn, full_tkn)
+                output.append((out_x[:, :, 0], out_x))
             if i in export_feat_layers:
-                aux_output.append(x)
-        
-        breakpoint()
+                # output the concatenated frame_attn+global_attn
+                export_x = torch.cat([local_x, x], dim=-1)
+                aux_output.append(export_x)
         return output, aux_output
 
     def process_attention(self, x, block, attn_type="global", pos=None, attn_mask=None):
         b, s, n = x.shape[:3]
         if attn_type == "local":
             x = rearrange(x, "b s n c -> (b s) n c")
-            if pos is not None:
+            if pos is not None: # f
                 pos = rearrange(pos, "b s n c -> (b s) n c")
         elif attn_type == "global":
             x = rearrange(x, "b s n c -> b (s n) c")
@@ -399,20 +407,18 @@ class DinoVisionTransformer(nn.Module):
         export_feat_layers: List[int] = [],
         **kwargs,
     ) -> Tuple[Union[torch.Tensor, Tuple[torch.Tensor]]]:
+        
+        # breakpoint()
         outputs, aux_outputs = self._get_intermediate_layers_not_chunked(
             x, n, export_feat_layers=export_feat_layers, **kwargs
         )
-        '''
-            len(outputs) = 4 
-                where outputs[i] = (cam_token, full_tkn)
-                    cam_token: b v 2d 
-                    full_tkn: b v n+1 2d 
-            
-        '''
+        
         camera_tokens = [out[0] for out in outputs]
-        if outputs[0][1].shape[-1] == self.embed_dim:   # f 
+        if outputs[0][1].shape[-1] == self.embed_dim:   # f
             outputs = [self.norm(out[1]) for out in outputs]
-        elif outputs[0][1].shape[-1] == (self.embed_dim * 2):   # t (as dpt head receives concat(frame_attn, global_attn))
+        elif outputs[0][1].shape[-1] == (self.embed_dim * 2):   # t 
+            # for DPT head input, one feature is concatenation of frame_attn+global_attn
+            # the following code, just normalizes the global_attn dim with self.norm
             outputs = [
                 torch.cat(
                     [out[1][..., : self.embed_dim], self.norm(out[1][..., self.embed_dim :])],
@@ -422,26 +428,22 @@ class DinoVisionTransformer(nn.Module):
             ]
         else:
             raise ValueError(f"Invalid output shape: {outputs[0][1].shape}")
-        aux_outputs = [self.norm(out) for out in aux_outputs]
-        # the bottom code makes outputs only contain patch tokens, e.g., gets rid of cls, camera, register tokens.
-        outputs = [out[..., 1 + self.num_register_tokens :, :] for out in outputs]  
+        # aux_outputs = [self.norm(out) for out in aux_outputs]
+        aux_outputs = [
+            torch.cat(
+                [aux_out[..., :self.embed_dim], self.norm(aux_out[..., self.embed_dim:])],
+                dim=-1,
+            )
+            for aux_out in aux_outputs
+        ]
+        outputs = [out[..., 1 + self.num_register_tokens :, :] for out in outputs]  # gets rid of the cls(camera) token
         aux_outputs = [out[..., 1 + self.num_register_tokens :, :] for out in aux_outputs]
-        
-        
-        
-        # MVRM output
-        mvrm_output={}
-        if kwargs['mvrm_cfg'] is not None:
-            if kwargs['mvrm_cfg'].extract_feat:
-                mvrm_output['extract_feat'] = outputs[0]  # b v n 2d (where frame_attn+global_attn) (b 1 972 3072)
-    
 
-        
-        return tuple(zip(outputs, camera_tokens)), aux_outputs, mvrm_output
+        return tuple(zip(outputs, camera_tokens)), aux_outputs 
 
 
 def vit_small(patch_size=16, num_register_tokens=0, depth=12, **kwargs):
-    model = DinoVisionTransformer(
+    model = DinoVisionTransformerMVRM(
         patch_size=patch_size,
         embed_dim=384,
         depth=depth,
@@ -455,7 +457,7 @@ def vit_small(patch_size=16, num_register_tokens=0, depth=12, **kwargs):
 
 
 def vit_base(patch_size=16, num_register_tokens=0, depth=12, **kwargs):
-    model = DinoVisionTransformer(
+    model = DinoVisionTransformerMVRM(
         patch_size=patch_size,
         embed_dim=768,
         depth=depth,
@@ -469,7 +471,7 @@ def vit_base(patch_size=16, num_register_tokens=0, depth=12, **kwargs):
 
 
 def vit_large(patch_size=16, num_register_tokens=0, depth=24, **kwargs):
-    model = DinoVisionTransformer(
+    model = DinoVisionTransformerMVRM(
         patch_size=patch_size,
         embed_dim=1024,
         depth=depth,
@@ -486,13 +488,14 @@ def vit_giant2(patch_size=16, num_register_tokens=0, depth=40, **kwargs):
     """
     Close to ViT-giant, with embed-dim 1536 and 24 heads => embed-dim per head 64
     """
-    model = DinoVisionTransformer(
-        patch_size=patch_size,      # 14
+    # breakpoint()
+    model = DinoVisionTransformerMVRM(
+        patch_size=patch_size,
         embed_dim=1536,
-        depth=depth,                # 40
+        depth=depth,
         num_heads=24,
         mlp_ratio=4,
-        num_register_tokens=num_register_tokens,    # 0
+        num_register_tokens=num_register_tokens,
         **kwargs,
     )
     return model

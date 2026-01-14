@@ -94,7 +94,8 @@ model:
 data:
   train_dataset: imagenet256
   # train_root: /media/data1/ImageNet2012/train
-  train_root: /media/data1/ImageNet2012/train_pho
+  # train_root: /media/data1/ImageNet2012/train_pho
+  train_root: /mnt/dataset1/ImageNet2012/train_pho
   train_image_size: 256
   train_batch_size: 32
   eval_max_num_instances: 50000

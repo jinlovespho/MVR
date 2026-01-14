@@ -14,6 +14,34 @@ from collections.abc import Callable
 import numpy as np
 
 
+def get_2d_sincos_pos_embed_rect(embed_dim, grid_h, grid_w, cls_token=False, extra_tokens=0):
+    """
+    grid_h: number of patches in height
+    grid_w: number of patches in width
+    return:
+        pos_embed: (grid_h * grid_w, embed_dim)
+    """
+    assert embed_dim % 2 == 0
+
+    grid_y = np.arange(grid_h, dtype=np.float32)
+    grid_x = np.arange(grid_w, dtype=np.float32)
+
+    grid = np.meshgrid(grid_x, grid_y)  # (x, y)
+    grid = np.stack(grid, axis=0)       # (2, H, W)
+    grid = grid.reshape(2, 1, grid_h, grid_w)
+
+    pos_embed = get_2d_sincos_pos_embed_from_grid(embed_dim, grid)
+
+    if cls_token and extra_tokens > 0:
+        pos_embed = np.concatenate(
+            [np.zeros((extra_tokens, embed_dim)), pos_embed],
+            axis=0
+        )
+
+    return pos_embed
+
+
+
 def modulate(x, shift, scale):
     return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
 
@@ -40,6 +68,7 @@ def rotate_half(x):
     x1, x2 = x.unbind(dim=-1)
     x = torch.stack((-x2, x1), dim=-1)
     return rearrange(x, '... d r -> ... (d r)')
+
 def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
     """
     embed_dim: output dimension for each position
@@ -59,6 +88,7 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
 
     emb = np.concatenate([emb_sin, emb_cos], axis=1)  # (M, D)
     return emb
+
 def get_2d_sincos_pos_embed_from_grid(embed_dim, grid):
     assert embed_dim % 2 == 0
 
@@ -77,14 +107,14 @@ def get_2d_sincos_pos_embed(embed_dim, grid_size, cls_token=False, extra_tokens=
     """
     grid_h = np.arange(grid_size, dtype=np.float32)
     grid_w = np.arange(grid_size, dtype=np.float32)
-    grid = np.meshgrid(grid_w, grid_h)  # here w goes first
+    grid = np.meshgrid(grid_w, grid_h)      # here w goes first
     grid = np.stack(grid, axis=0)
-
     grid = grid.reshape([2, 1, grid_size, grid_size])
     pos_embed = get_2d_sincos_pos_embed_from_grid(embed_dim, grid)
     if cls_token and extra_tokens > 0:
         pos_embed = np.concatenate([np.zeros([extra_tokens, embed_dim]), pos_embed], axis=0)
     return pos_embed
+
 
 class VisionRotaryEmbedding(nn.Module):
     def __init__(
@@ -166,15 +196,23 @@ class VisionRotaryEmbeddingFast(nn.Module):
 
         freqs = torch.einsum('..., f -> ... f', t, freqs)
         freqs = repeat(freqs, '... n -> ... (n r)', r=2)
+        
+        
+        
+        
         freqs = broadcat((freqs[:, None, :], freqs[None, :, :]), dim=-1)
-
         freqs_cos = freqs.cos().view(-1, freqs.shape[-1])
         freqs_sin = freqs.sin().view(-1, freqs.shape[-1])
-
+        
+        
+        
+        # freqs_cos = freqs.cos()
+        # freqs_sin = freqs.sin()
+        
+        
+        
         self.register_buffer("freqs_cos", freqs_cos)
         self.register_buffer("freqs_sin", freqs_sin)
-
-        # print('======== shape of rope freq', self.freqs_cos.shape,freqs_sin.shape, '========')
 
     def forward(self, t):
         # print('======== shape of t', t.shape, '========')
@@ -185,16 +223,6 @@ class VisionRotaryEmbeddingFast(nn.Module):
         if repeat != 1:
             freqs_cos = freqs_cos.repeat_interleave(repeat, dim=0)
             freqs_sin = freqs_sin.repeat_interleave(repeat, dim=0)
-            # print('======== shape of rope freq', freqs_cos.shape,freqs_sin.shape, '========')
-            # print(f'======== repeat {repeat} times ========')
-            # print(f'======== shape of t {t.shape} ========')
-            # # assert the repeat is twice
-            # #assert repeat == 2, f'repeat should be 2, but got {repeat}'
-            # # check the content of the repeated freqs
-            # # the content at odd index should be the same as the content at even index
-            # assert torch.allclose(freqs_cos[::2], freqs_cos[1::2]), 'repeated freqs_cos are not the same'
-            # assert torch.allclose(freqs_sin[::2], freqs_sin[1::2]), 'repeated freqs_sin are not the same'
-        # apply repeated freqs
         return t * freqs_cos + rotate_half(t) * freqs_sin
 
 

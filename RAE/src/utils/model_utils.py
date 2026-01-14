@@ -26,7 +26,7 @@ def instantiate_from_config(config) -> object:
         elif "model" in state_dict:
             raise NotImplementedError("Loading from 'model' key not implemented yet.")
             state_dict = state_dict["model"]
-        model.load_state_dict(state_dict, strict=True)
+        model.load_state_dict(state_dict, strict=False)
         print(f'target {config["target"]} loaded from {ckpt_path}')
     return model
 

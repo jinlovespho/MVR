@@ -167,14 +167,25 @@ def write_scene_header(f, name):
 ############################################
 
 
-# # clean 
+# clean 
 # SAVE_ROOT_PATH = "/mnt/dataset1/MV_Restoration/hypersim/da3/clean/input_singleview"
-# IMGS_PATH = sorted(glob.glob("/mnt/dataset1/MV_Restoration/hypersim/data/*/images/*final_preview*/*tonemap*"))
+SAVE_ROOT_PATH = "TMPTMP"
+IMGS_PATH = sorted(glob.glob("/mnt/dataset1/MV_Restoration/hypersim/data/*/images/*final_preview*/*tonemap*"))
 
 
-# deg blur (kernel50)
-SAVE_ROOT_PATH = "/mnt/dataset1/MV_Restoration/hypersim/da3/deg_blur_kernel50/input_singleview"
-IMGS_PATH = sorted(glob.glob("/mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel50_intensity01/*/*final_hdf5*/images/*"))
+# # deg blur (kernel200)
+# SAVE_ROOT_PATH = "/mnt/dataset1/MV_Restoration/hypersim/da3/deg_blur_kernel200/input_singleview"
+# IMGS_PATH = sorted(glob.glob("/mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel200_intensity01/*/*final_hdf5*/images/*"))
+
+
+# # deg blur (kernel100)
+# SAVE_ROOT_PATH = "/mnt/dataset1/MV_Restoration/hypersim/da3/deg_blur_kernel100/input_singleview"
+# IMGS_PATH = sorted(glob.glob("/mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel100_intensity01/*/*final_hdf5*/images/*"))
+
+
+# # deg blur (kernel50)
+# SAVE_ROOT_PATH = "/mnt/dataset1/MV_Restoration/hypersim/da3/deg_blur_kernel50/input_singleview"
+# IMGS_PATH = sorted(glob.glob("/mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel50_intensity01/*/*final_hdf5*/images/*"))
 
 
 # # deg blur (kernel30)
@@ -270,8 +281,11 @@ def main():
         # -------------------------------
         with torch.no_grad():
             img_t = preprocess_image(img_path)
-            pred = model(img_t, export_feat_layers=[])
-            pred = model_output_processor(pred).depth
+            
+            breakpoint()
+            
+            model_out, mvrm_out = model(img_t, export_feat_layers=[])
+            pred = model_output_processor(model_out).depth                  # 768 1024
                     
         pred = torch.from_numpy(pred).to(device)
 
@@ -307,7 +321,7 @@ def main():
         # -------------------------------
         # Visualization
         # -------------------------------
-        img_bgr = cv2.imread(img_path, cv2.IMREAD_COLOR)
+        img_bgr = cv2.imread(img_path, cv2.IMREAD_COLOR)    
 
         if img_bgr is not None:
             H, W = gt_depth.shape
@@ -317,6 +331,7 @@ def main():
             pred_np = pred.detach().cpu().numpy()
             gt_np = gt_depth.detach().cpu().numpy()
 
+            breakpoint()
             # Depth visualizations
             pred_vis = depth_to_colormap(pred_np)
             gt_vis   = depth_to_colormap(gt_np)

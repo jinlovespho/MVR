@@ -68,7 +68,7 @@ class DepthAnything3Net(nn.Module):
         Initialize DepthAnything3Net with given yaml-initialized configuration.
         """
         super().__init__()
-        self.backbone = net if isinstance(net, nn.Module) else create_object(_wrap_cfg(net))
+        self.backbone = net if isinstance(net, nn.Module) else create_object(_wrap_cfg(net))    # dae-giant.yaml -> net.__object__.DinoV2MVRM
         self.head = head if isinstance(head, nn.Module) else create_object(_wrap_cfg(head))
         self.cam_dec, self.cam_enc = None, None
         if cam_dec is not None:
@@ -106,6 +106,8 @@ class DepthAnything3Net(nn.Module):
         infer_gs: bool = False,
         use_ray_pose: bool = False,
         ref_view_strategy: str = "saddle_balanced",
+        mvrm_cfg=None,
+        mvrm_module=None,
     ) -> Dict[str, torch.Tensor]:
         """
         Forward pass through the network.
@@ -131,9 +133,10 @@ class DepthAnything3Net(nn.Module):
             cam_token = None
 
         # dinov2 backbone
-        feats, aux_feats = self.backbone(
-            x, cam_token=cam_token, export_feat_layers=export_feat_layers, ref_view_strategy=ref_view_strategy
+        feats, aux_feats, mvrm_output = self.backbone(
+            x, cam_token=cam_token, export_feat_layers=export_feat_layers, ref_view_strategy=ref_view_strategy, mvrm_cfg=mvrm_cfg, mvrm_module=mvrm_module
         )
+        
         '''
             feats: zip(outputs, camera_tokens)
             where, 
@@ -144,7 +147,6 @@ class DepthAnything3Net(nn.Module):
         # feats = [[item for item in feat] for feat in feats]
         H, W = x.shape[-2], x.shape[-1]
 
-        # breakpoint()
         # Process features through depth head
         with torch.autocast(device_type=x.device.type, enabled=False):
             output = self._process_depth_head(feats, H, W)
@@ -154,13 +156,11 @@ class DepthAnything3Net(nn.Module):
                 output = self._process_camera_estimation(feats, H, W, output)
             if infer_gs:    # f
                 output = self._process_gs_head(feats, H, W, output, x, extrinsics, intrinsics)
-        
         output = self._process_mono_sky_estimation(output)    
-
         # Extract auxiliary features if requested
         output.aux = self._extract_auxiliary_features(aux_feats, export_feat_layers, H, W)
-
-        return output
+        return output, mvrm_output
+    
 
     def _process_mono_sky_estimation(
         self, output: Dict[str, torch.Tensor]

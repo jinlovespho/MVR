@@ -298,11 +298,13 @@ class DDT(nn.Module):
             s = self.s_embedder(x)
             for i in range(self.num_encoder_blocks):
                 s = self.blocks[i](s, c, pos, mask)
+                # print(i, s.mean(), s.max(), s.min(), s.std())
             s = nn.functional.silu(t + s)
 
         x = self.x_embedder(x)
-        for i in range(self.num_encoder_blocks, self.num_blocks):
-            x = self.blocks[i](x, s, pos, None)
+        for j in range(self.num_encoder_blocks, self.num_blocks):
+            x = self.blocks[j](x, s, pos, None)
         x = self.final_layer(x, s)
         x = torch.nn.functional.fold(x.transpose(1, 2).contiguous(), (H, W), kernel_size=self.patch_size, stride=self.patch_size)
+        # print(j, s.mean())
         return x, s

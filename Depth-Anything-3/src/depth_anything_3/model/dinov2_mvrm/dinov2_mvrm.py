@@ -11,7 +11,7 @@
 from typing import List
 import torch.nn as nn
 
-from depth_anything_3.model.dinov2.vision_transformer import (
+from depth_anything_3.model.dinov2_mvrm.vision_transformer_mvrm import (
     vit_base,
     vit_giant2,
     vit_large,
@@ -19,7 +19,8 @@ from depth_anything_3.model.dinov2.vision_transformer import (
 )
 
 
-class DinoV2(nn.Module):
+
+class DinoV2MVRM(nn.Module):
     def __init__(
         self,
         name: str,
@@ -28,9 +29,21 @@ class DinoV2(nn.Module):
         qknorm_start: int = -1,
         rope_start: int = -1,
         cat_token: bool = True,
+        mvrm_cfg=None,
         **kwargs,
     ):
         super().__init__()
+
+        breakpoint()
+        # RAE MVRM
+        # mvrm_cfg = kwargs['mvrm']['stage_2']
+        # transport_cfg = kwargs['mvrm']['transport']
+        
+        self.mvrm_cfg = mvrm_cfg 
+        
+        breakpoint()
+        
+        # DinoV2 
         assert name in {"vits", "vitb", "vitl", "vitg"}
         self.name = name
         self.out_layers = out_layers
@@ -44,7 +57,7 @@ class DinoV2(nn.Module):
             "vitl": vit_large,
             "vitg": vit_giant2,
         }
-        encoder_fn = encoder_map[self.name] # vitg
+        encoder_fn = encoder_map[self.name]
         ffn_layer = "swiglufused" if self.name == "vitg" else "mlp"
         self.pretrained = encoder_fn(
             img_size=518,
@@ -54,9 +67,13 @@ class DinoV2(nn.Module):
             qknorm_start=qknorm_start,
             rope_start=rope_start,
             cat_token=cat_token,
+            mvrm_cfg = self.mvrm_cfg
         )
 
+
     def forward(self, x, **kwargs):
+        # breakpoint()
+        # self.pretrained -> vision_transformer.py DinoVisionTransformer (original dinov2 repo)
         return self.pretrained.get_intermediate_layers(
             x,
             self.out_layers,
