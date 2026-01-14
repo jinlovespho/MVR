@@ -308,6 +308,9 @@ class DinoVisionTransformer(nn.Module):
         blocks_to_take = range(total_block_len - n, total_block_len) if isinstance(n, int) else n
         pos, pos_nodiff = self._prepare_rope(B, S, H, W, x.device)
 
+        # MVRM OUTPUTS
+        mvrm_output={}
+        
         for i, blk in enumerate(self.blocks):
             if i < self.rope_start or self.rope is None:
                 g_pos, l_pos = None, None
@@ -347,15 +350,24 @@ class DinoVisionTransformer(nn.Module):
                 # print(f'{i} frame attn')        
                 x = self.process_attention(x, blk, "local", pos=l_pos)  # b v 972+1 1536          
                 local_x = x                                             # b v 972+1 1536
-                
-                
+            
+            
+            
+            # MVRM output
+            if kwargs['mode'] == 'train':
+                if i in kwargs['mvrm_cfg'].extract_feat_layers:
+                    mvrm_output['extract_feat'] = torch.cat([local_x, x], dim=-1)
+                    
+            
+            
+
             # MVRM restore degraded features
-            if kwargs['mvrm_cfg'] is not None:
+            if kwargs['mode'] == 'val':
                 if i in kwargs['mvrm_cfg'].restore_feat_layers:
-                    breakpoint()
-                    restored_feat = kwargs['mvrm_module'](x)
-                    x = restored_feat[backpart]
-                    local_x = restored_feat[frontpart]        
+                    # restored_feat = kwargs['mvrm_module'](x)
+                    restored_feat = kwargs['mvrm_module']
+                    x = restored_feat[..., 1536:]
+                    local_x = restored_feat[..., :1536]        
 
 
             # collect feat layers for DPT Head
@@ -368,8 +380,8 @@ class DinoVisionTransformer(nn.Module):
             if i in export_feat_layers:
                 aux_output.append(x)
         
-        breakpoint()
-        return output, aux_output
+        # breakpoint()
+        return output, aux_output, mvrm_output
 
     def process_attention(self, x, block, attn_type="global", pos=None, attn_mask=None):
         b, s, n = x.shape[:3]
@@ -399,7 +411,7 @@ class DinoVisionTransformer(nn.Module):
         export_feat_layers: List[int] = [],
         **kwargs,
     ) -> Tuple[Union[torch.Tensor, Tuple[torch.Tensor]]]:
-        outputs, aux_outputs = self._get_intermediate_layers_not_chunked(
+        outputs, aux_outputs, mvrm_output = self._get_intermediate_layers_not_chunked(
             x, n, export_feat_layers=export_feat_layers, **kwargs
         )
         '''
@@ -429,14 +441,13 @@ class DinoVisionTransformer(nn.Module):
         
         
         
-        # MVRM output
-        mvrm_output={}
-        if kwargs['mvrm_cfg'] is not None:
-            if kwargs['mvrm_cfg'].extract_feat:
-                mvrm_output['extract_feat'] = outputs[0]  # b v n 2d (where frame_attn+global_attn) (b 1 972 3072)
+        # # MVRM output
+        # mvrm_output={}
+        # if kwargs['mode'] == 'train':
+        #     if kwargs['mvrm_cfg'].extract_feat:
+        #         mvrm_output['extract_feat'] = outputs[0]  # b v n 2d (where frame_attn+global_attn) (b 1 972 3072)
     
 
-        
         return tuple(zip(outputs, camera_tokens)), aux_outputs, mvrm_output
 
 

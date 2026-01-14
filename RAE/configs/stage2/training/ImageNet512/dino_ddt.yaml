@@ -139,7 +139,7 @@ log:
       # msg: "lqview-kernel30"
       # msg: "lqview-kernel10"      
       # msg: "lqview-kernel100"      
-      msg: "FINAL"
+      msg: "FINALFINAL"
 data:
   train:
     image_size: 512 

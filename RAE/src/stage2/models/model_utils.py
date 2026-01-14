@@ -14,34 +14,6 @@ from collections.abc import Callable
 import numpy as np
 
 
-def get_2d_sincos_pos_embed_rect(embed_dim, grid_h, grid_w, cls_token=False, extra_tokens=0):
-    """
-    grid_h: number of patches in height
-    grid_w: number of patches in width
-    return:
-        pos_embed: (grid_h * grid_w, embed_dim)
-    """
-    assert embed_dim % 2 == 0
-
-    grid_y = np.arange(grid_h, dtype=np.float32)
-    grid_x = np.arange(grid_w, dtype=np.float32)
-
-    grid = np.meshgrid(grid_x, grid_y)  # (x, y)
-    grid = np.stack(grid, axis=0)       # (2, H, W)
-    grid = grid.reshape(2, 1, grid_h, grid_w)
-
-    pos_embed = get_2d_sincos_pos_embed_from_grid(embed_dim, grid)
-
-    if cls_token and extra_tokens > 0:
-        pos_embed = np.concatenate(
-            [np.zeros((extra_tokens, embed_dim)), pos_embed],
-            axis=0
-        )
-
-    return pos_embed
-
-
-
 def modulate(x, shift, scale):
     return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
 
@@ -68,7 +40,6 @@ def rotate_half(x):
     x1, x2 = x.unbind(dim=-1)
     x = torch.stack((-x2, x1), dim=-1)
     return rearrange(x, '... d r -> ... (d r)')
-
 def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
     """
     embed_dim: output dimension for each position
@@ -88,7 +59,6 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
 
     emb = np.concatenate([emb_sin, emb_cos], axis=1)  # (M, D)
     return emb
-
 def get_2d_sincos_pos_embed_from_grid(embed_dim, grid):
     assert embed_dim % 2 == 0
 
@@ -99,20 +69,29 @@ def get_2d_sincos_pos_embed_from_grid(embed_dim, grid):
     emb = np.concatenate([emb_h, emb_w], axis=1) # (H*W, D)
     return emb
 
+
 def get_2d_sincos_pos_embed(embed_dim, grid_size, cls_token=False, extra_tokens=0):
     """
-    grid_size: int of the grid height and width
+    grid_size: tuple (grid_h, grid_w)
     return:
-    pos_embed: [grid_size*grid_size, embed_dim] or [1+grid_size*grid_size, embed_dim] (w/ or w/o cls_token)
+        pos_embed: [H*W, D] or [extra_tokens + H*W, D]
     """
-    grid_h = np.arange(grid_size, dtype=np.float32)
-    grid_w = np.arange(grid_size, dtype=np.float32)
-    grid = np.meshgrid(grid_w, grid_h)      # here w goes first
+    grid_h, grid_w = grid_size
+    grid_h = np.arange(grid_h, dtype=np.float32)
+    grid_w = np.arange(grid_w, dtype=np.float32)
+
+    grid = np.meshgrid(grid_w, grid_h)  # (2, H, W), w first
     grid = np.stack(grid, axis=0)
-    grid = grid.reshape([2, 1, grid_size, grid_size])
+    grid = grid.reshape([2, 1, grid_h.size, grid_w.size])
+
     pos_embed = get_2d_sincos_pos_embed_from_grid(embed_dim, grid)
+
     if cls_token and extra_tokens > 0:
-        pos_embed = np.concatenate([np.zeros([extra_tokens, embed_dim]), pos_embed], axis=0)
+        pos_embed = np.concatenate(
+            [np.zeros([extra_tokens, embed_dim]), pos_embed],
+            axis=0
+        )
+
     return pos_embed
 
 
@@ -166,54 +145,122 @@ class VisionRotaryEmbedding(nn.Module):
         return torch.cat((t_left, t, t_right), dim=-1)
 
 
+# class VisionRotaryEmbeddingFast(nn.Module):
+#     def __init__(
+#         self,
+#         dim,
+#         pt_seq_len=16,
+#         ft_seq_len=None,
+#         custom_freqs=None,
+#         freqs_for='lang',
+#         theta=10000,
+#         max_freq=10,
+#         num_freqs=1,
+#     ):
+#         super().__init__()
+#         breakpoint()
+#         if custom_freqs:
+#             freqs = custom_freqs
+#         elif freqs_for == 'lang':
+#             freqs = 1. / (theta ** (torch.arange(0, dim, 2)[:(dim // 2)].float() / dim))
+#         elif freqs_for == 'pixel':
+#             freqs = torch.linspace(1., max_freq / 2, dim // 2) * pi
+#         elif freqs_for == 'constant':
+#             freqs = torch.ones(num_freqs).float()
+#         else:
+#             raise ValueError(f'unknown modality {freqs_for}')
+
+#         if ft_seq_len is None:
+#             ft_seq_len = pt_seq_len
+#         t = torch.arange(ft_seq_len) / ft_seq_len * pt_seq_len
+
+#         freqs = torch.einsum('..., f -> ... f', t, freqs)
+#         freqs = repeat(freqs, '... n -> ... (n r)', r=2)
+#         freqs = broadcat((freqs[:, None, :], freqs[None, :, :]), dim=-1)
+
+#         freqs_cos = freqs.cos().view(-1, freqs.shape[-1])
+#         freqs_sin = freqs.sin().view(-1, freqs.shape[-1])
+
+#         self.register_buffer("freqs_cos", freqs_cos)
+#         self.register_buffer("freqs_sin", freqs_sin)
+
+#         # print('======== shape of rope freq', self.freqs_cos.shape,freqs_sin.shape, '========')
+
+#     def forward(self, t):
+#         breakpoint()
+#         # print('======== shape of t', t.shape, '========')
+#         _, _, Lt, _ = t.shape # B, num_heads, L, dim
+#         L, _ = self.freqs_cos.shape # L, dim
+#         repeat = Lt // L
+#         freqs_cos, freqs_sin = self.freqs_cos, self.freqs_sin
+#         if repeat != 1:
+#             freqs_cos = freqs_cos.repeat_interleave(repeat, dim=0)
+#             freqs_sin = freqs_sin.repeat_interleave(repeat, dim=0)
+#             # print('======== shape of rope freq', freqs_cos.shape,freqs_sin.shape, '========')
+#             # print(f'======== repeat {repeat} times ========')
+#             # print(f'======== shape of t {t.shape} ========')
+#             # # assert the repeat is twice
+#             # #assert repeat == 2, f'repeat should be 2, but got {repeat}'
+#             # # check the content of the repeated freqs
+#             # # the content at odd index should be the same as the content at even index
+#             # assert torch.allclose(freqs_cos[::2], freqs_cos[1::2]), 'repeated freqs_cos are not the same'
+#             # assert torch.allclose(freqs_sin[::2], freqs_sin[1::2]), 'repeated freqs_sin are not the same'
+#         # apply repeated freqs
+#         return t * freqs_cos + rotate_half(t) * freqs_sin
+
+
+
+
 class VisionRotaryEmbeddingFast(nn.Module):
     def __init__(
         self,
         dim,
-        pt_seq_len=16,
-        ft_seq_len=None,
-        custom_freqs=None,
-        freqs_for='lang',
+        pt_hw,                 # (H, W)
+        ft_hw=None,
         theta=10000,
+        freqs_for="lang",
         max_freq=10,
-        num_freqs=1,
     ):
         super().__init__()
-        if custom_freqs:
-            freqs = custom_freqs
-        elif freqs_for == 'lang':
-            freqs = 1. / (theta ** (torch.arange(0, dim, 2)[:(dim // 2)].float() / dim))
-        elif freqs_for == 'pixel':
-            freqs = torch.linspace(1., max_freq / 2, dim // 2) * pi
-        elif freqs_for == 'constant':
-            freqs = torch.ones(num_freqs).float()
+
+        H, W = pt_hw
+        if ft_hw is None:
+            ft_hw = pt_hw
+        Hf, Wf = ft_hw
+
+        # base frequencies
+        if freqs_for == "lang":
+            freqs = 1.0 / (theta ** (torch.arange(0, dim, 2).float() / dim))
+        elif freqs_for == "pixel":
+            freqs = torch.linspace(1.0, max_freq / 2, dim // 2) * pi
         else:
-            raise ValueError(f'unknown modality {freqs_for}')
+            raise ValueError
 
-        if ft_seq_len is None:
-            ft_seq_len = pt_seq_len
-        t = torch.arange(ft_seq_len) / ft_seq_len * pt_seq_len
+        # positions
+        y = torch.arange(Hf) / Hf * H
+        x = torch.arange(Wf) / Wf * W
 
-        freqs = torch.einsum('..., f -> ... f', t, freqs)
-        freqs = repeat(freqs, '... n -> ... (n r)', r=2)
-        
-        
-        
-        
-        freqs = broadcat((freqs[:, None, :], freqs[None, :, :]), dim=-1)
-        freqs_cos = freqs.cos().view(-1, freqs.shape[-1])
-        freqs_sin = freqs.sin().view(-1, freqs.shape[-1])
-        
-        
-        
-        # freqs_cos = freqs.cos()
-        # freqs_sin = freqs.sin()
-        
-        
-        
-        self.register_buffer("freqs_cos", freqs_cos)
-        self.register_buffer("freqs_sin", freqs_sin)
+        # outer product per axis
+        freqs_y = torch.einsum("i,f->if", y, freqs)
+        freqs_x = torch.einsum("j,f->jf", x, freqs)
 
+        freqs_y = repeat(freqs_y, "i n -> i n r", r=2)
+        freqs_x = repeat(freqs_x, "j n -> j n r", r=2)
+
+        # combine into (H*W, dim)
+        freqs = torch.cat(
+            [
+                freqs_y[:, None, :, :].expand(-1, Wf, -1, -1),
+                freqs_x[None, :, :, :].expand(Hf, -1, -1, -1),
+            ],
+            dim=-1,
+        )
+
+        freqs = freqs.reshape(Hf * Wf, -1)
+
+        self.register_buffer("freqs_cos", freqs.cos())
+        self.register_buffer("freqs_sin", freqs.sin())
+    
     def forward(self, t):
         # print('======== shape of t', t.shape, '========')
         _, _, Lt, _ = t.shape # B, num_heads, L, dim
@@ -223,6 +270,16 @@ class VisionRotaryEmbeddingFast(nn.Module):
         if repeat != 1:
             freqs_cos = freqs_cos.repeat_interleave(repeat, dim=0)
             freqs_sin = freqs_sin.repeat_interleave(repeat, dim=0)
+            # print('======== shape of rope freq', freqs_cos.shape,freqs_sin.shape, '========')
+            # print(f'======== repeat {repeat} times ========')
+            # print(f'======== shape of t {t.shape} ========')
+            # # assert the repeat is twice
+            # #assert repeat == 2, f'repeat should be 2, but got {repeat}'
+            # # check the content of the repeated freqs
+            # # the content at odd index should be the same as the content at even index
+            # assert torch.allclose(freqs_cos[::2], freqs_cos[1::2]), 'repeated freqs_cos are not the same'
+            # assert torch.allclose(freqs_sin[::2], freqs_sin[1::2]), 'repeated freqs_sin are not the same'
+        # apply repeated freqs
         return t * freqs_cos + rotate_half(t) * freqs_sin
 
 

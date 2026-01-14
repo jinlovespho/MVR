@@ -9,6 +9,7 @@ import logging
 import math
 import os
 from collections import defaultdict, OrderedDict
+import cv2 
 import torch
 # the first flag below was False when we tested this script but True makes A100 training a lot faster:
 torch.backends.cuda.matmul.allow_tf32 = True
@@ -50,6 +51,13 @@ from utils.dist_utils import *
 from eval import evaluate_generation_distributed
 
 from torchvision.utils import save_image 
+
+from utils.vis_utils import depth_to_colormap, depth_error_to_colormap_thresholded, apply_per_view
+import torchvision.transforms as T 
+
+from tqdm import tqdm
+from einops import rearrange
+
 
 def save_checkpoint(
     path: str,
@@ -186,7 +194,8 @@ def main():
     autocast_enabled = use_fp16 or use_bf16
     autocast_kwargs = dict(dtype=autocast_dtype, enabled=autocast_enabled)
     scaler = GradScaler(enabled=use_fp16)
-
+    
+    
     transport_params = dict(transport_cfg.get("params", {}))
     path_type = transport_params.get("path_type", "Linear")
     prediction = transport_params.get("prediction", "velocity")
@@ -281,6 +290,7 @@ def main():
     #     )
     #     logger.info(f"Evaluation dataset loaded from {eval_data}, containing {len(eval_dataset)} images.")
     
+    
     loader_batches = len(train_loader)
     if loader_batches % grad_accum_steps != 0:
         raise ValueError("Number of loader batches must be divisible by grad_accum_steps when drop_last=True.")
@@ -291,7 +301,6 @@ def main():
     if training_cfg.get("scheduler"):
         scheduler, sched_msg = build_scheduler(optimizer, steps_per_epoch, training_cfg)
     
-    breakpoint()
     #### Transport init
     transport = create_transport(
         **transport_params,
@@ -387,6 +396,9 @@ def main():
         logger.info(f"Dataset contains {len(train_loader.dataset)} samples, {steps_per_epoch} steps per epoch.")
         logger.info(f"Running with world size {world_size}, starting from epoch {start_epoch} to {num_epochs}.")
 
+
+    IMAGENET_NORMALIZE = T.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225],)
+
     dist.barrier() 
     for epoch in range(start_epoch, num_epochs):
         model.train()
@@ -408,6 +420,7 @@ def main():
                 optimizer,
                 scheduler,
             )
+            
         for train_step, batch in enumerate(train_loader):
                         
 
@@ -420,37 +433,80 @@ def main():
                 with torch.no_grad():
                     with autocast(**autocast_kwargs):
                         z = stage1_enc.encode(images)          # b 768 32 32 
+                optimizer.zero_grad(set_to_none=True)
+                with autocast(**autocast_kwargs):
+                    transport_output = transport.training_losses(ddp_model, z, model_kwargs)
+                    loss = transport_output["loss"].mean()
+                loss.float()
             else:
-                frame_ids = batch['frame_ids']
-                hq_ids = batch['hq_ids']
-                hq_views = batch['hq_views'].to(device)
-                lq_views = batch['lq_views'].to(device)
-                gt_depths = batch['gt_depths'].to(device)
+                frame_id = batch['frame_ids']                           # b v
+                hq_id = batch['hq_ids']                                 # len(hq_id) = b, len(hq_id[i]) = v
+                hq_view = batch['hq_views'].to(device)                  # b v 3 378 504
+                hq_latent_view = batch['hq_latent_views'].to(device)
+                lq_view = batch['lq_views'].to(device)                  # b v 3 378 504
+                gt_depth = batch['gt_depths'].squeeze(2).to(device)     # b v 378 504
+                gt_depth_np = gt_depth.detach().cpu().numpy()           # b v 378 504
+
+                # model_input = hq_view   # b v 3 378 504
+                model_input = lq_view   # b v 3 378 504
                 
-                model_input = hq_views
+                # NORMALIZATION
+                b, v, c, h, w = model_input.shape 
+                model_input = IMAGENET_NORMALIZE(model_input.view(b*v, c, h, w)).view(b, v, c, h, w)
+
 
                 with torch.no_grad():
-                    breakpoint()
-                    stage1_out_raw = stage1_enc(model_input, export_feat_layers=[19, 27, 33, 39])
+                    stage1_out_raw, mvrm_out = stage1_enc(model_input, export_feat_layers=[], mvrm_cfg=full_cfg.mvrm.train)
                     stage1_out = stage1_output_processor(stage1_out_raw)
-                    # stage1_out = stage1_enc.inference(hq_views, export_feat_layers=[19, 27, 33, 39])
-                    pred_depth = torch.from_numpy(stage1_out.depth).to(device)                 # (F, 336 504)
-                    # save_image(hq_views.view(-1,3,378, 504), 'img.jpg', normalize=True)
-                    # save_image(pred_depth.view(-1,1,378,504), 'img_pred_depth.jpg', normalize=True)
-                    # save_image(gt_depths.view(-1,1,378, 504), 'img_gt_depth.jpg', normalize=True)
+                    pred_depth = torch.from_numpy(stage1_out.depth).to(device)
+                    pred_depth_np = stage1_out.depth     
+                    z = mvrm_out['extract_feat']      # bv 972 3072
+                                        
+                    # hypersim 
+                    orig_H, orig_W = 768, 1024 
+                    model_H, model_W = 378, 504
+                    pH = pW = 14 
+                    num_pH = model_H//pH
+                    num_pW = model_W//pW 
+                    
+                    # b 1 3072 27 36
+                    z = rearrange(z, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)
                     model_kwargs={}
+                    
+                    # print(torch.equal(hq_latent_view, mvrm_extracted_feat))
+
+                    # SAVE_CLEAN_LATENT=True
+                    # if SAVE_CLEAN_LATENT:
+                    #     B = mvrm_out["extract_feat"].shape[0]
+                    #     for i in range(B):
+                    #         batch_id = batch['hq_ids'][i]
+                    #         full_id = batch_id[0]
+                    #         volume = full_id.split('_')[-4]
+                    #         scene = full_id.split('_')[-3]
+                    #         camera = full_id.split('_')[-2]
+                    #         frame_id = full_id.split('_')[-1]
+                    #         save_root_path = f'/mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview/ai_{volume}_{scene}/scene_cam_{camera}'
+                    #         os.makedirs(save_root_path, exist_ok=True)
+                    #         save_feat = mvrm_out["extract_feat"][i].reshape(972, 3072).detach().cpu()
+                    #         torch.save(save_feat, f'{save_root_path}/{frame_id}.pt')
+                    #     continue
+                            
+                            
+                    # save_image(model_input.squeeze(1), './img.jpg')
+                    # save_image(pred_depth, './img_pred.jpg', normalize=True)
+                    # save_image(gt_depth, './img_gt.jpg', normalize=True)
+                    # save_image(lq_view.squeeze(1), './img_lq.jpg', normalize=True)
+                    # save_image(hq_view.squeeze(1), './img_hq.jpg', normalize=True)
+                    # breakpoint()
                 
-            optimizer.zero_grad(set_to_none=True)
-            with autocast(**autocast_kwargs):
+                optimizer.zero_grad(set_to_none=True)
+                with autocast(**autocast_kwargs):
+                    transport_output = transport.training_losses_mvrm(ddp_model, z, model_kwargs, full_cfg)
+                    loss = transport_output["loss"].mean()
+                loss.float()
                 
                 
-                # 그러고 보니까, 여기서 stage1 rae output encoding z를 여기서 받아서 stage2 model한테 
-                # 넘겨주는거 보면 이거 자체를 vision_transforer_mvrm안에 구현해야할듯 ?! 이것부터 확인 
-                transport_output = transport.training_losses(ddp_model, z, model_kwargs)
-                breakpoint()
-                loss = transport_output["loss"].mean()
-            # breakpoint()
-            loss.float()
+                
             if scaler:  # f
                 scaler.scale(loss / grad_accum_steps).backward()
             else:
@@ -493,8 +549,17 @@ def main():
                 model.eval()
                 logger.info("Generating EMA samples...")
                 with torch.no_grad():
+
+
+                    # val_stage1_out_raw, val_mvrm_out = stage1_enc(model_input, export_feat_layers=[], mvrm_cfg=full_cfg.mvrm.val, mvrm_module=model)
+                    # val_stage1_out = stage1_output_processor(val_stage1_out_raw)
+                    # val_pred_depth = torch.from_numpy(val_stage1_out.depth).to(device)
+
+
+
                     vis_num_sample=8
                     vis_images = images[:vis_num_sample]
+                    # noise 
                     zs_samples = zs[:vis_num_sample] # at most 8 samples
                     visual_sample_model_kwargs = deepcopy(sample_model_kwargs)
                     visual_sample_model_kwargs['y'] = labels[:vis_num_sample] 
@@ -545,6 +610,7 @@ def main():
                 logger.info("Evaluation done.")
             global_step += 1
             num_batches += 1
+        
         if rank == 0 and num_batches > 0:
             avg_loss = epoch_metrics['loss'].item() / num_batches 
             epoch_stats = {

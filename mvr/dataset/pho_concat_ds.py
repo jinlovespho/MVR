@@ -133,6 +133,7 @@ def to_tensor(img):
 #         'gt_depths': gt_depth,
 #     }
 
+
 def multiview_collate_fn(batch):
     """
     batch: List[dict], length = B
@@ -212,3 +213,4 @@ def multiview_collate_fn(batch):
         "gt_depth_ids": gt_depth_ids,
         "gt_depths": gt_depths,
     }
+

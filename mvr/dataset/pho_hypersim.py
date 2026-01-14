@@ -189,71 +189,75 @@ class PhoHypersim(Dataset):
         idx, num_input_view = items
         frame_ids = self.get_nearby_ids(anchor=idx, num_frames=num_input_view)
         
-        hq_views = [self.data['hq_img'][i] for i in frame_ids]
-        hq_latent_views = [self.data['hq_latent'][i] for i in frame_ids]
-        lq_views = [self.data['lq_img'][i] for i in frame_ids]
-        depth_views = [self.data['gt_depth'][i] for i in frame_ids]
-        
-        
         
         # ----------------------
         #       process hq
         # ----------------------
         hq_view_id=[] 
         hq_view_list=[]
-        for hq_view in hq_views:
-            volume = hq_view.split('/')[-4].split('_')[-2]
-            scene = hq_view.split('/')[-4].split('_')[-1]
-            camera = hq_view.split('/')[-2].split('_')[-3]
-            view_id = hq_view.split('/')[-1].split('.')[-3]
-            hq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
-            hq_view_list.append(self.resize(self.convert_hdf5_img(hq_view)))
-            # hq_view_list.append({f'hypersim_{volume}_{scene}_{camera}_{view_id}': self.convert_hdf5(hq_view)})
+        if 'hq_img' in self.data.keys():
+            hq_views = [self.data['hq_img'][i] for i in frame_ids]
+            for hq_view in hq_views:
+                volume = hq_view.split('/')[-4].split('_')[-2]
+                scene = hq_view.split('/')[-4].split('_')[-1]
+                camera = hq_view.split('/')[-2].split('_')[-3]
+                view_id = hq_view.split('/')[-1].split('.')[-3]
+                hq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
+                hq_view_list.append(self.resize(self.convert_hdf5_img(hq_view)))
+                # hq_view_list.append({f'hypersim_{volume}_{scene}_{camera}_{view_id}': self.convert_hdf5(hq_view)})
 
 
+        
         # ----------------------------------
         #       process hq latent 
         # ----------------------------------
         hq_latent_view_id=[]
         hq_latent_view_list=[]
-        for hq_latent_view in hq_latent_views:
-            volume = hq_latent_view.split('/')[-3].split('_')[-2]
-            scene = hq_latent_view.split('/')[-3].split('_')[-1]
-            camera = hq_latent_view.split('/')[-2].split('_')[-1]
-            view_id = hq_latent_view.split('/')[-1].split('.')[-2]
-            hq_latent_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
-            hq_latent_view_list.append(torch.load(hq_latent_view))  # torch.Size([972, 3072])
+        if 'hq_latent' in self.data.keys():
+            hq_latent_views = [self.data['hq_latent'][i] for i in frame_ids]
+            for hq_latent_view in hq_latent_views:
+                volume = hq_latent_view.split('/')[-3].split('_')[-2]
+                scene = hq_latent_view.split('/')[-3].split('_')[-1]
+                camera = hq_latent_view.split('/')[-2].split('_')[-1]
+                view_id = hq_latent_view.split('/')[-1].split('.')[-2]
+                hq_latent_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
+                hq_latent_view_list.append(torch.load(hq_latent_view))  # torch.Size([972, 3072])
 
-
+            
+            
         # ----------------------
         #       process lq
         # ----------------------
         lq_view_id=[]
         lq_view_list=[]
-        for lq_view in lq_views:
-            volume = lq_view.split('/')[-4].split('_')[-2]
-            scene = lq_view.split('/')[-4].split('_')[-1]
-            camera = lq_view.split('/')[-3].split('_')[-3]
-            view_id = lq_view.split('/')[-1].split('.')[-2].split('_')[-2]
-            lq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
-            lq_view_list.append(self.resize(self.convert_imgpath(lq_view)))
-
-
+        if 'lq_img' in self.data.keys():
+            lq_views = [self.data['lq_img'][i] for i in frame_ids]
+            for lq_view in lq_views:
+                volume = lq_view.split('/')[-4].split('_')[-2]
+                scene = lq_view.split('/')[-4].split('_')[-1]
+                camera = lq_view.split('/')[-3].split('_')[-3]
+                view_id = lq_view.split('/')[-1].split('.')[-2].split('_')[-2]
+                lq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
+                lq_view_list.append(self.resize(self.convert_imgpath(lq_view)))
+        
+        
+        
         # -------------------------
         #       process depth
         # -------------------------
         depth_view_id=[]
         depth_view_list=[]
-        for depth_view in depth_views:
-            volume = depth_view.split('/')[-4].split('_')[-2]
-            scene = depth_view.split('/')[-4].split('_')[-1]
-            camera = depth_view.split('/')[-2].split('_')[-3]
-            view_id = depth_view.split('/')[-1].split('.')[-3]
-            depth_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
-            depth_view_list.append(self.resize_depth(self.convert_hdf5_depth(depth_view)))
+        if 'gt_depth' in self.data.keys():
+            depth_views = [self.data['gt_depth'][i] for i in frame_ids]
+            for depth_view in depth_views:
+                volume = depth_view.split('/')[-4].split('_')[-2]
+                scene = depth_view.split('/')[-4].split('_')[-1]
+                camera = depth_view.split('/')[-2].split('_')[-3]
+                view_id = depth_view.split('/')[-1].split('.')[-3]
+                depth_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
+                depth_view_list.append(self.resize_depth(self.convert_hdf5_depth(depth_view)))
             
 
-        
         return {
             "frame_ids": frame_ids,
             

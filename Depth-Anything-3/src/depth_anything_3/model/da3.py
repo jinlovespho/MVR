@@ -108,6 +108,7 @@ class DepthAnything3Net(nn.Module):
         ref_view_strategy: str = "saddle_balanced",
         mvrm_cfg=None,
         mvrm_module=None,
+        mode=None,
     ) -> Dict[str, torch.Tensor]:
         """
         Forward pass through the network.
@@ -134,9 +135,8 @@ class DepthAnything3Net(nn.Module):
 
         # dinov2 backbone
         feats, aux_feats, mvrm_output = self.backbone(
-            x, cam_token=cam_token, export_feat_layers=export_feat_layers, ref_view_strategy=ref_view_strategy, mvrm_cfg=mvrm_cfg, mvrm_module=mvrm_module
+            x, cam_token=cam_token, export_feat_layers=export_feat_layers, ref_view_strategy=ref_view_strategy, mvrm_cfg=mvrm_cfg, mvrm_module=mvrm_module, mode=mode
         )
-        
         '''
             feats: zip(outputs, camera_tokens)
             where, 

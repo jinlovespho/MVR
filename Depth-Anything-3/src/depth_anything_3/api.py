@@ -109,7 +109,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         use_ray_pose: bool = False,
         ref_view_strategy: str = "saddle_balanced",
         mvrm_cfg=None,
-        mvrm_module=None
+        mvrm_module=None,
+        mode=None
     ) -> dict[str, torch.Tensor]:
         """
         Forward pass through the model.
@@ -131,7 +132,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         with torch.no_grad():
             with torch.autocast(device_type=image.device.type, dtype=autocast_dtype):
                 return self.model(
-                    image, extrinsics, intrinsics, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg, mvrm_module
+                    image, extrinsics, intrinsics, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg, mvrm_module, mode
                     )
 
     def inference(

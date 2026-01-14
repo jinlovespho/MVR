@@ -240,9 +240,11 @@ class Transport:
         
         # breakpoint()
         # multi-view input
+        
+        
         if len(x1.shape) == 5:
-            b, v, d, h, w = x1.shape
-            x1 = x1.view(b*v, d, h, w)
+            b, v, c, h, w = x1.shape
+            x1 = x1.view(b*v, c, h, w)
         
         # breakpoint()
         if model_kwargs == None:
@@ -276,7 +278,7 @@ class Transport:
         if cfg.mvrm.lq_latent_cond == 'addition':
             xt = xt + x1
         elif cfg.mvrm.lq_latent_cond == 'concat':
-            xt = torch.concat([x1,xt], dim=1)   # channel concat
+            xt = torch.concat([x1, xt], dim=1)   # channel concat
 
         # breakpoint()
         # mvrm forward pass 
@@ -328,6 +330,7 @@ class Transport:
             return (-drift_mean + drift_var * score)
         
         def velocity_ode(x, t, model, **model_kwargs):
+            # breakpoint()
             model_output = model(x, t, **model_kwargs)
             return model_output
 

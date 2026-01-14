@@ -213,70 +213,69 @@ class DiTwDDTHead(nn.Module):
             use_pos_embed: bool = True,
     ):
         super().__init__()
-        self.in_channels = in_channels
-        self.out_channels = in_channels
+        self.in_channels = in_channels      # 768
+        self.out_channels = in_channels     # 768
 
-        self.encoder_hidden_size = hidden_size[0]
-        self.decoder_hidden_size = hidden_size[1]
-        self.num_heads = [num_heads, num_heads] if isinstance(
-            num_heads, int) else list(num_heads)
-        self.num_decoder_blocks = depth[1]
-        self.num_encoder_blocks = depth[0]
-        self.num_blocks = depth[0] + depth[1]
-        self.use_rope = use_rope
+        self.encoder_hidden_size = hidden_size[0]   # 1152
+        self.decoder_hidden_size = hidden_size[1]   # 2048
+        
+        self.num_heads = [num_heads, num_heads] if isinstance(num_heads, int) else list(num_heads)  # (16,16)
+        
+        self.num_encoder_blocks = depth[0]  # 28
+        self.num_decoder_blocks = depth[1]  # 2
+        self.num_blocks = depth[0] + depth[1]   # 30
+        
+        self.use_rope = use_rope    # t
         # analyze patch size
         if isinstance(patch_size, int) or isinstance(patch_size, float):
-            patch_size = [patch_size, patch_size]  # patch size for s , x embed
-        assert len(
-            patch_size) == 2, f"patch size should be a list of two numbers, but got {patch_size}"
+            patch_size = [patch_size, patch_size]  # [1, 1] patch size for s , x embed 
+        assert len(patch_size) == 2, f"patch size should be a list of two numbers, but got {patch_size}"
         self.patch_size = patch_size
         self.s_patch_size = patch_size[0]
         self.x_patch_size = patch_size[1]
-        s_channel_per_token = in_channels * self.s_patch_size * self.s_patch_size
-        s_input_size = input_size
-        s_patch_size = self.s_patch_size
-        x_input_size = input_size
-        x_patch_size = self.x_patch_size
-        x_channel_per_token = in_channels * self.x_patch_size * self.x_patch_size
-        self.x_embedder = PatchEmbed(
-            x_input_size, x_patch_size, x_channel_per_token, self.decoder_hidden_size, bias=True)
-        self.s_embedder = PatchEmbed(
-            s_input_size, s_patch_size, s_channel_per_token, self.encoder_hidden_size, bias=True)
-        self.s_channel_per_token = s_channel_per_token
-        self.x_channel_per_token = x_channel_per_token
-        self.s_projector = nn.Linear(
-            self.encoder_hidden_size, self.decoder_hidden_size) if self.encoder_hidden_size != self.decoder_hidden_size else nn.Identity()
+        
+        self.s_channel_per_token = in_channels * self.s_patch_size * self.s_patch_size   # 768
+        s_input_size = input_size           # 32
+        s_patch_size = self.s_patch_size    # 1
+        
+        x_input_size = input_size           # 32
+        x_patch_size = self.x_patch_size    # 1
+        self.x_channel_per_token = in_channels * self.x_patch_size * self.x_patch_size   # 768
+
+        self.s_embedder = PatchEmbed(s_input_size, s_patch_size, self.s_channel_per_token, self.encoder_hidden_size, bias=True)      
+        self.s_projector = nn.Linear(self.encoder_hidden_size, self.decoder_hidden_size) if self.encoder_hidden_size != self.decoder_hidden_size else nn.Identity()
+        
+        self.x_embedder = PatchEmbed(x_input_size, x_patch_size, self.x_channel_per_token, self.decoder_hidden_size, bias=True)
+        
         self.t_embedder = GaussianFourierEmbedding(self.encoder_hidden_size)
-        self.y_embedder = LabelEmbedder(
-            num_classes, self.encoder_hidden_size, class_dropout_prob)
+        self.y_embedder = LabelEmbedder(num_classes, self.encoder_hidden_size, class_dropout_prob)
         # print(f"x_channel_per_token: {x_channel_per_token}, s_channel_per_token: {s_channel_per_token}")
-        self.final_layer = DDTFinalLayer(
-            self.decoder_hidden_size, 1, x_channel_per_token, use_rmsnorm=use_rmsnorm)
+        
+        self.final_layer = DDTFinalLayer(self.decoder_hidden_size, 1, self.x_channel_per_token, use_rmsnorm=use_rmsnorm)
         # Will use fixed sin-cos embedding:
-        if use_pos_embed:
+        if use_pos_embed:   # t
             num_patches = self.s_embedder.num_patches
-            self.pos_embed = nn.Parameter(torch.zeros(
-                1, num_patches, self.encoder_hidden_size), requires_grad=False)
+            self.pos_embed = nn.Parameter(torch.zeros(1, num_patches, self.encoder_hidden_size), requires_grad=False)
             self.x_pos_embed = None
         self.use_pos_embed = use_pos_embed
         enc_num_heads = self.num_heads[0]
         dec_num_heads = self.num_heads[1]
         # use rotary position encoding, borrow from EVA
         if self.use_rope:
+            # enc_half_head_dim = self.encoder_hidden_size // enc_num_heads // 2
+            # hw_seq_len = int(sqrt(self.s_embedder.num_patches))
+            # # print(f"enc_half_head_dim: {enc_half_head_dim}, hw_seq_len: {hw_seq_len}")
+            # self.enc_feat_rope = VisionRotaryEmbeddingFast(dim=enc_half_head_dim,pt_seq_len=hw_seq_len,)
+            # dec_half_head_dim = self.decoder_hidden_size // dec_num_heads // 2
+            # hw_seq_len = int(sqrt(self.x_embedder.num_patches))
+            # # print(f"dec_half_head_dim: {dec_half_head_dim}, hw_seq_len: {hw_seq_len}")
+            # self.dec_feat_rope = VisionRotaryEmbeddingFast(dim=dec_half_head_dim,pt_seq_len=hw_seq_len,)
             enc_half_head_dim = self.encoder_hidden_size // enc_num_heads // 2
-            hw_seq_len = int(sqrt(self.s_embedder.num_patches))
-            # print(f"enc_half_head_dim: {enc_half_head_dim}, hw_seq_len: {hw_seq_len}")
-            self.enc_feat_rope = VisionRotaryEmbeddingFast(
-                dim=enc_half_head_dim,
-                pt_seq_len=hw_seq_len,
-            )
+            self.enc_feat_rope = VisionRotaryEmbeddingFast(dim=enc_half_head_dim, pt_hw=self.s_embedder.grid_size)
+            
             dec_half_head_dim = self.decoder_hidden_size // dec_num_heads // 2
-            hw_seq_len = int(sqrt(self.x_embedder.num_patches))
-            # print(f"dec_half_head_dim: {dec_half_head_dim}, hw_seq_len: {hw_seq_len}")
-            self.dec_feat_rope = VisionRotaryEmbeddingFast(
-                dim=dec_half_head_dim,
-                pt_seq_len=hw_seq_len,
-            )
+            self.dec_feat_rope = VisionRotaryEmbeddingFast(dim=dec_half_head_dim, pt_hw=self.x_embedder.grid_size)
+            
         else:
             self.feat_rope = None
         self.blocks = nn.ModuleList([
@@ -313,10 +312,9 @@ class DiTwDDTHead(nn.Module):
         nn.init.normal_(self.y_embedder.embedding_table.weight, std=0.02)
         if self.use_pos_embed:
             # Initialize (and freeze) pos_embed by sin-cos embedding:
-            pos_embed = get_2d_sincos_pos_embed(
-                self.pos_embed.shape[-1], int(self.s_embedder.num_patches ** 0.5))
-            self.pos_embed.data.copy_(
-                torch.from_numpy(pos_embed).float().unsqueeze(0))
+            # pos_embed = get_2d_sincos_pos_embed(self.pos_embed.shape[-1], int(self.s_embedder.num_patches ** 0.5))
+            pos_embed = get_2d_sincos_pos_embed(self.pos_embed.shape[-1], self.s_embedder.grid_size)
+            self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
 
         # Zero-out adaLN modulation layers in LightningDiT blocks:
         for block in self.blocks:
@@ -339,14 +337,15 @@ class DiTwDDTHead(nn.Module):
         imgs: (N, H, W, C)
         """
         # c = self.out_channels
-        c = self.x_channel_per_token
+        c = self.x_channel_per_token        
         p = self.x_embedder.patch_size[0]
-        h = w = int(x.shape[1] ** 0.5)
-        assert h * w == x.shape[1]
+        # h = w = int(x.shape[1] ** 0.5)
+        # assert h * w == x.shape[1]
+        h, w = self.s_embedder.grid_size
 
         x = x.reshape(shape=(x.shape[0], h, w, p, p, c))
         x = torch.einsum('nhwpqc->nchpwq', x)
-        imgs = x.reshape(shape=(x.shape[0], c, h * p, h * p))
+        imgs = x.reshape(shape=(x.shape[0], c, h * p, w * p))
         return imgs
 
     def forward(self, x, t, y, s=None, mask=None):

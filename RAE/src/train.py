@@ -139,8 +139,6 @@ def main():
     guidance_cfg = to_dict(guidance_config)
     training_cfg = to_dict(training_config)
 
-    num_classes = int(misc.get("num_classes", 1000))
-    null_label = int(misc.get("null_label", num_classes))
     latent_size = tuple(int(dim) for dim in misc.get("latent_size", (768, 16, 16)))
     shift_dim = misc.get("time_dist_shift_dim", math.prod(latent_size))
     shift_base = misc.get("time_dist_shift_base", 4096)
@@ -333,28 +331,32 @@ def main():
     use_guidance = guidance_scale > 1.0
     # make noise latent 
     zs = torch.randn(micro_batch_size, *latent_size, device=device, dtype=torch.float32) # always use float for noise sampling
-    n = micro_batch_size
-    if use_guidance:
-        zs = torch.cat([zs, zs], dim=0)
-        y_null = torch.full((n,), null_label, device=device)
-        ys = torch.cat([ys, y_null], dim=0)
-        sample_model_kwargs = dict(
-            cfg_scale=guidance_scale,
-            cfg_interval=(t_min, t_max),
-        )
-        if guidance_method == "autoguidance":
-            if guid_model_forward is None:
-                raise RuntimeError("Guidance model forward is not initialized.")
-            sample_model_kwargs["additional_model_forward"] = guid_model_forward
-            ema_model_fn = ema_model.forward_with_autoguidance
-            model_fn = model.forward_with_autoguidance
-        else:
-            ema_model_fn = ema_model.forward_with_cfg
-            model_fn = model.forward_with_cfg
-    else:
-        sample_model_kwargs = dict()
-        ema_model_fn = ema_model.forward
-        model_fn = model.forward
+    # if use_guidance:
+    #     zs = torch.cat([zs, zs], dim=0)
+    #     y_null = torch.full((n,), null_label, device=device)
+    #     ys = torch.cat([ys, y_null], dim=0)
+    #     sample_model_kwargs = dict(
+    #         cfg_scale=guidance_scale,
+    #         cfg_interval=(t_min, t_max),
+    #     )
+    #     if guidance_method == "autoguidance":
+    #         if guid_model_forward is None:
+    #             raise RuntimeError("Guidance model forward is not initialized.")
+    #         sample_model_kwargs["additional_model_forward"] = guid_model_forward
+    #         ema_model_fn = ema_model.forward_with_autoguidance
+    #         model_fn = model.forward_with_autoguidance
+    #     else:
+    #         ema_model_fn = ema_model.forward_with_cfg
+    #         model_fn = model.forward_with_cfg
+    # else:
+    #     sample_model_kwargs = dict()
+    #     ema_model_fn = ema_model.forward
+    #     model_fn = model.forward
+
+    sample_model_kwargs = dict()
+    ema_model_fn = ema_model.forward
+    model_fn = model.forward
+    
 
     ### Resuming and checkpointing
     start_epoch = 0
@@ -442,7 +444,7 @@ def main():
                 frame_id = batch['frame_ids']                           # b v
                 hq_id = batch['hq_ids']                                 # len(hq_id) = b, len(hq_id[i]) = v
                 hq_view = batch['hq_views'].to(device)                  # b v 3 378 504
-                hq_latent_view = batch['hq_latent_views'].to(device)
+                # hq_latent_view = batch['hq_latent_views'].to(device)
                 lq_view = batch['lq_views'].to(device)                  # b v 3 378 504
                 gt_depth = batch['gt_depths'].squeeze(2).to(device)     # b v 378 504
                 gt_depth_np = gt_depth.detach().cpu().numpy()           # b v 378 504
@@ -456,48 +458,55 @@ def main():
 
 
                 with torch.no_grad():
-                    stage1_out_raw, mvrm_out = stage1_enc(model_input, export_feat_layers=[], mvrm_cfg=full_cfg.mvrm.train)
+                    stage1_out_raw, mvrm_out = stage1_enc(model_input, export_feat_layers=[], mvrm_cfg=full_cfg.mvrm.train, mode='train')
                     stage1_out = stage1_output_processor(stage1_out_raw)
                     pred_depth = torch.from_numpy(stage1_out.depth).to(device)
                     pred_depth_np = stage1_out.depth     
-                    z = mvrm_out['extract_feat']      # bv 972 3072
-                                        
-                    # hypersim 
-                    orig_H, orig_W = 768, 1024 
-                    model_H, model_W = 378, 504
-                    pH = pW = 14 
-                    num_pH = model_H//pH
-                    num_pW = model_W//pW 
                     
-                    # b 1 3072 27 36
-                    z = rearrange(z, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)
-                    model_kwargs={}
+                    z = mvrm_out['extract_feat']      # b v 972 3072
                     
-                    # print(torch.equal(hq_latent_view, mvrm_extracted_feat))
+                    # # get rid of cls(camera) tkn
+                    # z = z[:,:,1:,:] # b v 972 3072
 
-                    # SAVE_CLEAN_LATENT=True
-                    # if SAVE_CLEAN_LATENT:
-                    #     B = mvrm_out["extract_feat"].shape[0]
-                    #     for i in range(B):
-                    #         batch_id = batch['hq_ids'][i]
-                    #         full_id = batch_id[0]
-                    #         volume = full_id.split('_')[-4]
-                    #         scene = full_id.split('_')[-3]
-                    #         camera = full_id.split('_')[-2]
-                    #         frame_id = full_id.split('_')[-1]
-                    #         save_root_path = f'/mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview/ai_{volume}_{scene}/scene_cam_{camera}'
-                    #         os.makedirs(save_root_path, exist_ok=True)
-                    #         save_feat = mvrm_out["extract_feat"][i].reshape(972, 3072).detach().cpu()
-                    #         torch.save(save_feat, f'{save_root_path}/{frame_id}.pt')
-                    #     continue
-                            
-                            
+
                     # save_image(model_input.squeeze(1), './img.jpg')
                     # save_image(pred_depth, './img_pred.jpg', normalize=True)
                     # save_image(gt_depth, './img_gt.jpg', normalize=True)
                     # save_image(lq_view.squeeze(1), './img_lq.jpg', normalize=True)
                     # save_image(hq_view.squeeze(1), './img_hq.jpg', normalize=True)
                     # breakpoint()
+
+
+                    SAVE_CLEAN_LATENT=True
+                    if SAVE_CLEAN_LATENT:
+                        B = z.shape[0]
+                        for i in range(B):
+                            batch_id = batch['hq_ids'][i]
+                            full_id = batch_id[0]
+                            volume = full_id.split('_')[-4]
+                            scene = full_id.split('_')[-3]
+                            camera = full_id.split('_')[-2]
+                            frame_id = full_id.split('_')[-1]
+                            save_root_path = f'/mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview/ai_{volume}_{scene}/scene_cam_{camera}'
+                            os.makedirs(save_root_path, exist_ok=True)
+                            save_feat = z[i].reshape(972, 3072).detach().cpu()
+                            torch.save(save_feat, f'{save_root_path}/{frame_id}.pt')
+                        continue
+                    
+                    breakpoint()
+                            
+                    # hypersim 
+                    orig_H, orig_W = 768, 1024 
+                    model_H, model_W = 378, 504
+                    pH = pW = 14 
+                    num_pH = model_H//pH    # 27
+                    num_pW = model_W//pW    # 36
+                    
+                    # b 1 3072 27 36
+                    z = rearrange(z, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)
+                    model_kwargs={}
+                            
+
                 
                 optimizer.zero_grad(set_to_none=True)
                 with autocast(**autocast_kwargs):
@@ -550,32 +559,48 @@ def main():
                 logger.info("Generating EMA samples...")
                 with torch.no_grad():
 
+                    val_b, val_v, val_c, val_h, val_w = z.shape
+                    
+                    # pure noise 
+                    zs_samples = zs[:val_b]    # b v 
 
-                    # val_stage1_out_raw, val_mvrm_out = stage1_enc(model_input, export_feat_layers=[], mvrm_cfg=full_cfg.mvrm.val, mvrm_module=model)
-                    # val_stage1_out = stage1_output_processor(val_stage1_out_raw)
-                    # val_pred_depth = torch.from_numpy(val_stage1_out.depth).to(device)
+                    # reshape
+                    z = z.view(-1, val_c, val_h, val_w)
+                    zs_samples = zs_samples.view(-1, val_c, val_h, val_w)
 
-
-                    vis_num_sample=8
-                    vis_images = images[:vis_num_sample]
-                    # noise 
-                    zs_samples = zs[:vis_num_sample] # at most 8 samples
-                    visual_sample_model_kwargs = deepcopy(sample_model_kwargs)
-                    visual_sample_model_kwargs['y'] = labels[:vis_num_sample] 
+                    # lq_latent condition method
+                    if full_cfg.mvrm.lq_latent_cond == 'addition':
+                        zs_samples = zs_samples + z
+                    elif full_cfg.mvrm.lq_latent_cond == 'concat':
+                        zs_samples = torch.concat([zs_samples, z], dim=1)
+                    
+                    # forward pass
                     with autocast(**autocast_kwargs):
-                        samples = eval_sampler(zs_samples, ema_model_fn, **visual_sample_model_kwargs)[-1]
-                    samples.float()
-                    if use_guidance:
-                        samples, _ = samples.chunk(2, dim=0)
-                    samples = stage1_enc.decode(samples)
-                    vis_recon = torch.cat([vis_images, samples], dim=-2)
-                    save_image(vis_recon, f'{vis_recon_dir}/{global_step:07d}.png')
-                    # samples = samples.cpu().float()
+                        restored_samples = eval_sampler(zs_samples, ema_model_fn, **sample_model_kwargs)[-1]     # b*v c h w 
+                    restored_samples.float()
+                    restored_samples=restored_samples.view(val_b, val_v, val_c, val_h, val_w)
+
+                    # hypersim 
+                    orig_H, orig_W = 768, 1024 
+                    model_H, model_W = 378, 504
+                    pH = pW = 14 
+                    num_pH = model_H//pH    # 27
+                    num_pW = model_W//pW    # 36
+                    
+                    # b 1 3072 27 36 -> b 1 972 3072
+                    restored_samples = rearrange(restored_samples, 'b v d num_pH num_pW -> b v (num_pH num_pW) d', v=val_v, num_pH=num_pH, num_pW=num_pW) # b v n d 
+
+                    val_stage1_out_raw, val_mvrm_out = stage1_enc(model_input, export_feat_layers=[], mvrm_cfg=full_cfg.mvrm.val, mvrm_module=restored_samples, mode='val')
+                    val_stage1_out = stage1_output_processor(val_stage1_out_raw)
+                    val_pred_depth = torch.from_numpy(val_stage1_out.depth).to(device)
+                    
+                    breakpoint()
+
+
                     dist.barrier()
-                    # if args.wandb and rank == 0:
-                    #     wandb_utils.log_image(samples, global_step)
                 logger.info("Generating EMA samples done.")
                 model.train()
+                
             # if do_eval and (eval_interval > 0 and global_step % eval_interval == 0):
             #     logger.info("Starting evaluation...")
             #     model.eval()
