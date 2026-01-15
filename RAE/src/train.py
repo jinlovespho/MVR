@@ -156,7 +156,8 @@ def main():
     num_workers = int(training_cfg.get("num_workers", 4))
     log_interval = int(training_cfg.get("log_interval", 100))
     sample_every = int(training_cfg.get("sample_every", 2500)) 
-    checkpoint_interval = int(training_cfg.get("checkpoint_interval", 4)) # ckpt interval is epoch based
+    # checkpoint_interval = int(training_cfg.get("checkpoint_interval", 4)) # ckpt interval is epoch based
+    ckpt_step_interval = int(training_cfg.get('ckpt_step_interval', 25000))
     cfg_scale_override = training_cfg.get("cfg_scale", None)
     global_seed = int(training_cfg.get("global_seed", 0))
     
@@ -403,7 +404,8 @@ def main():
         optimizer.zero_grad()
         accum_counter = 0
         step_loss_accum = 0.0
-        if checkpoint_interval > 0 and epoch % checkpoint_interval == 0  and rank == 0:
+        # if checkpoint_interval > 0 and epoch % checkpoint_interval == 0  and rank == 0:
+        if global_step > 0 and global_step % ckpt_step_interval == 0 and rank == 0:
             logger.info(f"Saving checkpoint at epoch {epoch}...")
             ckpt_path = f"{checkpoint_dir}/ep-{epoch:07d}.pt" 
             save_checkpoint(
@@ -417,7 +419,6 @@ def main():
             )
             
         for train_step, batch in enumerate(train_loader):
-                        
 
             if 'imagenet' in full_cfg.data.train.list:
                 (images, labels) = batch            
@@ -508,7 +509,7 @@ def main():
                     hq_cam_tkn = hq_latent[:,:,0]       # hq latent camera token (b v 3072)
                     hq_patch_tkn = hq_latent[:,:,1:]    # hq latent patch tokens (b v 972 3072)
                     hq_patch_tkn = rearrange(hq_patch_tkn, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
-        
+                
                 
                 optimizer.zero_grad(set_to_none=True)
                 with autocast(**autocast_kwargs):
@@ -525,6 +526,7 @@ def main():
                 if scaler:
                     scaler.unscale_(optimizer) 
                 torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), clip_grad)
+            
             if global_step % grad_accum_steps == 0:
                 if scaler:
                     scaler.step(optimizer)
@@ -537,7 +539,6 @@ def main():
             running_loss += loss.item()
             epoch_metrics['loss'] += loss.detach()
             
-            # breakpoint()
             if log_interval > 0 and global_step % log_interval == 0 and rank == 0:
                 avg_loss = running_loss / log_interval # flow loss often has large variance so we record avg loss
                 steps = torch.tensor(log_interval, device=device)
@@ -638,10 +639,8 @@ def main():
                     # Output path
                     vis_depth_save_dir = f'{experiment_dir}/vis_depth'
                     os.makedirs(vis_depth_save_dir, exist_ok=True)
-                    cv2.imwrite(f'{vis_depth_save_dir}/{hq_id[0][0]}.jpg', vis_depth_cat)
-
-                    breakpoint()                    
-                    
+                    cv2.imwrite(f'{vis_depth_save_dir}/{hq_id[0][0]}.jpg', vis_depth_cat)               
+                    # breakpoint()
                 
                     dist.barrier()
                 logger.info("Generating EMA samples done.")

@@ -80,13 +80,14 @@ training:
   global_seed: 42
   precision: fp32
   epochs: 50
-  global_batch_size: 4    # this is the final total batch size
+  global_batch_size: 1    # this is the final total batch size
   grad_accum_steps: 1     # by controling grad_accum_step, the batch_size is adjusted automatically
   ema_decay: 0.9995
   num_workers: 0
   shuffle: False
   log_interval: 100
-  checkpoint_interval: 1
+  # checkpoint_interval: 
+  ckpt_step_interval: 25000   # 25k
   sample_every: 1000
   clip_grad: 1.0
   optimizer:
@@ -117,12 +118,9 @@ log:
       key: e32eed0c2509bf898b850b0065ab62345005fb73
       entity: jinlovespho
       project: eccv26_mv_restoration
-      # msg: "hqview_recon"
-      # msg: "lqview-kernel50"
-      # msg: "lqview-kernel30"
-      # msg: "lqview-kernel10"      
-      # msg: "lqview-kernel100"      
-      msg: "TMPTMPTMPTMPTMP"
+      msg: "hq_recon"
+      # msg: "lq-kernel50"
+
 data:
   train:
     image_size: 512 
@@ -138,9 +136,7 @@ data:
 
     hypersim:
       hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data
-      # hq_latent_root_path: /mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview
-      hq_latent_root_path: 
-
+      hq_latent_root_path: /mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview
       # lq_root_path: /mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel10_intensity01
       # lq_root_path: /mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel30_intensity01
       lq_root_path: /mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel50_intensity01
@@ -164,7 +160,7 @@ data:
   
 
 mvrm:
-  save_hq_latent: True
+  save_hq_latent: False
   input_img: hq
   # input_img: lq
   # choose from [addition, concat]
