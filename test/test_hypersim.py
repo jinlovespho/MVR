@@ -325,20 +325,20 @@ def main():
 
         if img_bgr is not None:
             H, W = gt_depth.shape
-            img_bgr = cv2.resize(img_bgr, (W, H), interpolation=cv2.INTER_LINEAR)
+            img_bgr = cv2.resize(img_bgr, (W, H), interpolation=cv2.INTER_LINEAR)   # 768 1024 3
 
             # Tensor → NumPy
-            pred_np = pred.detach().cpu().numpy()
-            gt_np = gt_depth.detach().cpu().numpy()
+            pred_np = pred.detach().cpu().numpy()       # 768 1024
+            gt_np = gt_depth.detach().cpu().numpy()     # 768 1024 
 
             breakpoint()
             # Depth visualizations
-            pred_vis = depth_to_colormap(pred_np)
+            pred_vis = depth_to_colormap(pred_np)   # 768 1024 3
             gt_vis   = depth_to_colormap(gt_np)
 
             # Error visualization (AbsRel, log-scaled, TURBO)
             # err_vis = depth_error_to_colormap(gt_np, pred_np)
-            err_vis = depth_error_to_colormap_thresholded(gt_np, pred_np, thr=0.1)
+            err_vis = depth_error_to_colormap_thresholded(gt_np, pred_np, thr=0.1)  # 768 1024 3
 
             # Concatenate: [RGB | Pred | GT | Error]
             concat = np.concatenate(

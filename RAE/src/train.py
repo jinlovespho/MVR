@@ -51,11 +51,9 @@ from utils.dist_utils import *
 from eval import evaluate_generation_distributed
 
 from torchvision.utils import save_image 
-
-from utils.vis_utils import depth_to_colormap, depth_error_to_colormap_thresholded, apply_per_view
+from utils.vis_utils import depth_to_colormap, depth_error_to_colormap_thresholded
 import torchvision.transforms as T 
 
-from tqdm import tqdm
 from einops import rearrange
 
 
@@ -330,9 +328,9 @@ def main():
     start_time = time()
     use_guidance = guidance_scale > 1.0
     # make noise latent 
-    zs = torch.randn(micro_batch_size, *latent_size, device=device, dtype=torch.float32) # always use float for noise sampling
+    pure_noise = torch.randn(micro_batch_size, *latent_size, device=device, dtype=torch.float32) # always use float for noise sampling
     # if use_guidance:
-    #     zs = torch.cat([zs, zs], dim=0)
+    #     pure_noise = torch.cat([pure_noise, pure_noise], dim=0)
     #     y_null = torch.full((n,), null_label, device=device)
     #     ys = torch.cat([ys, y_null], dim=0)
     #     sample_model_kwargs = dict(
@@ -443,14 +441,16 @@ def main():
             else:
                 frame_id = batch['frame_ids']                           # b v
                 hq_id = batch['hq_ids']                                 # len(hq_id) = b, len(hq_id[i]) = v
-                hq_view = batch['hq_views'].to(device)                  # b v 3 378 504
-                # hq_latent_view = batch['hq_latent_views'].to(device)
-                lq_view = batch['lq_views'].to(device)                  # b v 3 378 504
-                gt_depth = batch['gt_depths'].squeeze(2).to(device)     # b v 378 504
-                gt_depth_np = gt_depth.detach().cpu().numpy()           # b v 378 504
+                hq_latent = batch['hq_latent_views'].to(device)
+                gt_depth = batch['gt_depths'].to(device)                 # b v 1 378 504
 
-                model_input = hq_view   # b v 3 378 504
-                # model_input = lq_view   # b v 3 378 504
+
+                # model input 
+                if full_cfg.mvrm.input_img == 'hq':
+                    model_input = batch['hq_views'].to(device)                  # b v 3 378 504
+                elif full_cfg.mvrm.input_img == 'lq':
+                    model_input = batch['lq_views'].to(device)                  # b v 3 378 504
+                
                 
                 # NORMALIZATION
                 b, v, c, h, w = model_input.shape 
@@ -458,42 +458,44 @@ def main():
 
 
                 with torch.no_grad():
-                    stage1_out_raw, mvrm_out = stage1_enc(model_input, export_feat_layers=[], mvrm_cfg=full_cfg.mvrm.train, mode='train')
+                    stage1_out_raw, mvrm_out = stage1_enc(
+                                                        image=model_input, 
+                                                        export_feat_layers=[], 
+                                                        mvrm_cfg=full_cfg.mvrm.train, 
+                                                        mode='train'
+                                                        )
                     stage1_out = stage1_output_processor(stage1_out_raw)
-                    pred_depth = torch.from_numpy(stage1_out.depth).to(device)
-                    pred_depth_np = stage1_out.depth     
+                    train_pred_depth_np = stage1_out.depth                  # b v 378 504
+                    train_pred_depth = torch.from_numpy(train_pred_depth_np).to(device) 
                     
-                    z = mvrm_out['extract_feat']      # b v 972 3072
-                    
-                    # # get rid of cls(camera) tkn
-                    # z = z[:,:,1:,:] # b v 972 3072
 
+                    lq_latent = mvrm_out['extract_feat']      # b v 973 3072
+                    
 
                     # save_image(model_input.squeeze(1), './img.jpg')
                     # save_image(pred_depth, './img_pred.jpg', normalize=True)
                     # save_image(gt_depth, './img_gt.jpg', normalize=True)
-                    # save_image(lq_view.squeeze(1), './img_lq.jpg', normalize=True)
-                    # save_image(hq_view.squeeze(1), './img_hq.jpg', normalize=True)
+                    # save_image(batch['lq_views'].squeeze(1), './img_lq.jpg', normalize=True)
+                    # save_image(batch['hq_views'].squeeze(1), './img_hq.jpg', normalize=True)
                     # breakpoint()
 
 
-                    SAVE_CLEAN_LATENT=True
-                    if SAVE_CLEAN_LATENT:
-                        B = z.shape[0]
-                        for i in range(B):
-                            batch_id = batch['hq_ids'][i]
-                            full_id = batch_id[0]
-                            volume = full_id.split('_')[-4]
-                            scene = full_id.split('_')[-3]
-                            camera = full_id.split('_')[-2]
-                            frame_id = full_id.split('_')[-1]
-                            save_root_path = f'/mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview/ai_{volume}_{scene}/scene_cam_{camera}'
-                            os.makedirs(save_root_path, exist_ok=True)
-                            save_feat = z[i].reshape(972, 3072).detach().cpu()
-                            torch.save(save_feat, f'{save_root_path}/{frame_id}.pt')
-                        continue
+                    # SAVE_CLEAN_LATENT=True
+                    # if SAVE_CLEAN_LATENT:
+                    #     B = lq_latent.shape[0]
+                    #     for i in range(B):
+                    #         batch_id = hq_id[i]
+                    #         full_id = batch_id[0]
+                    #         volume = full_id.split('_')[-4]
+                    #         scene = full_id.split('_')[-3]
+                    #         camera = full_id.split('_')[-2]
+                    #         frame_id = full_id.split('_')[-1]
+                    #         save_root_path = f'/mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview/ai_{volume}_{scene}/scene_cam_{camera}'
+                    #         os.makedirs(save_root_path, exist_ok=True)
+                    #         save_feat = lq_latent[i].reshape(973, 3072).detach().cpu()
+                    #         torch.save(save_feat, f'{save_root_path}/{frame_id}.pt')
+                    #     continue
                     
-                    breakpoint()
                             
                     # hypersim 
                     orig_H, orig_W = 768, 1024 
@@ -501,19 +503,21 @@ def main():
                     pH = pW = 14 
                     num_pH = model_H//pH    # 27
                     num_pW = model_W//pW    # 36
+                                        
+                    lq_cam_tkn = lq_latent[:,:,0]       # lq latent camera token (b v 3072)
+                    lq_patch_tkn = lq_latent[:,:,1:]    # lq latent patch tokens (b v 972 3072)
+                    lq_patch_tkn = rearrange(lq_patch_tkn, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
                     
-                    # b 1 3072 27 36
-                    z = rearrange(z, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)
-                    model_kwargs={}
-                            
-
+                    hq_cam_tkn = hq_latent[:,:,0]       # hq latent camera token (b v 3072)
+                    hq_patch_tkn = hq_latent[:,:,1:]    # hq latent patch tokens (b v 972 3072)
+                    hq_patch_tkn = rearrange(hq_patch_tkn, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
+        
                 
                 optimizer.zero_grad(set_to_none=True)
                 with autocast(**autocast_kwargs):
-                    transport_output = transport.training_losses_mvrm(ddp_model, z, model_kwargs, full_cfg)
+                    transport_output = transport.training_losses_mvrm(model=ddp_model, x1=hq_patch_tkn, xcond=lq_patch_tkn, cfg=full_cfg)
                     loss = transport_output["loss"].mean()
                 loss.float()
-                
                 
                 
             if scaler:  # f
@@ -559,26 +563,29 @@ def main():
                 logger.info("Generating EMA samples...")
                 with torch.no_grad():
 
-                    val_b, val_v, val_c, val_h, val_w = z.shape
-                    
-                    # pure noise 
-                    zs_samples = zs[:val_b]    # b v 
+
+                    # safety check
+                    val_b, val_v, val_c, val_h, val_w = lq_patch_tkn.shape
+                    assert pure_noise.shape == lq_patch_tkn.shape
+
 
                     # reshape
-                    z = z.view(-1, val_c, val_h, val_w)
-                    zs_samples = zs_samples.view(-1, val_c, val_h, val_w)
+                    lq_patch_tkn = lq_patch_tkn.view(-1, val_c, val_h, val_w)
+                    pure_noise = pure_noise.view(-1, val_c, val_h, val_w)
+
 
                     # lq_latent condition method
                     if full_cfg.mvrm.lq_latent_cond == 'addition':
-                        zs_samples = zs_samples + z
+                        val_xt = pure_noise + lq_patch_tkn
                     elif full_cfg.mvrm.lq_latent_cond == 'concat':
-                        zs_samples = torch.concat([zs_samples, z], dim=1)
+                        val_xt = torch.concat([pure_noise, lq_patch_tkn], dim=1)
+                    
                     
                     # forward pass
                     with autocast(**autocast_kwargs):
-                        restored_samples = eval_sampler(zs_samples, ema_model_fn, **sample_model_kwargs)[-1]     # b*v c h w 
+                        restored_samples = eval_sampler(val_xt, ema_model_fn, **sample_model_kwargs)[-1]     # b*v c h w    
                     restored_samples.float()
-                    restored_samples=restored_samples.view(val_b, val_v, val_c, val_h, val_w)
+                    restored_samples=restored_samples.view(val_b, val_v, val_c, val_h, val_w)   # b v c h w
 
                     # hypersim 
                     orig_H, orig_W = 768, 1024 
@@ -587,19 +594,62 @@ def main():
                     num_pH = model_H//pH    # 27
                     num_pW = model_W//pW    # 36
                     
-                    # b 1 3072 27 36 -> b 1 972 3072
+                    # b v 3072 27 36 -> b v 972 3072
                     restored_samples = rearrange(restored_samples, 'b v d num_pH num_pW -> b v (num_pH num_pW) d', v=val_v, num_pH=num_pH, num_pW=num_pW) # b v n d 
 
-                    val_stage1_out_raw, val_mvrm_out = stage1_enc(model_input, export_feat_layers=[], mvrm_cfg=full_cfg.mvrm.val, mvrm_module=restored_samples, mode='val')
+                    mvrm_result={}
+                    mvrm_result['restored_latent'] = restored_samples
+
+                    val_stage1_out_raw, val_mvrm_out = stage1_enc(
+                                                                image=model_input, 
+                                                                export_feat_layers=[], 
+                                                                mvrm_cfg=full_cfg.mvrm.val, 
+                                                                mvrm_result=mvrm_result,
+                                                                mode='val'
+                                                                )
                     val_stage1_out = stage1_output_processor(val_stage1_out_raw)
-                    val_pred_depth = torch.from_numpy(val_stage1_out.depth).to(device)
+                    val_pred_depth_np = val_stage1_out.depth                            # b v 378 504
+                    val_pred_depth = torch.from_numpy(val_pred_depth_np).to(device)
                     
-                    breakpoint()
 
+                    # VIS DEPTH 
+                    # gt_depth_np: b v 378 504
+                    # model_input: b v 3 378 504 
+                    # train_pred_depth_np: b*v 378 504
+                    # val_pred_depth_np: b*v 378 504
+                    
+                    np_model_input = model_input[0,0]   # # 378 504 3  
+                    np_model_input = (np_model_input - np_model_input.min()) / (np_model_input.max() - np_model_input.min()) * 255.0
+                    np_model_input = np_model_input.permute(1,2,0).detach().cpu().numpy()[:,:,::-1]     
+                    np_gt_depth = gt_depth[0,0,0].detach().cpu().numpy()    # 378 504
+                    np_train_depth = train_pred_depth_np[0]                 # 378 504
+                    np_val_depth = val_pred_depth_np[0]                     # 378 504
+                    
 
+                    vis_gt_depth = depth_to_colormap(np_gt_depth)               # 378 504 3
+                    vis_train_depth = depth_to_colormap(np_train_depth)         # 378 504 3
+                    vis_val_depth = depth_to_colormap(np_val_depth)             # 378 504 3
+                    
+                    vis_err_train_depth = depth_error_to_colormap_thresholded(np_gt_depth, np_train_depth, thr=0.1)
+                    vis_err_val_depth = depth_error_to_colormap_thresholded(np_gt_depth, np_val_depth, thr=0.1)
+                    
+                    vis_depth_cat = np.concatenate(
+                        [np_model_input, vis_train_depth, vis_val_depth, vis_gt_depth, vis_err_train_depth, vis_err_val_depth, ],
+                        axis=1
+                    )
+
+                    # Output path
+                    vis_depth_save_dir = f'{experiment_dir}/vis_depth'
+                    os.makedirs(vis_depth_save_dir, exist_ok=True)
+                    cv2.imwrite(f'{vis_depth_save_dir}/{hq_id[0][0]}.jpg', vis_depth_cat)
+
+                    breakpoint()                    
+                    
+                
                     dist.barrier()
                 logger.info("Generating EMA samples done.")
                 model.train()
+                
                 
             # if do_eval and (eval_interval > 0 and global_step % eval_interval == 0):
             #     logger.info("Starting evaluation...")

@@ -107,7 +107,7 @@ class DepthAnything3Net(nn.Module):
         use_ray_pose: bool = False,
         ref_view_strategy: str = "saddle_balanced",
         mvrm_cfg=None,
-        mvrm_module=None,
+        mvrm_result=None,
         mode=None,
     ) -> Dict[str, torch.Tensor]:
         """
@@ -135,7 +135,7 @@ class DepthAnything3Net(nn.Module):
 
         # dinov2 backbone
         feats, aux_feats, mvrm_output = self.backbone(
-            x, cam_token=cam_token, export_feat_layers=export_feat_layers, ref_view_strategy=ref_view_strategy, mvrm_cfg=mvrm_cfg, mvrm_module=mvrm_module, mode=mode
+            x, cam_token=cam_token, export_feat_layers=export_feat_layers, ref_view_strategy=ref_view_strategy, mvrm_cfg=mvrm_cfg, mvrm_result=mvrm_result, mode=mode
         )
         '''
             feats: zip(outputs, camera_tokens)

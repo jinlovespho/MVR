@@ -359,16 +359,14 @@ class DinoVisionTransformer(nn.Module):
                     mvrm_output['extract_feat'] = torch.cat([local_x, x], dim=-1)
                     
             
-            
 
             # MVRM restore degraded features
             if kwargs['mode'] == 'val':
                 if i in kwargs['mvrm_cfg'].restore_feat_layers:
-                    # restored_feat = kwargs['mvrm_module'](x)
-                    restored_feat = kwargs['mvrm_module']
-                    x = restored_feat[..., 1536:]
-                    local_x = restored_feat[..., :1536]        
-
+                    restored_latent = kwargs['mvrm_result']['restored_latent']
+                    x[:,:,1:] = restored_latent[:,:,:,1536:]
+                    local_x[:,:,1:] = restored_latent[:,:,:,:1536]
+                    
 
             # collect feat layers for DPT Head
             if i in blocks_to_take:
@@ -438,7 +436,6 @@ class DinoVisionTransformer(nn.Module):
         # the bottom code makes outputs only contain patch tokens, e.g., gets rid of cls, camera, register tokens.
         outputs = [out[..., 1 + self.num_register_tokens :, :] for out in outputs]  
         aux_outputs = [out[..., 1 + self.num_register_tokens :, :] for out in aux_outputs]
-        
         
         
         # # MVRM output

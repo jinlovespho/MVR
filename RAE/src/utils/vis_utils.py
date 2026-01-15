@@ -50,22 +50,6 @@ def compute_depth_metrics(gt, pred, eps=1e-6):
     ]
 
 
-def apply_per_view(fn, *arrays):
-    """
-    fn: function operating on (H, W)
-    arrays: (B, V, H, W)
-    return: (B, V, H, W, 3)
-    """
-    B, V, H, W = arrays[0].shape
-    out = np.empty((B, V, H, W, 3), dtype=np.uint8)
-
-    for b in range(B):
-        for v in range(V):
-            out[b, v] = fn(*[arr[b, v] for arr in arrays])
-
-    return out
-
-
 def depth_to_colormap(depth, invalid_color=(0, 0, 0), resize=None):
     valid = np.isfinite(depth) & (depth > 0)
     if valid.sum() == 0:
@@ -87,6 +71,38 @@ def depth_to_colormap(depth, invalid_color=(0, 0, 0), resize=None):
         color = cv2.resize(color, (w, h), interpolation=cv2.INTER_LINEAR)
     
     return color
+
+
+def depth_error_to_colormap(gt, pred, invalid_color=(0, 0, 0), resize=None):
+    """
+    gt, pred: (H, W) numpy arrays
+    resize: (h, w) or None
+    """
+    valid = np.isfinite(gt) & np.isfinite(pred) & (gt > 0) & (pred > 0)
+    if valid.sum() == 0:
+        h, w = gt.shape
+        vis = np.zeros((h, w, 3), dtype=np.uint8)
+        if resize is not None:
+            vis = cv2.resize(vis, (resize[1], resize[0]), interpolation=cv2.INTER_NEAREST)
+        return vis
+
+    error = np.zeros_like(gt, dtype=np.float32)
+    error[valid] = np.abs(pred[valid] - gt[valid]) / gt[valid]
+    error[valid] = np.log10(error[valid] + 1e-4)
+
+    vmin, vmax = np.percentile(error[valid], [2, 98])
+    error = np.clip(error, vmin, vmax)
+    error = (error - vmin) / (vmax - vmin + 1e-8)
+    error = (error * 255).astype(np.uint8)
+
+    vis = cv2.applyColorMap(error, cv2.COLORMAP_TURBO)
+    vis[~valid] = invalid_color
+
+    if resize is not None:
+        h, w = resize
+        vis = cv2.resize(vis, (w, h), interpolation=cv2.INTER_LINEAR)
+
+    return vis
 
 
 def depth_error_to_colormap_thresholded(

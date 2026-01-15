@@ -228,8 +228,8 @@ class Transport:
         self, 
         model,  
         x1, 
-        model_kwargs=None,
-        cfg=None
+        xcond,
+        cfg
     ):
         """Loss for training the score model
         Args:
@@ -238,18 +238,12 @@ class Transport:
         - model_kwargs: additional arguments for the model
         """
         
-        # breakpoint()
-        # multi-view input
+        assert x1.shape == xcond.shape 
         
+        b, v, c, h, w = x1.shape    # b v 3072 27 36
         
-        if len(x1.shape) == 5:
-            b, v, c, h, w = x1.shape
-            x1 = x1.view(b*v, c, h, w)
-        
-        # breakpoint()
-        if model_kwargs == None:
-            model_kwargs = {}
-        
+        x1 = x1.view(b*v, c, h, w)
+        xcond = xcond.view(b*v, c, h, w)
         
         ## PHO understanding flow matching sampling
         # import torch 
@@ -276,16 +270,12 @@ class Transport:
 
         # lq_latent conditioning method 
         if cfg.mvrm.lq_latent_cond == 'addition':
-            xt = xt + x1
+            xt = xt + xcond
         elif cfg.mvrm.lq_latent_cond == 'concat':
-            xt = torch.concat([x1, xt], dim=1)   # channel concat
+            xt = torch.concat([xt, xcond], dim=1)   # channel concat
 
-        # breakpoint()
         # mvrm forward pass 
-        model_output = model(xt, t, **model_kwargs)
-        
-        # B, *_, C = xt.shape
-        # assert model_output.size() == (B, *xt.size()[1:-1], C)
+        model_output = model(xt, t)                 # b*v 3072 27 36
         assert model_output.shape == xt.shape 
 
         # breakpoint()

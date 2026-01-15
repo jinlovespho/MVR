@@ -189,6 +189,8 @@ class PhoHypersim(Dataset):
         idx, num_input_view = items
         frame_ids = self.get_nearby_ids(anchor=idx, num_frames=num_input_view)
         
+        outputs={}
+        outputs['frame_ids'] = frame_ids
         
         # ----------------------
         #       process hq
@@ -205,6 +207,8 @@ class PhoHypersim(Dataset):
                 hq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
                 hq_view_list.append(self.resize(self.convert_hdf5_img(hq_view)))
                 # hq_view_list.append({f'hypersim_{volume}_{scene}_{camera}_{view_id}': self.convert_hdf5(hq_view)})
+                outputs['hq_ids'] = hq_view_id
+                outputs['hq_views'] = hq_view_list
 
 
         
@@ -222,7 +226,8 @@ class PhoHypersim(Dataset):
                 view_id = hq_latent_view.split('/')[-1].split('.')[-2]
                 hq_latent_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
                 hq_latent_view_list.append(torch.load(hq_latent_view))  # torch.Size([972, 3072])
-
+                outputs['hq_latent_ids'] = hq_latent_view_id
+                outputs['hq_latent_views'] = hq_latent_view_list
             
             
         # ----------------------
@@ -239,7 +244,8 @@ class PhoHypersim(Dataset):
                 view_id = lq_view.split('/')[-1].split('.')[-2].split('_')[-2]
                 lq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
                 lq_view_list.append(self.resize(self.convert_imgpath(lq_view)))
-        
+                outputs['lq_ids'] = lq_view_id 
+                outputs['lq_views'] = lq_view_list
         
         
         # -------------------------
@@ -256,8 +262,11 @@ class PhoHypersim(Dataset):
                 view_id = depth_view.split('/')[-1].split('.')[-3]
                 depth_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
                 depth_view_list.append(self.resize_depth(self.convert_hdf5_depth(depth_view)))
-            
+                outputs['gt_depth_ids'] = depth_view_id
+                outputs['gt_depths'] = depth_view_list
 
+
+        return outputs
         return {
             "frame_ids": frame_ids,
             
