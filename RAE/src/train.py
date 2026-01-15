@@ -93,19 +93,14 @@ def load_checkpoint(
         scheduler.load_state_dict(checkpoint["scheduler"])
     return checkpoint.get("epoch", 0), checkpoint.get("step", 0)
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train Stage-2 transport model on RAE latents.")
     parser.add_argument("--config", type=str, required=True, help="YAML config containing stage_1 and stage_2 sections.")
-    # parser.add_argument("--data-path", type=Path, required=True, help="Directory with ImageFolder structure for training.")
-    # parser.add_argument("--results-dir", type=str, default="ckpts", help="Directory to store training outputs.")
-    # parser.add_argument("--image-size", type=int, choices=[256, 512], default=512, help="Input image resolution.")
-    # parser.add_argument("--precision", type=str, choices=["fp32", "fp16", "bf16"], default="fp32", help="Compute precision for training.")
-    # parser.add_argument("--wandb", action="store_true", help="Enable Weights & Biases logging.")
     parser.add_argument("--compile", action="store_true", help="Use torch compile (for stage1_enc.encode and model.forward).")
-    # parser.add_argument("--ckpt", type=str, default=None, help="Optional checkpoint path to resume training.")
-    # parser.add_argument("--global-seed", type=int, default=None, help="Override training.global_seed from the config.")
     args = parser.parse_args()
     return args
+
 
 def main():
     """Trains a new SiT model using config-driven hyperparameters."""
@@ -441,7 +436,6 @@ def main():
             else:
                 frame_id = batch['frame_ids']                           # b v
                 hq_id = batch['hq_ids']                                 # len(hq_id) = b, len(hq_id[i]) = v
-                hq_latent = batch['hq_latent_views'].to(device)
                 gt_depth = batch['gt_depths'].to(device)                 # b v 1 378 504
 
 
@@ -468,10 +462,7 @@ def main():
                     train_pred_depth_np = stage1_out.depth                  # b v 378 504
                     train_pred_depth = torch.from_numpy(train_pred_depth_np).to(device) 
                     
-
-                    lq_latent = mvrm_out['extract_feat']      # b v 973 3072
                     
-
                     # save_image(model_input.squeeze(1), './img.jpg')
                     # save_image(pred_depth, './img_pred.jpg', normalize=True)
                     # save_image(gt_depth, './img_gt.jpg', normalize=True)
@@ -480,21 +471,23 @@ def main():
                     # breakpoint()
 
 
-                    # SAVE_CLEAN_LATENT=True
-                    # if SAVE_CLEAN_LATENT:
-                    #     B = lq_latent.shape[0]
-                    #     for i in range(B):
-                    #         batch_id = hq_id[i]
-                    #         full_id = batch_id[0]
-                    #         volume = full_id.split('_')[-4]
-                    #         scene = full_id.split('_')[-3]
-                    #         camera = full_id.split('_')[-2]
-                    #         frame_id = full_id.split('_')[-1]
-                    #         save_root_path = f'/mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview/ai_{volume}_{scene}/scene_cam_{camera}'
-                    #         os.makedirs(save_root_path, exist_ok=True)
-                    #         save_feat = lq_latent[i].reshape(973, 3072).detach().cpu()
-                    #         torch.save(save_feat, f'{save_root_path}/{frame_id}.pt')
-                    #     continue
+                    # FOR SAVING HQ LATENT
+                    if full_cfg.mvrm.save_hq_latent:
+                        lq_latent = mvrm_out['extract_feat']      # b v 973 3072
+                        B = lq_latent.shape[0]
+                        for i in range(B):
+                            batch_id = hq_id[i]
+                            full_id = batch_id[0]
+                            volume = full_id.split('_')[-4]
+                            scene = full_id.split('_')[-3]
+                            camera = full_id.split('_')[-2]
+                            frame_id = full_id.split('_')[-1]
+                            save_root_path = f'/mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview/ai_{volume}_{scene}/scene_cam_{camera}'
+                            os.makedirs(save_root_path, exist_ok=True)
+                            save_feat = lq_latent[i].reshape(973, 3072).detach().cpu()
+                            torch.save(save_feat, f'{save_root_path}/{frame_id}.pt')
+                            print(f'saving hq latent: {volume}_{scene}_{camera}_{frame_id}')
+                        continue
                     
                             
                     # hypersim 
@@ -503,11 +496,15 @@ def main():
                     pH = pW = 14 
                     num_pH = model_H//pH    # 27
                     num_pW = model_W//pW    # 36
+                    
                                         
+                    lq_latent = mvrm_out['extract_feat']      # b v 973 3072
                     lq_cam_tkn = lq_latent[:,:,0]       # lq latent camera token (b v 3072)
                     lq_patch_tkn = lq_latent[:,:,1:]    # lq latent patch tokens (b v 972 3072)
                     lq_patch_tkn = rearrange(lq_patch_tkn, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
                     
+                    
+                    hq_latent = batch['hq_latent_views'].to(device)
                     hq_cam_tkn = hq_latent[:,:,0]       # hq latent camera token (b v 3072)
                     hq_patch_tkn = hq_latent[:,:,1:]    # hq latent patch tokens (b v 972 3072)
                     hq_patch_tkn = rearrange(hq_patch_tkn, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
