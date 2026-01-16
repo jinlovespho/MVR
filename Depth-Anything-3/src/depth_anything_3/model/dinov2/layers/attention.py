@@ -45,6 +45,11 @@ class Attention(nn.Module):
         self.rope = rope
 
     def forward(self, x: Tensor, pos=None, attn_mask=None) -> Tensor:
+        
+        # # PHO DEBUG
+        # if pos is not None:
+        #     breakpoint()
+            
         B, N, C = x.shape
         qkv = (
             self.qkv(x)

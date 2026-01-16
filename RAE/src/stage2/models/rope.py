@@ -177,7 +177,6 @@ class RotaryPositionEmbedding2D(nn.Module):
         # tokens: b head n+1 head_dim 
         # positions: b n+1 2 
         
-        
         # Validate inputs
         assert tokens.size(-1) % 2 == 0, "Feature dimension must be even"
         assert (

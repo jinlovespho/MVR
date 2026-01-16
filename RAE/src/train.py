@@ -57,6 +57,20 @@ import torchvision.transforms as T
 from einops import rearrange
 
 
+
+def check_tensor(name, x, step):
+    if not torch.is_tensor(x):
+        return
+    if not torch.isfinite(x).all():
+        print(f"\n🚨 NaN/Inf detected in {name} at step {step}")
+        print(f"  dtype: {x.dtype}")
+        print(f"  min: {x.min().item()}")
+        print(f"  max: {x.max().item()}")
+        print(f"  mean: {x.mean().item()}")
+        raise RuntimeError(f"NaN detected in {name}")
+
+
+
 def save_checkpoint(
     path: str,
     step: int,
@@ -103,6 +117,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def main():
+    
+    # NAN DEBUG
+    torch.autograd.set_detect_anomaly(True)
+    
     """Trains a new SiT model using config-driven hyperparameters."""
     args = parse_args()
     if not torch.cuda.is_available():
@@ -482,7 +500,7 @@ def main():
                             scene = full_id.split('_')[-3]
                             camera = full_id.split('_')[-2]
                             frame_id = full_id.split('_')[-1]
-                            save_root_path = f'/mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview/ai_{volume}_{scene}/scene_cam_{camera}'
+                            save_root_path = f'{full_cfg.mvrm.save_hq_latent_root_path}/ai_{volume}_{scene}/scene_cam_{camera}'
                             os.makedirs(save_root_path, exist_ok=True)
                             save_feat = lq_latent[i].reshape(973, 3072).detach().cpu()
                             torch.save(save_feat, f'{save_root_path}/{frame_id}.pt')
@@ -497,23 +515,43 @@ def main():
                     num_pH = model_H//pH    # 27
                     num_pW = model_W//pW    # 36
                     
-                                        
+                                      
                     lq_latent = mvrm_out['extract_feat']      # b v 973 3072
-                    lq_cam_tkn = lq_latent[:,:,0]       # lq latent camera token (b v 3072)
-                    lq_patch_tkn = lq_latent[:,:,1:]    # lq latent patch tokens (b v 972 3072)
-                    lq_patch_tkn = rearrange(lq_patch_tkn, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
+                    # lq_cam_tkn = lq_latent[:,:,0]       # lq latent camera token (b v 3072)
+                    # lq_patch_tkn = lq_latent[:,:,1:]    # lq latent patch tokens (b v 972 3072)
+                    # lq_patch_tkn = rearrange(lq_patch_tkn, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
                     
                     
                     hq_latent = batch['hq_latent_views'].to(device)
-                    hq_cam_tkn = hq_latent[:,:,0]       # hq latent camera token (b v 3072)
-                    hq_patch_tkn = hq_latent[:,:,1:]    # hq latent patch tokens (b v 972 3072)
-                    hq_patch_tkn = rearrange(hq_patch_tkn, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
+                    # hq_cam_tkn = hq_latent[:,:,0]       # hq latent camera token (b v 3072)
+                    # hq_patch_tkn = hq_latent[:,:,1:]    # hq latent patch tokens (b v 972 3072)
+                    # hq_patch_tkn = rearrange(hq_patch_tkn, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
                 
-                
+
+                    assert lq_latent.shape == hq_latent.shape 
+
+
+                    # NAN DEBUG
+                    check_tensor("lq_latent", lq_latent, global_step)
+                    check_tensor("hq_latent", hq_latent, global_step)
+                    
+                    # check_tensor("lq_patch_tkn", lq_patch_tkn, global_step)
+                    # check_tensor("hq_patch_tkn", hq_patch_tkn, global_step)
+                    
+                    
+
                 # optimizer.zero_grad(set_to_none=True)
                 with autocast(**autocast_kwargs):
-                    transport_output = transport.training_losses_mvrm(model=ddp_model, x1=hq_patch_tkn, xcond=lq_patch_tkn, cfg=full_cfg)
+                    transport_output = transport.training_losses_mvrm(model=ddp_model, x1=hq_latent, xcond=lq_latent, cfg=full_cfg)
+                    
+                    # NAN DEBUG
+                    check_tensor("raw_loss", transport_output["loss"], global_step)
+                    
                     loss = transport_output["loss"].mean()
+                    
+                
+                
+                
                 
             loss = loss.float()
             if scaler:  # f
@@ -523,10 +561,10 @@ def main():
             
             accum_counter += 1
             
-            if clip_grad:   # t
-                if scaler:
-                    scaler.unscale_(optimizer) 
-                torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), clip_grad)
+            # if clip_grad:   # t
+            #     if scaler:
+            #         scaler.unscale_(optimizer) 
+            #     torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), clip_grad)
             
             
             # if global_step % grad_accum_steps == 0:
@@ -540,10 +578,23 @@ def main():
             #     update_ema(ema_model, ddp_model.module, decay=ema_decay)
                 
             if accum_counter == grad_accum_steps:
+                
+                if clip_grad:   # t
+                    if scaler:
+                        scaler.unscale_(optimizer) 
+                    torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), clip_grad)
+                    
                 if scaler:
                     scaler.step(optimizer)
                     scaler.update()
                 else:
+                    
+                    # NAN DEBUG
+                    for name, p in ddp_model.named_parameters():
+                        if p.grad is not None and not torch.isfinite(p.grad).all():
+                            print(f"🚨 NaN grad in {name} at step {global_step}")
+                            raise RuntimeError("NaN gradient")
+                        
                     optimizer.step()
 
                 if scheduler is not None:
@@ -581,38 +632,57 @@ def main():
                 with torch.no_grad():
 
 
-                    # safety check
-                    val_b, val_v, val_c, val_h, val_w = lq_patch_tkn.shape
-                    assert pure_noise.shape == lq_patch_tkn.shape
+                    # # safety check
+                    # val_b, val_v, val_c, val_h, val_w = lq_patch_tkn.shape
+                    # assert pure_noise.shape == lq_patch_tkn.shape
 
 
-                    # reshape
-                    lq_patch_tkn = lq_patch_tkn.view(-1, val_c, val_h, val_w)
-                    val_pure_noise = pure_noise.view(-1, val_c, val_h, val_w)
+                    # # reshape
+                    # lq_patch_tkn = lq_patch_tkn.view(-1, val_c, val_h, val_w)
+                    # val_pure_noise = pure_noise.view(-1, val_c, val_h, val_w)
+
+
+
+                    # safety check 
+                    val_b, val_v, val_n, val_d = lq_latent.shape    # b v n+1 d 
+                    assert pure_noise.shape == lq_latent.shape 
+                    
+                    
+                    val_pure_noise = pure_noise
+                    
+                    
+                    # lq_cam_tkn = lq_latent[:,:,0]       # lq latent camera token (b v 3072)
+                    # lq_patch_tkn = lq_latent[:,:,1:]    # lq latent patch tokens (b v 972 3072)
+                    # lq_patch_tkn = rearrange(lq_patch_tkn, 'b v (num_pH num_pW) d -> (b v) d num_pH num_pW', b=val_b, v=val_v, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
+                    # val_pure_noise = rearrange(val_pure_noise, 'b v (num_pH num_pW) d -> (b v) d num_pH num_pW', b=val_b, v=val_v, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36)
+
+
 
 
                     # lq_latent condition method
                     if full_cfg.mvrm.lq_latent_cond == 'addition':
-                        val_xt = val_pure_noise + lq_patch_tkn
+                        val_xt = val_pure_noise + lq_latent
                     elif full_cfg.mvrm.lq_latent_cond == 'concat':
-                        val_xt = torch.concat([val_pure_noise, lq_patch_tkn], dim=1)
+                        val_xt = torch.concat([val_pure_noise, lq_latent], dim=1)
                     
                     
                     # forward pass
                     with autocast(**autocast_kwargs):
-                        restored_samples = eval_sampler(val_xt, ema_model_fn, **sample_model_kwargs)[-1]     # b*v c h w    
+                        restored_samples = eval_sampler(val_xt, ema_model_fn, **sample_model_kwargs)[-1]     # b v n d
                     restored_samples.float()
-                    restored_samples=restored_samples.view(val_b, val_v, val_c, val_h, val_w)   # b v c h w
-
-                    # hypersim 
-                    orig_H, orig_W = 768, 1024 
-                    model_H, model_W = 378, 504
-                    pH = pW = 14 
-                    num_pH = model_H//pH    # 27
-                    num_pW = model_W//pW    # 36
                     
-                    # b v 3072 27 36 -> b v 972 3072
-                    restored_samples = rearrange(restored_samples, 'b v d num_pH num_pW -> b v (num_pH num_pW) d', v=val_v, num_pH=num_pH, num_pW=num_pW) # b v n d 
+                    
+                    # restored_samples=restored_samples.view(val_b, val_v, val_d, num_pH, num_pW)   # b v c h w
+
+                    # # hypersim 
+                    # orig_H, orig_W = 768, 1024 
+                    # model_H, model_W = 378, 504
+                    # pH = pW = 14 
+                    # num_pH = model_H//pH    # 27
+                    # num_pW = model_W//pW    # 36
+                    
+                    # # b v 3072 27 36 -> b v 972 3072
+                    # restored_samples = rearrange(restored_samples, 'b v d num_pH num_pW -> b v (num_pH num_pW) d', v=val_v, num_pH=num_pH, num_pW=num_pW) # b v n d 
 
                     mvrm_result={}
                     mvrm_result['restored_latent'] = restored_samples
@@ -634,6 +704,7 @@ def main():
                     # model_input: b v 3 378 504 
                     # train_pred_depth_np: b*v 378 504
                     # val_pred_depth_np: b*v 378 504
+                    
                     
                     np_model_input = model_input[0,0]   # # 378 504 3  
                     np_model_input = (np_model_input - np_model_input.min()) / (np_model_input.max() - np_model_input.min()) * 255.0
@@ -659,7 +730,7 @@ def main():
                     os.makedirs(vis_depth_save_dir, exist_ok=True)
                     cv2.imwrite(f'{vis_depth_save_dir}/step{global_step:07}_{hq_id[0][0]}.jpg', vis_depth_cat)               
 
-                    breakpoint()
+                    # breakpoint()
                 
                     dist.barrier()
                 logger.info("Generating EMA samples done.")

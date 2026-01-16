@@ -45,7 +45,8 @@ stage_2:
     use_rmsnorm: true
     wo_shift: false
     use_pos_embed: true
-  ckpt: result_train/stage2/hypersim/TRAIN__fp32__hypersim__stage1-da3__stage2-DiTwDDTHeadMVRM__bs-1-accum-1__lr-2e-04__msg-lq-kernel50_rerere/checkpoints/ep-0025000.pt
+  # ckpt: result_train/stage2/hypersim/TRAIN__fp32__hypersim__stage1-da3__stage2-DiTwDDTHeadMVRM__bs-1-accum-1__lr-2e-04__msg-lq-kernel50_rerere/checkpoints/ep-0025000.pt
+  # ckpt: result_train/stage2/hypersim/TRAIN__fp32__hypersim__stage1-da3__stage2-DiTwDDTHeadMVRM__bs-1-accum-1__lr-2e-04__msg-lq-kernel50_rerere_fix_cont-ckpt25k_re/checkpoints/ep-0012000.pt
 
 
 transport:
@@ -71,7 +72,8 @@ guidance:
   t_max: 1.0
 
 misc:
-  latent_size: [1, 3072, 27, 36] # [v, c, h, w]
+  # latent_size: [1, 3072, 27, 36] # [v, c, h, w]
+  latent_size: [1, 973, 3072] # [v, c, h, w]
   num_classes: 
   time_dist_shift_dim: 2985984 # 3072*27*36
   time_dist_shift_base: 8192
@@ -91,7 +93,7 @@ training:
   ckpt_step_interval: 25000   # 25k
   
   sample_every: 1000
-  # sample_every: 1
+
   
   clip_grad: 1.0
   optimizer:
@@ -123,8 +125,16 @@ log:
       entity: jinlovespho
       project: eccv26_mv_restoration
       # msg: "hq_recon_rerere"
-      msg: "lq-kernel50_rerere_fix_cont-ckpt25k"
+      
+      # msg: "lq-kernel50_rerere_fix"
+      # msg: "lq-kernel50_rerere_fix_cont-ckpt25k"
+      # msg: "lq-kernel50_rerere_fix_cont-ckpt25k_re"
+
+      # msg: "lq-kernel50_rerere_fix_cont-ckpt25k_12k"
+      
       # msg: "lq-kernel100_rerere"
+
+      msg: "lq-kernel50-frame18-global19"
 
 data:
   train:
@@ -166,6 +176,7 @@ data:
 
 mvrm:
   save_hq_latent: False
+  save_hq_latent_root_path: /mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview
   # input_img: hq
   input_img: lq
   # choose from [addition, concat]

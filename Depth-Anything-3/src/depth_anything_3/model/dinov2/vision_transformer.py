@@ -218,6 +218,7 @@ class DinoVisionTransformer(nn.Module):
         self.norm = norm_layer(embed_dim)
 
     def interpolate_pos_encoding(self, x, w, h):
+        # breakpoint()
         previous_dtype = x.dtype
         npatch = x.shape[1] - 1
         N = self.pos_embed.shape[1] - 1
@@ -232,7 +233,7 @@ class DinoVisionTransformer(nn.Module):
         M = int(math.sqrt(N))  # Recover the number of patches in each dimension
         assert N == M * M
         kwargs = {}
-        if self.interpolate_offset:
+        if self.interpolate_offset: # t
             # Historical kludge: add a small number to avoid floating point error in the
             # interpolation, see https://github.com/facebookresearch/dino/issues/8
             # Note: still needed for backward-compatibility, the underlying operators are using
@@ -254,8 +255,8 @@ class DinoVisionTransformer(nn.Module):
         return torch.cat((class_pos_embed.unsqueeze(0), patch_pos_embed), dim=1).to(previous_dtype)
 
     def prepare_cls_token(self, B, S):
-        cls_token = self.cls_token.expand(B, S, -1)
-        cls_token = cls_token.reshape(B * S, -1, self.embed_dim)
+        cls_token = self.cls_token.expand(B, S, -1)                     # 1 1 emb_dim -> B S emb_dim
+        cls_token = cls_token.reshape(B * S, -1, self.embed_dim)        # B S emb_dim -> B*S 1 emb_dim
         return cls_token
 
     def prepare_tokens_with_masks(self, x, masks=None, cls_token=None, **kwargs):
@@ -266,8 +267,9 @@ class DinoVisionTransformer(nn.Module):
             x = torch.where(masks.unsqueeze(-1), self.mask_token.to(x.dtype).unsqueeze(0), x)
         cls_token = self.prepare_cls_token(B, S)
         x = torch.cat((cls_token, x), dim=1)
+        # breakpoint()
         x = x + self.interpolate_pos_encoding(x, w, h)
-        if self.register_tokens is not None:
+        if self.register_tokens is not None:    # f
             x = torch.cat(
                 (
                     x[:, :1],
@@ -285,8 +287,8 @@ class DinoVisionTransformer(nn.Module):
         if self.rope is not None:
             pos = self.position_getter(
                 B * S, H // self.patch_size, W // self.patch_size, device=device
-            )
-            pos = rearrange(pos, "(b s) n c -> b s n c", b=B)
+            )   # b*v n 2 
+            pos = rearrange(pos, "(b s) n c -> b s n c", b=B)   # b v n 2 
             pos_nodiff = torch.zeros_like(pos).to(pos.dtype)
             if self.patch_start_idx > 0:
                 pos = pos + 1
@@ -306,7 +308,7 @@ class DinoVisionTransformer(nn.Module):
         x = self.prepare_tokens_with_masks(x)
         output, total_block_len, aux_output = [], len(self.blocks), []
         blocks_to_take = range(total_block_len - n, total_block_len) if isinstance(n, int) else n
-        pos, pos_nodiff = self._prepare_rope(B, S, H, W, x.device)
+        pos, pos_nodiff = self._prepare_rope(B, S, H, W, x.device)  # b v n+1 2, where 2=(x,y)
 
         # MVRM OUTPUTS
         mvrm_output={}
@@ -364,9 +366,12 @@ class DinoVisionTransformer(nn.Module):
             if kwargs['mode'] == 'val':
                 if i in kwargs['mvrm_cfg'].restore_feat_layers:
                     restored_latent = kwargs['mvrm_result']['restored_latent']
-                    x[:,:,1:] = restored_latent[:,:,:,1536:]
-                    local_x[:,:,1:] = restored_latent[:,:,:,:1536]
-                    
+                    # x[:,:,1:] = restored_latent[:,:,:,1536:]
+                    # local_x[:,:,1:] = restored_latent[:,:,:,:1536]
+                    x = restored_latent[..., 1536:]
+                    local_x = restored_latent[..., :1536]
+
+
 
             # collect feat layers for DPT Head
             if i in blocks_to_take:
@@ -382,6 +387,11 @@ class DinoVisionTransformer(nn.Module):
         return output, aux_output, mvrm_output
 
     def process_attention(self, x, block, attn_type="global", pos=None, attn_mask=None):
+        
+        # PHO DEBUG
+        # if pos is not None:
+        #     breakpoint()
+            
         b, s, n = x.shape[:3]
         if attn_type == "local":
             x = rearrange(x, "b s n c -> (b s) n c")

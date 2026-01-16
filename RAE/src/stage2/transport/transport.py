@@ -157,26 +157,21 @@ class Transport:
           Args:
             x1 - data point; [batch, *dim]
         """
-        x0 = torch.randn_like(x1)  # b 768 32 32 
+        x0 = torch.randn_like(x1)  
         dist_options = self.time_dist_type.split("_")
         t0, t1 = self.check_interval(self.train_eps, self.sample_eps)
-        if dist_options[0] == "uniform":    # f
+        if dist_options[0] == "uniform":    
             t = torch.rand((x1.shape[0],)) * (t1 - t0) + t0
-            # print('UNIFORM IS CALLED')
-        elif dist_options[0] == "logit-normal": # t
+        elif dist_options[0] == "logit-normal": 
             assert len(dist_options) == 3, "Logit-normal distribution must specify the mean and variance."
             mu, sigma = float(dist_options[1]), float(dist_options[2])
             assert sigma > 0, "Logit-normal distribution must have positive variance."
             t = truncated_logitnormal_sample(
                 (x1.shape[0],), mu=mu, sigma=sigma, low=t0, high=t1
             )
-            # print('LOGITNORMAL IS CALLED')
         else:
             raise NotImplementedError(f"Unknown time distribution type {self.time_dist_type}")
-
-        t = t.to(x1)    # put t as same device and dtype as x1
-
-        #sqrt_size_ratio = 1 / self.time_dist_shift # already sqrted
+        t = t.to(x1)
         t = self.time_dist_shift * t / (1 + (self.time_dist_shift - 1) * t)
         return t, x0, x1
     
@@ -240,10 +235,10 @@ class Transport:
         
         assert x1.shape == xcond.shape 
         
-        b, v, c, h, w = x1.shape    # b v 3072 27 36
+        b, v, n, d = x1.shape    # b v n+1 d
         
-        x1 = x1.view(b*v, c, h, w)
-        xcond = xcond.view(b*v, c, h, w)
+        # x1 = x1.view(b*v, c, h, w)
+        # xcond = xcond.view(b*v, c, h, w)
         
         ## PHO understanding flow matching sampling
         # import torch 
@@ -264,7 +259,9 @@ class Transport:
         # x1: pure data 
         # xt: noisy data point at t
         # ut: gt velocity at t 
-        t, x0, x1 = self.sample(x1)
+        
+
+        t, x0, x1 = self.sample(x1)     # b v n+1 d                     
         t, xt, ut = self.path_sampler.plan(t, x0, x1)
 
 
@@ -272,11 +269,19 @@ class Transport:
         if cfg.mvrm.lq_latent_cond == 'addition':
             xt = xt + xcond
         elif cfg.mvrm.lq_latent_cond == 'concat':
-            xt = torch.concat([xt, xcond], dim=1)   # channel concat
+            xt = torch.concat([xt, xcond], dim=2)   # channel concat
 
         # mvrm forward pass 
-        model_output = model(xt, t)                 # b*v 3072 27 36
+        model_output = model(xt, t)                 # b v 3072 27 36
+        
         assert model_output.shape == xt.shape 
+
+
+
+        # TODO: How do apply lost on the camera token? 
+        # 그럴려면 애초에 처음부터, self.sample(x1)을 할 때, x1의 shape가 b v n d 이어야 하는데..
+        # ask gpt if doing self.samp
+
 
         # breakpoint()
         terms = {}
