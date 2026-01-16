@@ -24,7 +24,7 @@ class PhoHypersim(Dataset):
             # filter only hypersim volume 001~010
             
         if data_cfg.lq_root_path is not None:
-            self.data['lq_img'] = sorted(glob.glob(f'{data_cfg.lq_root_path}/*/*/images/*.png'))
+            self.data['lq_img'] = sorted(glob.glob(f'{data_cfg.lq_root_path}/*/*/images/*'))
             # filter only hypersim volume 001~010
         
         if data_cfg.depth_path is not None:

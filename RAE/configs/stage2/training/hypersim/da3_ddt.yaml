@@ -45,7 +45,7 @@ stage_2:
     use_rmsnorm: true
     wo_shift: false
     use_pos_embed: true
-  # ckpt: RAE/models/DiTs/Dinov2/wReg_base/ImageNet512/DiTDH-XL_ep400/stage2_model.pt
+  ckpt: result_train/stage2/hypersim/TRAIN__fp32__hypersim__stage1-da3__stage2-DiTwDDTHeadMVRM__bs-1-accum-1__lr-2e-04__msg-lq-kernel50_rerere/checkpoints/ep-0025000.pt
 
 
 transport:
@@ -83,12 +83,16 @@ training:
   global_batch_size: 1    # this is the final total batch size
   grad_accum_steps: 1     # by controling grad_accum_step, the batch_size is adjusted automatically
   ema_decay: 0.9995
-  num_workers: 0
-  shuffle: False
+  num_workers: 4
+  shuffle: True
   log_interval: 100
   # checkpoint_interval: 
+
   ckpt_step_interval: 25000   # 25k
+  
   sample_every: 1000
+  # sample_every: 1
+  
   clip_grad: 1.0
   optimizer:
     lr: 2.0e-4
@@ -118,8 +122,9 @@ log:
       key: e32eed0c2509bf898b850b0065ab62345005fb73
       entity: jinlovespho
       project: eccv26_mv_restoration
-      msg: "hq_recon"
-      # msg: "lq-kernel50"
+      # msg: "hq_recon_rerere"
+      msg: "lq-kernel50_rerere_fix_cont-ckpt25k"
+      # msg: "lq-kernel100_rerere"
 
 data:
   train:
@@ -161,8 +166,8 @@ data:
 
 mvrm:
   save_hq_latent: False
-  input_img: hq
-  # input_img: lq
+  # input_img: hq
+  input_img: lq
   # choose from [addition, concat]
   lq_latent_cond: addition
   train:

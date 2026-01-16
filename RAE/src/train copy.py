@@ -429,7 +429,7 @@ def main():
                 with torch.no_grad():
                     with autocast(**autocast_kwargs):
                         z = stage1_enc.encode(images)          # b 768 32 32 
-                # optimizer.zero_grad(set_to_none=True)
+                optimizer.zero_grad(set_to_none=True)
                 with autocast(**autocast_kwargs):
                     transport_output = transport.training_losses(ddp_model, z, model_kwargs)
                     loss = transport_output["loss"].mean()
@@ -510,7 +510,7 @@ def main():
                     hq_patch_tkn = rearrange(hq_patch_tkn, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
                 
                 
-                # optimizer.zero_grad(set_to_none=True)
+                optimizer.zero_grad(set_to_none=True)
                 with autocast(**autocast_kwargs):
                     transport_output = transport.training_losses_mvrm(model=ddp_model, x1=hq_patch_tkn, xcond=lq_patch_tkn, cfg=full_cfg)
                     loss = transport_output["loss"].mean()
@@ -520,40 +520,20 @@ def main():
                 scaler.scale(loss / grad_accum_steps).backward()
             else:
                 (loss / grad_accum_steps).backward()
-            
-            accum_counter += 1
-            
             if clip_grad:   # t
                 if scaler:
                     scaler.unscale_(optimizer) 
                 torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), clip_grad)
             
-            
-            # if global_step % grad_accum_steps == 0:
-            #     if scaler:
-            #         scaler.step(optimizer)
-            #         scaler.update()
-            #     else:
-            #         optimizer.step()
-            #     if scheduler is not None:
-            #         scheduler.step()
-            #     update_ema(ema_model, ddp_model.module, decay=ema_decay)
-                
-            if accum_counter == grad_accum_steps:
+            if global_step % grad_accum_steps == 0:
                 if scaler:
                     scaler.step(optimizer)
                     scaler.update()
                 else:
                     optimizer.step()
-
                 if scheduler is not None:
                     scheduler.step()
-
                 update_ema(ema_model, ddp_model.module, decay=ema_decay)
-
-                optimizer.zero_grad(set_to_none=True)
-                accum_counter = 0
-                
             running_loss += loss.item()
             epoch_metrics['loss'] += loss.detach()
             
