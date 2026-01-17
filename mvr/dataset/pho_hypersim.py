@@ -265,7 +265,6 @@ class PhoHypersim(Dataset):
                 outputs['gt_depth_ids'] = depth_view_id
                 outputs['gt_depths'] = depth_view_list
 
-
         return outputs
         return {
             "frame_ids": frame_ids,

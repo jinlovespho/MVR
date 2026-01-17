@@ -357,19 +357,24 @@ class DinoVisionTransformer(nn.Module):
             
             # MVRM output
             if kwargs['mode'] == 'train':
-                if i in kwargs['mvrm_cfg'].extract_feat_layers:
-                    mvrm_output['extract_feat'] = torch.cat([local_x, x], dim=-1)
-                    
+                mvrm_train_cfg = kwargs['mvrm_cfg']
+                if i in mvrm_train_cfg.extract_feat_layers:
+                    if mvrm_train_cfg.concat_feat: 
+                        mvrm_output['extract_feat'] = torch.cat([local_x, x], dim=-1)   # b v n+1 2d
+                    else:
+                        mvrm_output['extract_feat'] = x     # b v n+1 d
             
 
             # MVRM restore degraded features
             if kwargs['mode'] == 'val':
-                if i in kwargs['mvrm_cfg'].restore_feat_layers:
+                mvrm_val_cfg = kwargs['mvrm_cfg']
+                if i in mvrm_val_cfg.restore_feat_layers:
                     restored_latent = kwargs['mvrm_result']['restored_latent']
-                    # x[:,:,1:] = restored_latent[:,:,:,1536:]
-                    # local_x[:,:,1:] = restored_latent[:,:,:,:1536]
-                    x = restored_latent[..., 1536:]
-                    local_x = restored_latent[..., :1536]
+                    if mvrm_val_cfg.concat_feat:
+                        x = restored_latent[..., 1536:]
+                        local_x = restored_latent[..., :1536]
+                    else:
+                        x = restored_latent
 
 
 

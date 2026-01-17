@@ -481,19 +481,20 @@ def main():
                     train_pred_depth = torch.from_numpy(train_pred_depth_np).to(device) 
                     
                     
-                    # save_image(model_input.squeeze(1), './img.jpg')
-                    # save_image(pred_depth, './img_pred.jpg', normalize=True)
-                    # save_image(gt_depth, './img_gt.jpg', normalize=True)
-                    # save_image(batch['lq_views'].squeeze(1), './img_lq.jpg', normalize=True)
-                    # save_image(batch['hq_views'].squeeze(1), './img_hq.jpg', normalize=True)
+                    # save_image(model_input[:,0], './img.jpg')
+                    # save_image(train_pred_depth, './img_pred.jpg', normalize=True)
+                    # save_image(gt_depth[:,0], './img_gt.jpg', normalize=True)
+                    # save_image(batch['lq_views'][:,0], './img_lq.jpg', normalize=True)
+                    # save_image(batch['hq_views'][:,0], './img_hq.jpg', normalize=True)
                     # breakpoint()
 
 
+                    # breakpoint()
                     # FOR SAVING HQ LATENT
                     if full_cfg.mvrm.save_hq_latent:
-                        lq_latent = mvrm_out['extract_feat']      # b v 973 3072
-                        B = lq_latent.shape[0]
-                        for i in range(B):
+                        lq_latent = mvrm_out['extract_feat']      # b v n+1 d
+                        save_b, save_v, save_n, save_d = lq_latent.shape 
+                        for i in range(save_b):
                             batch_id = hq_id[i]
                             full_id = batch_id[0]
                             volume = full_id.split('_')[-4]
@@ -502,9 +503,9 @@ def main():
                             frame_id = full_id.split('_')[-1]
                             save_root_path = f'{full_cfg.mvrm.save_hq_latent_root_path}/ai_{volume}_{scene}/scene_cam_{camera}'
                             os.makedirs(save_root_path, exist_ok=True)
-                            save_feat = lq_latent[i].reshape(973, 3072).detach().cpu()
+                            save_feat = lq_latent[i].reshape(save_n, save_d).detach().cpu()
                             torch.save(save_feat, f'{save_root_path}/{frame_id}.pt')
-                            print(f'saving hq latent: {volume}_{scene}_{camera}_{frame_id}')
+                            print(f'saving {full_cfg.mvrm.input_img} latent: {volume}_{scene}_{camera}_{frame_id} - shape: {lq_latent.shape}')
                         continue
                     
                             
@@ -527,6 +528,7 @@ def main():
                     # hq_patch_tkn = hq_latent[:,:,1:]    # hq latent patch tokens (b v 972 3072)
                     # hq_patch_tkn = rearrange(hq_patch_tkn, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
                 
+                    
 
                     assert lq_latent.shape == hq_latent.shape 
 
