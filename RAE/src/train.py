@@ -196,14 +196,14 @@ def main():
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     micro_batch_size = global_batch_size // (world_size * grad_accum_steps)
-    use_fp16 = full_cfg.training.precision == "fp16"
-    use_bf16 = full_cfg.training.precision == "bf16"
-    if use_bf16 and not torch.cuda.is_bf16_supported():
-        raise ValueError("Requested bf16 precision, but the current CUDA device does not support bfloat16.")
-    autocast_dtype = torch.float16 if use_fp16 else torch.bfloat16
-    autocast_enabled = use_fp16 or use_bf16
-    autocast_kwargs = dict(dtype=autocast_dtype, enabled=autocast_enabled)
-    scaler = GradScaler(enabled=use_fp16)
+    # use_fp16 = full_cfg.training.precision == "fp16"
+    # use_bf16 = full_cfg.training.precision == "bf16"
+    # if use_bf16 and not torch.cuda.is_bf16_supported():
+    #     raise ValueError("Requested bf16 precision, but the current CUDA device does not support bfloat16.")
+    # autocast_dtype = torch.float16 if use_fp16 else torch.bfloat16
+    # autocast_enabled = use_fp16 or use_bf16
+    # autocast_kwargs = dict(dtype=autocast_dtype, enabled=autocast_enabled)
+    # scaler = GradScaler(enabled=use_fp16)
     
     
     transport_params = dict(transport_cfg.get("params", {}))
@@ -286,7 +286,7 @@ def main():
     optimizer, optim_msg = build_optimizer([p for p in model.parameters() if p.requires_grad], training_cfg)
 
     ### AMP init
-    scaler, autocast_kwargs = get_autocast_scaler(full_cfg)
+    # scaler, autocast_kwargs = get_autocast_scaler(full_cfg)
     
     train_loader, train_sampler = prepare_dataloader(full_cfg, micro_batch_size, num_workers, rank, world_size)
     
@@ -301,10 +301,18 @@ def main():
     #     logger.info(f"Evaluation dataset loaded from {eval_data}, containing {len(eval_dataset)} images.")
     
     
+    
+    
+    # loader_batches = len(train_loader)
+    # if loader_batches % grad_accum_steps != 0:
+    #     raise ValueError("Number of loader batches must be divisible by grad_accum_steps when drop_last=True.")
+    # steps_per_epoch = loader_batches // grad_accum_steps
+
+
     loader_batches = len(train_loader)
-    if loader_batches % grad_accum_steps != 0:
-        raise ValueError("Number of loader batches must be divisible by grad_accum_steps when drop_last=True.")
-    steps_per_epoch = loader_batches // grad_accum_steps
+    steps_per_epoch = math.ceil(loader_batches / grad_accum_steps)
+
+
     if steps_per_epoch <= 0:
         raise ValueError("Gradient accumulation configuration results in zero optimizer steps per epoch.")
     
@@ -372,20 +380,22 @@ def main():
 
     ### Resuming and checkpointing
     start_epoch = 0
-    global_step = 0
+    global_train_step = 0
+    optimizer_step = 0 
+    
     maybe_resume_ckpt_path = find_resume_checkpoint(experiment_dir)
     if maybe_resume_ckpt_path is not None:
         logger.info(f"Experiment resume checkpoint found at {maybe_resume_ckpt_path}, automatically resuming...")
         ckpt_path = Path(maybe_resume_ckpt_path)
         if ckpt_path.is_file():
-            start_epoch, global_step = load_checkpoint(
+            start_epoch, global_train_step = load_checkpoint(
                 ckpt_path,
                 ddp_model,
                 ema_model,
                 optimizer,
                 scheduler,
             )
-            logger.info(f"[Rank {rank}] Resumed from {ckpt_path} (epoch={start_epoch}, step={global_step}).")
+            logger.info(f"[Rank {rank}] Resumed from {ckpt_path} (epoch={start_epoch}, step={global_train_step}).")
         else:
             raise FileNotFoundError(f"Checkpoint not found: {ckpt_path}")
     else:
@@ -419,198 +429,146 @@ def main():
         train_sampler.set_epoch(epoch)
         epoch_metrics = defaultdict(lambda: torch.zeros(1, device=device))
         num_batches = 0
-        optimizer.zero_grad()
-        accum_counter = 0
+        optimizer.zero_grad(set_to_none=True)
         step_loss_accum = 0.0
-        # if checkpoint_interval > 0 and epoch % checkpoint_interval == 0  and rank == 0:
-        # if global_step > 0 and global_step % ckpt_step_interval == 0 and rank == 0:
-        #     logger.info(f"Saving checkpoint at epoch {epoch}...")
-        #     ckpt_path = f"{checkpoint_dir}/ep-{epoch:07d}.pt" 
-        #     save_checkpoint(
-        #         ckpt_path,
-        #         global_step,
-        #         epoch,
-        #         ddp_model,
-        #         ema_model,
-        #         optimizer,
-        #         scheduler,
-        #     )
-            
+
         for train_step, batch in enumerate(train_loader):
 
-            if 'imagenet' in full_cfg.data.train.list:
-                (images, labels) = batch            
-                images = images.to(device)  # b 3 512 512 [0,1]
-                labels = labels.to(device)
-                model_kwargs = dict(y=labels)
-                # latent encoding
-                with torch.no_grad():
-                    with autocast(**autocast_kwargs):
-                        z = stage1_enc.encode(images)          # b 768 32 32 
-                # optimizer.zero_grad(set_to_none=True)
-                with autocast(**autocast_kwargs):
-                    transport_output = transport.training_losses(ddp_model, z, model_kwargs)
-                    loss = transport_output["loss"].mean()
-            else:
-                frame_id = batch['frame_ids']                           # b v
-                hq_id = batch['hq_ids']                                 # len(hq_id) = b, len(hq_id[i]) = v
-                gt_depth = batch['gt_depths'].to(device)                 # b v 1 378 504
+
+            frame_id = batch['frame_ids']                           # b v
+            hq_id = batch['hq_ids']                                 # len(hq_id) = b, len(hq_id[i]) = v
+            gt_depth = batch['gt_depths'].to(device)                 # b v 1 378 504
 
 
-                # model input 
-                if full_cfg.mvrm.input_img == 'hq':
-                    model_input = batch['hq_views'].to(device)                  # b v 3 378 504
-                elif full_cfg.mvrm.input_img == 'lq':
-                    model_input = batch['lq_views'].to(device)                  # b v 3 378 504
-                
-                
-                # NORMALIZATION
-                b, v, c, h, w = model_input.shape 
-                model_input = IMAGENET_NORMALIZE(model_input.view(b*v, c, h, w)).view(b, v, c, h, w)
-
-
-                with torch.no_grad():
-                    stage1_out_raw, mvrm_out = stage1_enc(
-                                                        image=model_input, 
-                                                        export_feat_layers=[], 
-                                                        mvrm_cfg=full_cfg.mvrm.train, 
-                                                        mode='train'
-                                                        )
-                    stage1_out = stage1_output_processor(stage1_out_raw)
-                    train_pred_depth_np = stage1_out.depth                  # b v 378 504
-                    train_pred_depth = torch.from_numpy(train_pred_depth_np).to(device) 
-                    
-                    
-                    # save_image(model_input[:,0], './img.jpg')
-                    # save_image(train_pred_depth, './img_pred.jpg', normalize=True)
-                    # save_image(gt_depth[:,0], './img_gt.jpg', normalize=True)
-                    # save_image(batch['lq_views'][:,0], './img_lq.jpg', normalize=True)
-                    # save_image(batch['hq_views'][:,0], './img_hq.jpg', normalize=True)
-                    # breakpoint()
-
-
-                    # breakpoint()
-                    # FOR SAVING HQ LATENT
-                    if full_cfg.mvrm.save_hq_latent:
-                        lq_latent = mvrm_out['extract_feat']      # b v n+1 d
-                        save_b, save_v, save_n, save_d = lq_latent.shape 
-                        for i in range(save_b):
-                            batch_id = hq_id[i]
-                            full_id = batch_id[0]
-                            volume = full_id.split('_')[-4]
-                            scene = full_id.split('_')[-3]
-                            camera = full_id.split('_')[-2]
-                            frame_id = full_id.split('_')[-1]
-                            save_root_path = f'{full_cfg.mvrm.save_hq_latent_root_path}/ai_{volume}_{scene}/scene_cam_{camera}'
-                            os.makedirs(save_root_path, exist_ok=True)
-                            save_feat = lq_latent[i].reshape(save_n, save_d).detach().cpu()
-                            torch.save(save_feat, f'{save_root_path}/{frame_id}.pt')
-                            print(f'saving {full_cfg.mvrm.input_img} latent: {volume}_{scene}_{camera}_{frame_id} - shape: {lq_latent.shape}')
-                        continue
-                    
-                            
-                    # hypersim 
-                    orig_H, orig_W = 768, 1024 
-                    model_H, model_W = 378, 504
-                    pH = pW = 14 
-                    num_pH = model_H//pH    # 27
-                    num_pW = model_W//pW    # 36
-                    
-                                      
-                    lq_latent = mvrm_out['extract_feat']      # b v 973 3072
-                    # lq_cam_tkn = lq_latent[:,:,0]       # lq latent camera token (b v 3072)
-                    # lq_patch_tkn = lq_latent[:,:,1:]    # lq latent patch tokens (b v 972 3072)
-                    # lq_patch_tkn = rearrange(lq_patch_tkn, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
-                    
-                    
-                    hq_latent = batch['hq_latent_views'].to(device)
-                    # hq_cam_tkn = hq_latent[:,:,0]       # hq latent camera token (b v 3072)
-                    # hq_patch_tkn = hq_latent[:,:,1:]    # hq latent patch tokens (b v 972 3072)
-                    # hq_patch_tkn = rearrange(hq_patch_tkn, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
-                
-                    
-
-                    assert lq_latent.shape == hq_latent.shape 
-
-
-                    # NAN DEBUG
-                    check_tensor("lq_latent", lq_latent, global_step)
-                    check_tensor("hq_latent", hq_latent, global_step)
-                    
-                    # check_tensor("lq_patch_tkn", lq_patch_tkn, global_step)
-                    # check_tensor("hq_patch_tkn", hq_patch_tkn, global_step)
-                    
-                    
-
-                # optimizer.zero_grad(set_to_none=True)
-                with autocast(**autocast_kwargs):
-                    transport_output = transport.training_losses_mvrm(model=ddp_model, x1=hq_latent, xcond=lq_latent, cfg=full_cfg)
-                    
-                    # NAN DEBUG
-                    check_tensor("raw_loss", transport_output["loss"], global_step)
-                    
-                    loss = transport_output["loss"].mean()
-                    
-                
-                
-                
-                
-            loss = loss.float()
-            if scaler:  # f
-                scaler.scale(loss / grad_accum_steps).backward()
-            else:
-                (loss / grad_accum_steps).backward()
-            
-            accum_counter += 1
-            
-            # if clip_grad:   # t
-            #     if scaler:
-            #         scaler.unscale_(optimizer) 
-            #     torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), clip_grad)
+            # model input 
+            if full_cfg.mvrm.input_img == 'hq':
+                model_input = batch['hq_views'].to(device)                  # b v 3 378 504
+            elif full_cfg.mvrm.input_img == 'lq':
+                model_input = batch['lq_views'].to(device)                  # b v 3 378 504
             
             
-            # if global_step % grad_accum_steps == 0:
-            #     if scaler:
-            #         scaler.step(optimizer)
-            #         scaler.update()
-            #     else:
-            #         optimizer.step()
-            #     if scheduler is not None:
-            #         scheduler.step()
-            #     update_ema(ema_model, ddp_model.module, decay=ema_decay)
+            # NORMALIZATION
+            b, v, c, h, w = model_input.shape 
+            model_input = IMAGENET_NORMALIZE(model_input.view(b*v, c, h, w)).view(b, v, c, h, w)
+
+
+            with torch.no_grad():
+                stage1_out_raw, mvrm_out = stage1_enc(
+                                                    image=model_input, 
+                                                    export_feat_layers=[], 
+                                                    mvrm_cfg=full_cfg.mvrm.train, 
+                                                    mode='train'
+                                                    )
+                stage1_out = stage1_output_processor(stage1_out_raw)
+                train_pred_depth_np = stage1_out.depth                  # b v 378 504
+                train_pred_depth = torch.from_numpy(train_pred_depth_np).to(device) 
                 
-            if accum_counter == grad_accum_steps:
                 
-                if clip_grad:   # t
-                    if scaler:
-                        scaler.unscale_(optimizer) 
-                    torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), clip_grad)
-                    
-                if scaler:
-                    scaler.step(optimizer)
-                    scaler.update()
-                else:
-                    
-                    # NAN DEBUG
-                    for name, p in ddp_model.named_parameters():
-                        if p.grad is not None and not torch.isfinite(p.grad).all():
-                            print(f"🚨 NaN grad in {name} at step {global_step}")
-                            raise RuntimeError("NaN gradient")
+                # save_image(model_input[:,0], './img.jpg')
+                # save_image(train_pred_depth, './img_pred.jpg', normalize=True)
+                # save_image(gt_depth[:,0], './img_gt.jpg', normalize=True)
+                # save_image(batch['lq_views'][:,0], './img_lq.jpg', normalize=True)
+                # save_image(batch['hq_views'][:,0], './img_hq.jpg', normalize=True)
+                # breakpoint()
+
+
+                # breakpoint()
+                # FOR SAVING HQ LATENT
+                if full_cfg.mvrm.save_hq_latent:
+                    lq_latent = mvrm_out['extract_feat']      # b v n+1 d
+                    save_b, save_v, save_n, save_d = lq_latent.shape 
+                    for i in range(save_b):
+                        batch_id = hq_id[i]
+                        full_id = batch_id[0]
+                        volume = full_id.split('_')[-4]
+                        scene = full_id.split('_')[-3]
+                        camera = full_id.split('_')[-2]
+                        frame_id = full_id.split('_')[-1]
+                        save_root_path = f'{full_cfg.mvrm.save_hq_latent_root_path}/ai_{volume}_{scene}/scene_cam_{camera}'
+                        os.makedirs(save_root_path, exist_ok=True)
+                        save_feat = lq_latent[i].reshape(save_n, save_d).detach().cpu()
+                        torch.save(save_feat, f'{save_root_path}/{frame_id}.pt')
+                        print(f'saving {full_cfg.mvrm.input_img} latent: {volume}_{scene}_{camera}_{frame_id} - shape: {lq_latent.shape}')
+                    continue
+                
                         
-                    optimizer.step()
+                # hypersim 
+                orig_H, orig_W = 768, 1024 
+                model_H, model_W = 378, 504
+                pH = pW = 14 
+                num_pH = model_H//pH    # 27
+                num_pW = model_W//pW    # 36
+                
+                                    
+                lq_latent = mvrm_out['extract_feat']      # b v 973 3072
+                # lq_cam_tkn = lq_latent[:,:,0]       # lq latent camera token (b v 3072)
+                # lq_patch_tkn = lq_latent[:,:,1:]    # lq latent patch tokens (b v 972 3072)
+                # lq_patch_tkn = rearrange(lq_patch_tkn, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
+                
+                
+                hq_latent = batch['hq_latent_views'].to(device)
+                # hq_cam_tkn = hq_latent[:,:,0]       # hq latent camera token (b v 3072)
+                # hq_patch_tkn = hq_latent[:,:,1:]    # hq latent patch tokens (b v 972 3072)
+                # hq_patch_tkn = rearrange(hq_patch_tkn, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
+            
+                
 
+                assert lq_latent.shape == hq_latent.shape 
+
+
+                # NAN DEBUG
+                check_tensor("lq_latent", lq_latent, global_train_step)
+                check_tensor("hq_latent", hq_latent, global_train_step)
+                
+                # check_tensor("lq_patch_tkn", lq_patch_tkn, global_train_step)
+                # check_tensor("hq_patch_tkn", hq_patch_tkn, global_train_step)
+                
+                
+
+            # optimizer.zero_grad(set_to_none=True)
+            # with autocast(**autocast_kwargs):
+            transport_output = transport.training_losses_mvrm(model=ddp_model, x1=hq_latent, xcond=lq_latent, cfg=full_cfg)
+            loss = transport_output["loss"].mean() 
+
+            # NAN DEBUG
+            check_tensor("raw_loss", transport_output["loss"], global_train_step)
+            if loss.isnan():
+                print('NAN DETECTED')
+                breakpoint()
+            print(f"global step: {global_train_step}, lq_id: {batch['lq_ids']} hq_id: {batch['hq_ids']}")
+                
+                
+            raw_loss = loss.detach()
+            
+            loss = loss / grad_accum_steps
+                
+                
+            if (global_train_step + 1) % grad_accum_steps != 0:
+                with ddp_model.no_sync():
+                    loss.backward()
+            else:
+                loss.backward()
+
+
+            
+            # optimizer update
+            if (global_train_step + 1) % grad_accum_steps == 0:
+                if clip_grad:
+                    torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), clip_grad)
+                optimizer.step()
+                optimizer.zero_grad(set_to_none=True)
                 if scheduler is not None:
                     scheduler.step()
-
                 update_ema(ema_model, ddp_model.module, decay=ema_decay)
+                optimizer_step += 1
 
-                optimizer.zero_grad(set_to_none=True)
-                accum_counter = 0
                 
-            running_loss += loss.item()
-            epoch_metrics['loss'] += loss.detach()
+            running_loss += raw_loss.item()
+            epoch_metrics['loss'] += raw_loss
+            global_train_step += 1
             
-            if log_interval > 0 and global_step % log_interval == 0 and rank == 0:
+            
+            if log_interval > 0 and global_train_step % log_interval == 0 and rank == 0:
                 avg_loss = running_loss / log_interval # flow loss often has large variance so we record avg loss
                 steps = torch.tensor(log_interval, device=device)
                 stats = {
@@ -618,30 +576,21 @@ def main():
                     "train/lr": optimizer.param_groups[0]["lr"],
                 }
                 logger.info(
-                    f"[Epoch {epoch} | Step {global_step}] "
+                    f"[Epoch {epoch} | Step {global_train_step}] "
                     + ", ".join(f"{k}: {v:.4f}" for k, v in stats.items())
                 )
                 if full_cfg.log.tracker.name == 'wandb':
                     wandb_utils.log(
                         stats,
-                        step=global_step,
+                        step=global_train_step,
                     )
                 running_loss = 0.0
                 
-            if global_step % sample_every == 0:
+            # if global_train_step % sample_every == 0:
+            if optimizer_step > 0 and optimizer_step % sample_every == 0:
                 model.eval()
                 logger.info("Generating EMA samples...")
                 with torch.no_grad():
-
-
-                    # # safety check
-                    # val_b, val_v, val_c, val_h, val_w = lq_patch_tkn.shape
-                    # assert pure_noise.shape == lq_patch_tkn.shape
-
-
-                    # # reshape
-                    # lq_patch_tkn = lq_patch_tkn.view(-1, val_c, val_h, val_w)
-                    # val_pure_noise = pure_noise.view(-1, val_c, val_h, val_w)
 
 
 
@@ -652,14 +601,7 @@ def main():
                     
                     val_pure_noise = pure_noise
                     
-                    
-                    # lq_cam_tkn = lq_latent[:,:,0]       # lq latent camera token (b v 3072)
-                    # lq_patch_tkn = lq_latent[:,:,1:]    # lq latent patch tokens (b v 972 3072)
-                    # lq_patch_tkn = rearrange(lq_patch_tkn, 'b v (num_pH num_pW) d -> (b v) d num_pH num_pW', b=val_b, v=val_v, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
-                    # val_pure_noise = rearrange(val_pure_noise, 'b v (num_pH num_pW) d -> (b v) d num_pH num_pW', b=val_b, v=val_v, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36)
-
-
-
+            
 
                     # lq_latent condition method
                     if full_cfg.mvrm.lq_latent_cond == 'addition':
@@ -672,19 +614,6 @@ def main():
                     with autocast(**autocast_kwargs):
                         restored_samples = eval_sampler(val_xt, ema_model_fn, **sample_model_kwargs)[-1]     # b v n d
                     restored_samples.float()
-                    
-                    
-                    # restored_samples=restored_samples.view(val_b, val_v, val_d, num_pH, num_pW)   # b v c h w
-
-                    # # hypersim 
-                    # orig_H, orig_W = 768, 1024 
-                    # model_H, model_W = 378, 504
-                    # pH = pW = 14 
-                    # num_pH = model_H//pH    # 27
-                    # num_pW = model_W//pW    # 36
-                    
-                    # # b v 3072 27 36 -> b v 972 3072
-                    # restored_samples = rearrange(restored_samples, 'b v d num_pH num_pW -> b v (num_pH num_pW) d', v=val_v, num_pH=num_pH, num_pW=num_pW) # b v n d 
 
                     mvrm_result={}
                     mvrm_result['restored_latent'] = restored_samples
@@ -730,7 +659,7 @@ def main():
                     # Output path
                     vis_depth_save_dir = f'{experiment_dir}/vis_depth'
                     os.makedirs(vis_depth_save_dir, exist_ok=True)
-                    cv2.imwrite(f'{vis_depth_save_dir}/step{global_step:07}_{hq_id[0][0]}.jpg', vis_depth_cat)               
+                    cv2.imwrite(f'{vis_depth_save_dir}/step{global_train_step:07}_{hq_id[0][0]}.jpg', vis_depth_cat)               
 
                     # breakpoint()
                 
@@ -739,12 +668,13 @@ def main():
                 model.train()
 
             # ckpt saving
-            if global_step > 0 and global_step % ckpt_step_interval == 0 and rank == 0:
-                logger.info(f"Saving checkpoint at globalstep {global_step}...")
-                ckpt_path = f"{checkpoint_dir}/ep-{global_step:07d}.pt" 
+            # if global_train_step > 0 and global_train_step % ckpt_step_interval == 0 and rank == 0:
+            if optimizer_step > 0 and optimizer_step % ckpt_step_interval == 0 and rank == 0:
+                logger.info(f"Saving checkpoint at global_train_step {global_train_step}...")
+                ckpt_path = f"{checkpoint_dir}/ep-{global_train_step:07d}.pt" 
                 save_checkpoint(
                     ckpt_path,
-                    global_step,
+                    global_train_step,
                     epoch,
                     ddp_model,
                     ema_model,
@@ -752,7 +682,7 @@ def main():
                     scheduler,
                 )
                 
-            # if do_eval and (eval_interval > 0 and global_step % eval_interval == 0):
+            # if do_eval and (eval_interval > 0 and global_train_step % eval_interval == 0):
             #     logger.info("Starting evaluation...")
             #     model.eval()
             #     eval_models = [(ema_model_fn, "ema")]
@@ -773,17 +703,17 @@ def main():
             #             device = device,
             #             batch_size = micro_batch_size,
             #             experiment_dir = experiment_dir,
-            #             global_step = global_step,
+            #             global_train_step = global_train_step,
             #             autocast_kwargs = autocast_kwargs,
             #             reference_npz_path = reference_npz_path
             #         )
             #         # log with prefix
             #         eval_stats = {f"eval_{mod_name}/{k}": v for k, v in eval_stats.items()} if eval_stats is not None else {}
             #         if full_cfg.log.tracker.name == 'wandb':
-            #             wandb_utils.log(eval_stats, step=global_step)
+            #             wandb_utils.log(eval_stats, step=global_train_step)
             #         model.train()
             #     logger.info("Evaluation done.")
-            global_step += 1
+            # global_train_step += 1
             num_batches += 1
         
         if rank == 0 and num_batches > 0:
@@ -796,14 +726,14 @@ def main():
                 + ", ".join(f"{k}: {v:.4f}" for k, v in epoch_stats.items())
             )
             if full_cfg.log.tracker.name == 'wandb':
-                wandb_utils.log(epoch_stats, step=global_step)
+                wandb_utils.log(epoch_stats, step=global_train_step)
     # save the final ckpt
     if rank == 0:
         logger.info(f"Saving final checkpoint at epoch {num_epochs}...")
         ckpt_path = f"{checkpoint_dir}/ep-last.pt" 
         save_checkpoint(
             ckpt_path,
-            global_step,
+            global_train_step,
             num_epochs,
             ddp_model,
             ema_model,

@@ -130,7 +130,7 @@ def prepare_dataloader(
         train_sampler = PhoSampler(train_ds, shuffle=cfg.training.shuffle)
         train_batchsampler = PhoBatchSampler(sampler=train_sampler, batch_size=batch_size)
         
-        train_loader = DataLoader(train_ds, batch_sampler=train_batchsampler, num_workers=workers, pin_memory=True, collate_fn=multiview_collate_fn)
+        train_loader = DataLoader(train_ds, batch_sampler=train_batchsampler, num_workers=workers, pin_memory=True, drop_last=False, collate_fn=multiview_collate_fn)
         
     return train_loader, train_sampler
 
