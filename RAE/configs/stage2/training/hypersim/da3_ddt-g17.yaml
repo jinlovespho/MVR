@@ -117,8 +117,8 @@ log:
       entity: jinlovespho
       project: eccv26_mv_restoration
       
-      # msg: "lq-kernel50-global17"
-      msg: "hq-recon-global17-fix"
+      msg: "lq-kernel50-global17-fix"
+      # msg: "hq-recon-global17-fix"
 
 data:
   train:
@@ -162,8 +162,8 @@ data:
 mvrm:
   save_hq_latent: False
   save_hq_latent_root_path: /mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview_g17
-  input_img: hq
-  # input_img: lq
+  # input_img: hq
+  input_img: lq
   # choose from [addition, concat]
   lq_latent_cond: addition
   train:

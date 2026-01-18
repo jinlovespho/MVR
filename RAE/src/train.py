@@ -611,8 +611,8 @@ def main():
                     
                     
                     # forward pass
-                    with autocast(**autocast_kwargs):
-                        restored_samples = eval_sampler(val_xt, ema_model_fn, **sample_model_kwargs)[-1]     # b v n d
+                    # with autocast(**autocast_kwargs):
+                    restored_samples = eval_sampler(val_xt, ema_model_fn, **sample_model_kwargs)[-1]     # b v n d
                     restored_samples.float()
 
                     mvrm_result={}
