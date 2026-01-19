@@ -74,11 +74,11 @@ def main():
     # load configs
     args = parse_args()
     full_cfg = OmegaConf.load(args.config)
-    stage2_cfg = full_cfg.stage_2 
-    transport_cfg = full_cfg.transport 
-    sampler_cfg = full_cfg.sampler 
-    guidance_cfg = full_cfg.guidance 
-    misc = full_cfg.misc 
+    # stage2_cfg = full_cfg.stage_2 
+    # transport_cfg = full_cfg.transport 
+    # sampler_cfg = full_cfg.sampler 
+    # guidance_cfg = full_cfg.guidance 
+    # misc = full_cfg.misc 
     training_cfg = full_cfg.training 
     
     
@@ -138,7 +138,7 @@ def main():
     
     
     # load Transport 
-    transport = create_transport(**transport_cfg.params, time_dist_shift=time_dist_shift,)
+    transport = create_transport(**full_cfg.transport.params, time_dist_shift=time_dist_shift,)
     transport_sampler = Sampler(transport)
 
 
@@ -161,26 +161,30 @@ def main():
     optimizer_step = 0 
     running_loss = 0.0
     
-    maybe_resume_ckpt_path = find_resume_checkpoint(experiment_dir)
-    if maybe_resume_ckpt_path is not None:
-        logger.info(f"Experiment resume checkpoint found at {maybe_resume_ckpt_path}, automatically resuming...")
-        ckpt_path = Path(maybe_resume_ckpt_path)
-        if ckpt_path.is_file():
-            start_epoch, global_train_step = load_checkpoint(
-                ckpt_path,
-                models['ddp_denoiser'],
-                models['ema_denoiser'],
-                optimizer,
-                scheduler,
-            )
-            logger.info(f"[Rank {rank}] Resumed from {ckpt_path} (epoch={start_epoch}, step={global_train_step}).")
-        else:
-            raise FileNotFoundError(f"Checkpoint not found: {ckpt_path}")
-    else:
-        # starting from fresh, save worktree and configs
-        if rank == 0:
-            save_worktree(experiment_dir, full_cfg)
-            logger.info(f"Saved training worktree and config to {experiment_dir}.")
+    
+    # maybe_resume_ckpt_path = find_resume_checkpoint(experiment_dir)
+    # if maybe_resume_ckpt_path is not None:
+    #     logger.info(f"Experiment resume checkpoint found at {maybe_resume_ckpt_path}, automatically resuming...")
+    #     ckpt_path = Path(maybe_resume_ckpt_path)
+    #     if ckpt_path.is_file():
+    #         start_epoch, global_train_step = load_checkpoint(
+    #             ckpt_path,
+    #             models['ddp_denoiser'],
+    #             models['ema_denoiser'],
+    #             optimizer,
+    #             scheduler,
+    #         )
+    #         logger.info(f"[Rank {rank}] Resumed from {ckpt_path} (epoch={start_epoch}, step={global_train_step}).")
+    #     else:
+    #         raise FileNotFoundError(f"Checkpoint not found: {ckpt_path}")
+    # else:
+    #     # starting from fresh, save worktree and configs
+    #     if rank == 0:
+    #         save_worktree(experiment_dir, full_cfg)
+    #         logger.info(f"Saved training worktree and config to {experiment_dir}.")
+            
+            
+            
     ### Logging experiment details
     if rank == 0:
         num_params = sum(p.numel() for p in models['encoder'].parameters())
@@ -199,7 +203,8 @@ def main():
         logger.info(f"Running with world size {world_size}, starting from epoch {start_epoch} to {num_epochs}.")
 
 
-    IMAGENET_NORMALIZE = T.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225],)
+
+    IMAGENET_NORMALIZE = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225],)
 
     dist.barrier() 
     for epoch in range(start_epoch, num_epochs):
@@ -210,6 +215,7 @@ def main():
         optimizer.zero_grad(set_to_none=True)
 
 
+        # train loop
         for train_step, batch in enumerate(train_loader):
 
 
@@ -304,7 +310,7 @@ def main():
             loss = loss / grad_accum_steps
             print(f"global step: {global_train_step}, lq_id: {batch['lq_ids']} hq_id: {batch['hq_ids']}")
                 
-                
+
             
             # compute gradients
             if (global_train_step + 1) % grad_accum_steps != 0:
@@ -359,6 +365,8 @@ def main():
                 logger.info("Generating EMA samples...")
                 with torch.no_grad():
 
+
+
                     # safety check 
                     val_b, val_v, val_n, val_d = lq_latent.shape    # b v n+1 d 
                     assert pure_noise.shape == lq_latent.shape 
@@ -380,6 +388,7 @@ def main():
 
                     mvrm_result={}
                     mvrm_result['restored_latent'] = restored_samples
+
 
                     val_encoder_out, val_mvrm_out = models['encoder'](
                                                                 image=lq_views, 

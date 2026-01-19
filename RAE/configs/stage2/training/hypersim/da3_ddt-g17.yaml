@@ -73,7 +73,7 @@ misc:
 training:
   global_seed: 42
   precision: fp32
-  epochs: 50
+  epochs: 20
   global_batch_size: 1    # this is the final total batch size
   grad_accum_steps: 1     # by controling grad_accum_step, the batch_size is adjusted automatically
   ema_decay: 0.9995
@@ -94,8 +94,8 @@ training:
     weight_decay: 0.0
   scheduler:
     type: linear
-    warmup_epochs: 25
-    decay_end_epoch: 50
+    warmup_epochs: 10
+    decay_end_epoch: 20
     base_lr: 2e-4
     final_lr: 2e-5
     warmup_from_zero: false
@@ -109,11 +109,13 @@ log:
       key: e32eed0c2509bf898b850b0065ab62345005fb73
       entity: jinlovespho
       project: eccv26_mv_restoration
-      
-      # msg: "lq-kernel50-global17"
-      # msg: "hq-recon-global17-fix"
 
-      msg: "TMP"
+
+      # msg: "hq-recon-global17"
+      msg: "lq-kernel50-global17-re"
+
+
+      # msg: "TMPTMPTMPTMPTMP"
 
 
 data:
@@ -131,7 +133,8 @@ data:
 
     hypersim:
       hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data
-      hq_latent_root_path: /mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview_g17
+      hq_latent_root_path: 
+      # hq_latent_root_path: /mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview_g17
 
       # lq_root_path: /mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel10_intensity01
       # lq_root_path: /mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel30_intensity01
@@ -147,6 +150,7 @@ data:
       lq_root_path:
       lq_latent_root_path: 
       view_sel_strategy:
+
   val:
     image_size: 512 
     list: [eth3d]
@@ -162,6 +166,7 @@ mvrm:
   # save_hq_latent_root_path: /mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview_g17
 
 
+  # input_img: hq               # [hq, lq]
   input_img: lq               # [hq, lq]
   lq_latent_cond: addition    # [addition, concat]
 

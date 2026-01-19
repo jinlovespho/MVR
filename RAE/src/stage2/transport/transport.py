@@ -273,17 +273,9 @@ class Transport:
 
         # mvrm forward pass 
         model_output = model(xt, t)                 # b v 3072 27 36
-        
         assert model_output.shape == xt.shape 
 
 
-
-        # TODO: How do apply lost on the camera token? 
-        # 그럴려면 애초에 처음부터, self.sample(x1)을 할 때, x1의 shape가 b v n d 이어야 하는데..
-        # ask gpt if doing self.samp
-
-
-        # breakpoint()
         terms = {}
         terms['pred'] = model_output
         if self.model_type == ModelType.VELOCITY:   # t

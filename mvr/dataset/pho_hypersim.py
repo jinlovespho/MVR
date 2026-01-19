@@ -15,22 +15,34 @@ class PhoHypersim(Dataset):
         
         self.data = {}
         
+        
+        keep_volumes = ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010']
+        
+        
+        
         if data_cfg.hq_root_path is not None:
             self.data['hq_img'] = sorted(glob.glob(f'{data_cfg.hq_root_path}/*/images/*final_hdf5*/*color*'))
             # filter only hypersim volume 001~010
+            self.data['hq_img'] = sorted(data for data in self.data['hq_img'] if data.split('/')[-4].split('_')[-2] in keep_volumes)
 
-        if data_cfg.hq_latent_root_path is not None:
-            self.data['hq_latent'] = sorted(glob.glob(f'{data_cfg.hq_latent_root_path}/*/*/*'))
-            # filter only hypersim volume 001~010
+        # if data_cfg.hq_latent_root_path is not None:
+        #     self.data['hq_latent'] = sorted(glob.glob(f'{data_cfg.hq_latent_root_path}/*/*/*'))
+        #     # filter only hypersim volume 001~010
+        
             
         if data_cfg.lq_root_path is not None:
             self.data['lq_img'] = sorted(glob.glob(f'{data_cfg.lq_root_path}/*/*/images/*'))
             # filter only hypersim volume 001~010
+
+
         
         if data_cfg.depth_path is not None:
             self.data['gt_depth'] = sorted(glob.glob(f"{data_cfg.depth_path}/*/images/*geometry_hdf5*/*depth_meters*"))
             # filter only hypersim volume 001~010
-            
+            self.data['gt_depth'] = sorted(data for data in self.data['gt_depth'] if data.split('/')[-4].split('_')[-2] in keep_volumes)
+
+
+          
         self.view_sel_strategy = data_cfg.view_sel_strategy 
         
         

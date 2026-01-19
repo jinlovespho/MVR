@@ -365,10 +365,13 @@ class DinoVisionTransformer(nn.Module):
                         mvrm_output['extract_feat'] = x     # b v n+1 d
             
 
+
             # MVRM restore degraded features
             if kwargs['mode'] == 'val':
+                # print(f'{i} VAL')
                 mvrm_val_cfg = kwargs['mvrm_cfg']
                 if i in mvrm_val_cfg.restore_feat_layers:
+                    # print(f'{i} APPLIED RESTORED LATENT!')
                     restored_latent = kwargs['mvrm_result']['restored_latent']
                     if mvrm_val_cfg.concat_feat:
                         x = restored_latent[..., 1536:]
@@ -380,6 +383,7 @@ class DinoVisionTransformer(nn.Module):
 
             # collect feat layers for DPT Head
             if i in blocks_to_take:
+                # print(f'DPT head {i}')
                 out_x = torch.cat([local_x, x], dim=-1) if self.cat_token else x
                 # Restore original view order if reordering was applied
                 if x.shape[1] >= THRESH_FOR_REF_SELECTION and self.alt_start != -1 and 'b_idx' in locals():

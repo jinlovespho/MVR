@@ -1,3 +1,4 @@
+
 stage_1:
   # select from [rae, da3, vggt]
   model: da3
@@ -87,7 +88,7 @@ training:
   ema_decay: 0.9995
   num_workers: 4
   shuffle: True
-  log_interval: 100
+  log_interval: 1
   # checkpoint_interval: 
 
   ckpt_step_interval: 25000   # 25k
@@ -117,7 +118,7 @@ training:
 
 
 log:
-  result_root_dir: result_train/stage2
+  result_root_dir: result_train/stage2/260119
   tracker:
     name: wandb 
     wandb:
@@ -134,7 +135,8 @@ log:
       
       # msg: "lq-kernel100_rerere"
 
-      msg: "lq-kernel50-frame18-global19"
+      # msg: "lq-kernel50-frame18-global19"
+      msg: "TMPTMPf18g19"
 
 data:
   train:
@@ -151,7 +153,8 @@ data:
 
     hypersim:
       hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data
-      hq_latent_root_path: /mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview
+      hq_latent_root_path: 
+      # hq_latent_root_path: /mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview
       # lq_root_path: /mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel10_intensity01
       # lq_root_path: /mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel30_intensity01
       lq_root_path: /mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel50_intensity01
