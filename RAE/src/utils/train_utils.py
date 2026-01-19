@@ -16,7 +16,6 @@ from copy import deepcopy
 from .dist_utils import setup_distributed
 
 
-
 def parse_configs(full_cfg: Union[DictConfig, str]) -> Tuple[DictConfig, DictConfig, DictConfig, DictConfig, DictConfig, DictConfig, DictConfig]:
     """Load a config file and return component sections as DictConfigs."""
     if isinstance(full_cfg, str):

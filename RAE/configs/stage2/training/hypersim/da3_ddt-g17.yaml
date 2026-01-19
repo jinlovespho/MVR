@@ -100,16 +100,9 @@ training:
     final_lr: 2e-5
     warmup_from_zero: false
 
-# eval:
-#   eval_interval: 1 # Eval interval by optimization step
-#   eval_model: true # By default only evaluates EMA model. Set to true to eval non-EMA model as well.
-#   data_path: /media/data1/ImageNet2012/pho_val # path to ImageNet val images
-#   reference_npz_path: /media/data1/ImageNet2012/pho_val.npz # packed npz of ImageNet val images for FID calculation
-#   metrics: ['psnr', 'ssim', 'rfid'] # metrics to calculate
-
 
 log:
-  result_root_dir: result_train/stage2
+  result_root_dir: result_train/stage2/260119
   tracker:
     name: wandb 
     wandb:
@@ -117,8 +110,11 @@ log:
       entity: jinlovespho
       project: eccv26_mv_restoration
       
-      msg: "lq-kernel50-global17-fix"
+      # msg: "lq-kernel50-global17"
       # msg: "hq-recon-global17-fix"
+
+      msg: "TMP"
+
 
 data:
   train:
@@ -160,12 +156,15 @@ data:
   
 
 mvrm:
+  
   save_hq_latent: False
-  save_hq_latent_root_path: /mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview_g17
-  # input_img: hq
-  input_img: lq
-  # choose from [addition, concat]
-  lq_latent_cond: addition
+  save_hq_latent_root_path:
+  # save_hq_latent_root_path: /mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview_g17
+
+
+  input_img: lq               # [hq, lq]
+  lq_latent_cond: addition    # [addition, concat]
+
   train:
     # DPT Head input feats = [19, 27, 33, 39]
     extract_feat_layers: [17]

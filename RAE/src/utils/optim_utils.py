@@ -9,11 +9,11 @@ from torch.optim.lr_scheduler import LambdaLR
 
 
 def _as_tuple(values: Any, length: int = 2) -> tuple:
-    if isinstance(values, (list, tuple)):
-        if len(values) != length:
-            raise ValueError(f"Expected sequence of length {length}, got {len(values)}.")
-        return tuple(float(v) for v in values)
-    return tuple(float(values) for _ in range(length))
+    # if isinstance(values, (list, tuple)):
+    #     if len(values) != length:
+    #         raise ValueError(f"Expected sequence of length {length}, got {len(values)}.")
+    return tuple(float(v) for v in values)
+    # return tuple(float(values) for _ in range(length))
 
 
 def build_optimizer(parameters: Iterable[torch.nn.Parameter], training_cfg: Dict[str, Any]) -> tuple[Optimizer, str]:

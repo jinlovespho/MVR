@@ -5,37 +5,22 @@
 A minimal training script for SiT using PyTorch DDP.
 """
 import argparse
-import logging
 import math
 import os
-from collections import defaultdict, OrderedDict
+from collections import defaultdict
 import cv2 
 import torch
-# the first flag below was False when we tested this script but True makes A100 training a lot faster:
-torch.backends.cuda.matmul.allow_tf32 = True
-torch.backends.cudnn.allow_tf32 = True
 import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.utils.data import DataLoader
-from torch.utils.data.distributed import DistributedSampler
-from torchvision.datasets import ImageFolder
-from torchvision import transforms
 import numpy as np
-from PIL import Image
-from copy import deepcopy
-from glob import glob
-from time import time
+
 import argparse
-import logging
 from pathlib import Path
 import math
-from torch.cuda.amp import autocast, GradScaler
-from torch.optim.lr_scheduler import LambdaLR
 from omegaconf import OmegaConf
 
 
 ##### model imports
-from stage2.models import Stage2ModelProtocol
+
 from stage2.transport import create_transport, Sampler
 
 ##### general utils
@@ -47,8 +32,6 @@ from utils.resume_utils import *
 from utils.wandb_utils import *
 from utils.dist_utils import *
 
-##### Eval utils
-from eval import evaluate_generation_distributed
 
 from torchvision.utils import save_image 
 from utils.vis_utils import depth_to_colormap, depth_error_to_colormap_thresholded
@@ -57,63 +40,25 @@ import torchvision.transforms as T
 from einops import rearrange
 
 
-
-def check_tensor(name, x, step):
-    if not torch.is_tensor(x):
-        return
-    if not torch.isfinite(x).all():
-        print(f"\n🚨 NaN/Inf detected in {name} at step {step}")
-        print(f"  dtype: {x.dtype}")
-        print(f"  min: {x.min().item()}")
-        print(f"  max: {x.max().item()}")
-        print(f"  mean: {x.mean().item()}")
-        raise RuntimeError(f"NaN detected in {name}")
+from RAE.src.initialize import (save_checkpoint, load_checkpoint,
+                         load_train_data, load_val_data, 
+                         load_model,
+                         load_sampler,)
 
 
 
-def save_checkpoint(
-    path: str,
-    step: int,
-    epoch: int,
-    model: DDP,
-    ema_model: torch.nn.Module,
-    optimizer: torch.optim.Optimizer,
-    scheduler: Optional[LambdaLR],
-) -> None:
-    state = {
-        "step": step,
-        "epoch": epoch,
-        "model": model.module.state_dict(),
-        "ema": ema_model.state_dict(),
-        "optimizer": optimizer.state_dict(),
-        "scheduler": scheduler.state_dict() if scheduler is not None else None,
-    }
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    torch.save(state, path)
+# torch.backends.cuda.enable_flash_sdp(False)
+# torch.backends.cuda.enable_mem_efficient_sdp(False)
+# torch.backends.cuda.enable_math_sdp(True)
 
-
-def load_checkpoint(
-    path: str,
-    model: DDP,
-    ema_model: torch.nn.Module,
-    optimizer: torch.optim.Optimizer,
-    scheduler: Optional[LambdaLR],
-) -> Tuple[int, int]:
-    checkpoint = torch.load(path, map_location="cpu")
-    model.module.load_state_dict(checkpoint["model"])
-    ema_model.load_state_dict(checkpoint["ema"])
-    optimizer.load_state_dict(checkpoint["optimizer"])
-    if scheduler is not None and checkpoint.get("scheduler") is not None:
-        scheduler.load_state_dict(checkpoint["scheduler"])
-    return checkpoint.get("epoch", 0), checkpoint.get("step", 0)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train Stage-2 transport model on RAE latents.")
     parser.add_argument("--config", type=str, required=True, help="YAML config containing stage_1 and stage_2 sections.")
-    parser.add_argument("--compile", action="store_true", help="Use torch compile (for stage1_enc.encode and model.forward).")
     args = parser.parse_args()
     return args
+
 
 
 def main():
@@ -121,43 +66,30 @@ def main():
     # NAN DEBUG
     torch.autograd.set_detect_anomaly(True)
     
-    """Trains a new SiT model using config-driven hyperparameters."""
-    args = parse_args()
-    if not torch.cuda.is_available():
-        raise RuntimeError("Training currently requires at least one GPU.")
-    rank, world_size, device = setup_distributed()
-    full_cfg = OmegaConf.load(args.config)
-    (
-        stage1_cfg,
-        stage2_cfg,
-        transport_config,
-        sampler_config,
-        guidance_config,
-        misc_config,
-        training_config,
-        eval_config
-    ) = parse_configs(full_cfg)
     
+    # set up ddp setting
+    rank, world_size, device = setup_distributed()
+    
+    
+    # load configs
+    args = parse_args()
+    full_cfg = OmegaConf.load(args.config)
+    stage2_cfg = full_cfg.stage_2 
+    transport_cfg = full_cfg.transport 
+    sampler_cfg = full_cfg.sampler 
+    guidance_cfg = full_cfg.guidance 
+    misc = full_cfg.misc 
+    training_cfg = full_cfg.training 
+    
+    
+    # set logger and directories
+    experiment_dir, checkpoint_dir, vis_recon_dir, logger = configure_experiment_dirs(full_cfg, rank)
 
-    def to_dict(cfg_section):
-        if cfg_section is None:
-            return {}
-        return OmegaConf.to_container(cfg_section, resolve=True)
 
-    misc = to_dict(misc_config)
-    transport_cfg = to_dict(transport_config)
-    sampler_cfg = to_dict(sampler_config)
-    guidance_cfg = to_dict(guidance_config)
-    training_cfg = to_dict(training_config)
 
-    latent_size = tuple(int(dim) for dim in misc.get("latent_size", (768, 16, 16)))
-    shift_dim = misc.get("time_dist_shift_dim", math.prod(latent_size))
-    shift_base = misc.get("time_dist_shift_base", 4096)
-    time_dist_shift = math.sqrt(shift_dim / shift_base)
+    time_dist_shift = math.sqrt(full_cfg.misc.time_dist_shift_dim / full_cfg.misc.time_dist_shift_base)
 
     grad_accum_steps = int(training_cfg.get("grad_accum_steps", 1))
-    if grad_accum_steps < 1:
-        raise ValueError("Gradient accumulation steps must be >= 1.")
     clip_grad_val = training_cfg.get("clip_grad", 1.0)
     clip_grad = float(clip_grad_val) if clip_grad_val is not None else None
     if clip_grad is not None and clip_grad <= 0:
@@ -171,7 +103,6 @@ def main():
     else:
         batch_size = int(training_cfg.get("batch_size", 16))
         global_batch_size = batch_size * world_size * grad_accum_steps
-    num_workers = int(training_cfg.get("num_workers", 4))
     log_interval = int(training_cfg.get("log_interval", 100))
     sample_every = int(training_cfg.get("sample_every", 2500)) 
     # checkpoint_interval = int(training_cfg.get("checkpoint_interval", 4)) # ckpt interval is epoch based
@@ -179,209 +110,56 @@ def main():
     cfg_scale_override = training_cfg.get("cfg_scale", None)
     global_seed = int(training_cfg.get("global_seed", 0))
     
-    if eval_config:
-        """
-        FID online evaluation setup
-        """
-        do_eval = True
-        eval_interval = int(eval_config.get("eval_interval", 5000))
-        eval_model = eval_config.get("eval_model", False) # by default eval ema. This decides whether to **additionally** eval the non-ema model.
-        eval_data = eval_config.get("data_path", None)
-        reference_npz_path = eval_config.get("reference_npz_path", None)
-        assert eval_data, "eval.data_path must be specified to enable evaluation."
-        assert reference_npz_path, "eval.reference_npz_path must be specified to enable evaluation."
-    else:
-        do_eval = False
+
     seed = global_seed * world_size + rank
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     micro_batch_size = global_batch_size // (world_size * grad_accum_steps)
-    # use_fp16 = full_cfg.training.precision == "fp16"
-    # use_bf16 = full_cfg.training.precision == "bf16"
-    # if use_bf16 and not torch.cuda.is_bf16_supported():
-    #     raise ValueError("Requested bf16 precision, but the current CUDA device does not support bfloat16.")
-    # autocast_dtype = torch.float16 if use_fp16 else torch.bfloat16
-    # autocast_enabled = use_fp16 or use_bf16
-    # autocast_kwargs = dict(dtype=autocast_dtype, enabled=autocast_enabled)
-    # scaler = GradScaler(enabled=use_fp16)
     
     
-    transport_params = dict(transport_cfg.get("params", {}))
-    path_type = transport_params.get("path_type", "Linear")
-    prediction = transport_params.get("prediction", "velocity")
-    loss_weight = transport_params.get("loss_weight")
-    transport_params.pop("time_dist_shift", None)
-
-    sampler_mode = sampler_cfg.get("mode", "ODE").upper()
-    sampler_params = dict(sampler_cfg.get("params", {}))
-
-    guidance_scale = float(guidance_cfg.get("scale", 1.0))
-    if cfg_scale_override is not None:
-        guidance_scale = float(cfg_scale_override)
-    guidance_method = guidance_cfg.get("method", "cfg")
-
-    def guidance_value(key: str, default: float) -> float:
-        if key in guidance_cfg:
-            return guidance_cfg[key]
-        dashed_key = key.replace("_", "-")
-        return guidance_cfg.get(dashed_key, default)
-
-    t_min = float(guidance_value("t_min", 0.0))
-    t_max = float(guidance_value("t_max", 1.0))
-    
-    experiment_dir, checkpoint_dir, vis_recon_dir, logger = configure_experiment_dirs(full_cfg, rank)
+    # load encoder and denoiser 
+    models, processors = load_model(full_cfg, rank, device)
 
 
-    # load stage1 encoder 
-    if full_cfg.stage_1.model == 'rae':
-        from stage1 import RAE
-        stage1_enc: RAE = instantiate_from_config(stage1_cfg).to(device)
-        stage1_enc.eval()
-        if args.compile:
-            try:
-                stage1_enc.encode = torch.compile(stage1_enc.encode)
-            except:
-                print('RAE ENCODE compile meets error, falling back to no compile')
-            try:
-                model.forward = torch.compile(model.forward)
-            except:
-                print('MODEL FORWARD compile meets error, falling back to no compile')
-        # else:
-        #     raise NotImplementedError('ARGS>COMPILE')
-        else:
-            print("Running without torch.compile")
-            
-    elif full_cfg.stage_1.model == 'da3':
-        from depth_anything_3.api import DepthAnything3
-        from depth_anything_3.utils.io.input_processor import InputProcessor
-        from depth_anything_3.utils.io.output_processor import OutputProcessor
-        stage1_input_processor = InputProcessor()
-        stage1_output_processor = OutputProcessor()
-        stage1_enc = DepthAnything3.from_pretrained(full_cfg.stage_1.da3.ckpt).to(device)
-        stage1_enc.eval()
-        
-    elif full_cfg.stage_1.model == 'vggt':
-        from vggt.models.vggt import VGGT
-        from vggt.utils.load_fn import load_and_preprocess_images
-        stage1_enc = VGGT.from_pretrained(full_cfg.stage_1.vggt.ckpt).to(device)
-        stage1_enc.eval()
-    
-    
-    
-    # rae stage2 model 
-    model: Stage2ModelProtocol = instantiate_from_config(stage2_cfg).to(device)         
-    ema_model = deepcopy(model).to(device)
-    ema_model.requires_grad_(False)
-    ema_model.eval()
-    model.requires_grad_(True) # train stage2 model
-    ddp_model = DDP(model, device_ids=[device.index], broadcast_buffers=False, find_unused_parameters=False)
-    # ddp_model = torch.compile(ddp_model) # fix shape compile, see if it works
-    model = ddp_model.module
-    ddp_model.train()
-    # no need to put RAE into DDP since it's frozen
-    model_param_count = sum(p.numel() for p in model.parameters())
-    logger.info(f"Model Parameters: {model_param_count/1e6:.2f}M")
-    
-    #### Opt, Schedl init
-    optimizer, optim_msg = build_optimizer([p for p in model.parameters() if p.requires_grad], training_cfg)
 
-    ### AMP init
-    # scaler, autocast_kwargs = get_autocast_scaler(full_cfg)
-    
-    train_loader, train_sampler = prepare_dataloader(full_cfg, micro_batch_size, num_workers, rank, world_size)
-    
-    # if do_eval:
-    #     eval_dataset = ImageFolder(
-    #         str(eval_data),
-    #         transform=transforms.Compose([
-    #             transforms.Lambda(lambda pil_image: center_crop_arr(pil_image, args.image_size)),
-    #             transforms.ToTensor(),
-    #         ])
-    #     )
-    #     logger.info(f"Evaluation dataset loaded from {eval_data}, containing {len(eval_dataset)} images.")
-    
-    
-    
-    
-    # loader_batches = len(train_loader)
-    # if loader_batches % grad_accum_steps != 0:
-    #     raise ValueError("Number of loader batches must be divisible by grad_accum_steps when drop_last=True.")
-    # steps_per_epoch = loader_batches // grad_accum_steps
-
-
+    # load training and validation data 
+    train_loader, train_sampler = load_train_data(full_cfg, micro_batch_size, rank, world_size)
     loader_batches = len(train_loader)
     steps_per_epoch = math.ceil(loader_batches / grad_accum_steps)
+    # val_data = load_val_data(full_cfg)
 
 
-    if steps_per_epoch <= 0:
-        raise ValueError("Gradient accumulation configuration results in zero optimizer steps per epoch.")
+    # load optimizer
+    optimizer, optim_msg = build_optimizer([p for p in models['denoiser'].parameters() if p.requires_grad], training_cfg)
+
+
+    # load scheduler 
+    scheduler, sched_msg = build_scheduler(optimizer, steps_per_epoch, training_cfg)
     
-    if training_cfg.get("scheduler"):
-        scheduler, sched_msg = build_scheduler(optimizer, steps_per_epoch, training_cfg)
     
-    #### Transport init
-    transport = create_transport(
-        **transport_params,
-        time_dist_shift=time_dist_shift,
-    )
+    # load Transport 
+    transport = create_transport(**transport_cfg.params, time_dist_shift=time_dist_shift,)
     transport_sampler = Sampler(transport)
 
-    if sampler_mode == "ODE":
-        eval_sampler = transport_sampler.sample_ode(**sampler_params)
-    elif sampler_mode == "SDE":
-        eval_sampler = transport_sampler.sample_sde(**sampler_params)
-    else:
-        raise NotImplementedError(f"Invalid sampling mode {sampler_mode}.")
+
+    # load sampler 
+    eval_sampler = load_sampler(full_cfg, transport_sampler)
+
+
     
-    
-    # breakpoint()
-    ### Guidance Init
-    guid_model_forward = None
-    if guidance_scale > 1.0 and guidance_method == "autoguidance":
-        guidance_model_cfg = guidance_cfg.get("guidance_model")
-        if guidance_model_cfg is None:
-            raise ValueError("Please provide a guidance model config when using autoguidance.")
-        guid_model: Stage2ModelProtocol = instantiate_from_config(guidance_model_cfg).to(device)
-        guid_model.eval()
-        guid_model_forward = guid_model.forward
-            
-    log_steps = 0
-    running_loss = 0.0
-    start_time = time()
-    use_guidance = guidance_scale > 1.0
+
     # make noise latent 
-    pure_noise = torch.randn(micro_batch_size, *latent_size, device=device, dtype=torch.float32) # always use float for noise sampling
-    # if use_guidance:
-    #     pure_noise = torch.cat([pure_noise, pure_noise], dim=0)
-    #     y_null = torch.full((n,), null_label, device=device)
-    #     ys = torch.cat([ys, y_null], dim=0)
-    #     sample_model_kwargs = dict(
-    #         cfg_scale=guidance_scale,
-    #         cfg_interval=(t_min, t_max),
-    #     )
-    #     if guidance_method == "autoguidance":
-    #         if guid_model_forward is None:
-    #             raise RuntimeError("Guidance model forward is not initialized.")
-    #         sample_model_kwargs["additional_model_forward"] = guid_model_forward
-    #         ema_model_fn = ema_model.forward_with_autoguidance
-    #         model_fn = model.forward_with_autoguidance
-    #     else:
-    #         ema_model_fn = ema_model.forward_with_cfg
-    #         model_fn = model.forward_with_cfg
-    # else:
-    #     sample_model_kwargs = dict()
-    #     ema_model_fn = ema_model.forward
-    #     model_fn = model.forward
+    pure_noise = torch.randn(micro_batch_size, *full_cfg.misc.latent_size, device=device, dtype=torch.float32) # always use float for noise sampling
 
     sample_model_kwargs = dict()
-    ema_model_fn = ema_model.forward
-    model_fn = model.forward
-    
+    ema_model_fn = models['ema_denoiser'].forward
 
+    
     ### Resuming and checkpointing
     start_epoch = 0
     global_train_step = 0
     optimizer_step = 0 
+    running_loss = 0.0
     
     maybe_resume_ckpt_path = find_resume_checkpoint(experiment_dir)
     if maybe_resume_ckpt_path is not None:
@@ -390,8 +168,8 @@ def main():
         if ckpt_path.is_file():
             start_epoch, global_train_step = load_checkpoint(
                 ckpt_path,
-                ddp_model,
-                ema_model,
+                models['ddp_denoiser'],
+                models['ema_denoiser'],
                 optimizer,
                 scheduler,
             )
@@ -405,9 +183,9 @@ def main():
             logger.info(f"Saved training worktree and config to {experiment_dir}.")
     ### Logging experiment details
     if rank == 0:
-        num_params = sum(p.numel() for p in stage1_enc.parameters())
+        num_params = sum(p.numel() for p in models['encoder'].parameters())
         logger.info(f"Stage-1 RAE parameters: {num_params/1e6:.2f}M")
-        num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        num_params = sum(p.numel() for p in models['denoiser'].parameters() if p.requires_grad)
         logger.info(f"Stage-2 Model parameters: {num_params/1e6:.2f}M")
         if clip_grad is not None:
             logger.info(f"Clipping gradients to max norm {clip_grad}.")
@@ -425,126 +203,112 @@ def main():
 
     dist.barrier() 
     for epoch in range(start_epoch, num_epochs):
-        model.train()
+        models['denoiser'].train()
         train_sampler.set_epoch(epoch)
         epoch_metrics = defaultdict(lambda: torch.zeros(1, device=device))
         num_batches = 0
         optimizer.zero_grad(set_to_none=True)
-        step_loss_accum = 0.0
+
 
         for train_step, batch in enumerate(train_loader):
 
 
+
+            # load batch data
             frame_id = batch['frame_ids']                           # b v
             hq_id = batch['hq_ids']                                 # len(hq_id) = b, len(hq_id[i]) = v
             gt_depth = batch['gt_depths'].to(device)                 # b v 1 378 504
+            hq_views = batch['hq_views'].to(device)                  # b v 3 378 504
+            lq_views = batch['lq_views'].to(device)                  # b v 3 378 504
 
 
-            # model input 
-            if full_cfg.mvrm.input_img == 'hq':
-                model_input = batch['hq_views'].to(device)                  # b v 3 378 504
-            elif full_cfg.mvrm.input_img == 'lq':
-                model_input = batch['lq_views'].to(device)                  # b v 3 378 504
-            
-            
-            # NORMALIZATION
-            b, v, c, h, w = model_input.shape 
-            model_input = IMAGENET_NORMALIZE(model_input.view(b*v, c, h, w)).view(b, v, c, h, w)
+
+            # apply imagenet normalization
+            b, v, c, h, w = hq_views.shape 
+            hq_views = IMAGENET_NORMALIZE(hq_views.view(b*v, c, h, w)).view(b, v, c, h, w)
+            lq_views = IMAGENET_NORMALIZE(lq_views.view(b*v, c, h, w)).view(b, v, c, h, w)
 
 
+
+            # hq forward pass
             with torch.no_grad():
-                stage1_out_raw, mvrm_out = stage1_enc(
-                                                    image=model_input, 
+                hq_encoder_out, hq_mvrm_out = models['encoder'](
+                                                    image=hq_views, 
                                                     export_feat_layers=[], 
                                                     mvrm_cfg=full_cfg.mvrm.train, 
                                                     mode='train'
                                                     )
-                stage1_out = stage1_output_processor(stage1_out_raw)
-                train_pred_depth_np = stage1_out.depth                  # b v 378 504
-                train_pred_depth = torch.from_numpy(train_pred_depth_np).to(device) 
-                
-                
-                # save_image(model_input[:,0], './img.jpg')
-                # save_image(train_pred_depth, './img_pred.jpg', normalize=True)
-                # save_image(gt_depth[:,0], './img_gt.jpg', normalize=True)
-                # save_image(batch['lq_views'][:,0], './img_lq.jpg', normalize=True)
-                # save_image(batch['hq_views'][:,0], './img_hq.jpg', normalize=True)
-                # breakpoint()
+            hq_encoder_out = processors['encoder_output_processor'](hq_encoder_out)
+            train_hq_pred_depth_np = hq_encoder_out.depth                  # b v 378 504
+            train_hq_pred_depth = torch.from_numpy(train_hq_pred_depth_np).to(device) 
+            hq_latent = hq_mvrm_out['extract_feat']
+        
+        
+
+            # lq view forward pass
+            with torch.no_grad():
+                lq_encoder_out, lq_mvrm_out = models['encoder'](
+                                                    image=lq_views, 
+                                                    export_feat_layers=[], 
+                                                    mvrm_cfg=full_cfg.mvrm.train, 
+                                                    mode='train'
+                                                    )
+            lq_encoder_out = processors['encoder_output_processor'](lq_encoder_out)
+            train_lq_pred_depth_np = lq_encoder_out.depth                  # b v 378 504
+            train_lq_pred_depth = torch.from_numpy(train_lq_pred_depth_np).to(device) 
+            lq_latent = lq_mvrm_out['extract_feat']      # b v 973 3072
+            assert lq_latent.shape == hq_latent.shape 
+            
+            
+            # save_image(model_input[:,0], './img.jpg')
+            # save_image(train_pred_depth, './img_pred.jpg', normalize=True)
+            # save_image(gt_depth[:,0], './img_gt.jpg', normalize=True)
+            # save_image(batch['lq_views'][:,0], './img_lq.jpg', normalize=True)
+            # save_image(batch['hq_views'][:,0], './img_hq.jpg', normalize=True)
+            # breakpoint()
 
 
-                # breakpoint()
-                # FOR SAVING HQ LATENT
-                if full_cfg.mvrm.save_hq_latent:
-                    lq_latent = mvrm_out['extract_feat']      # b v n+1 d
-                    save_b, save_v, save_n, save_d = lq_latent.shape 
-                    for i in range(save_b):
-                        batch_id = hq_id[i]
-                        full_id = batch_id[0]
-                        volume = full_id.split('_')[-4]
-                        scene = full_id.split('_')[-3]
-                        camera = full_id.split('_')[-2]
-                        frame_id = full_id.split('_')[-1]
-                        save_root_path = f'{full_cfg.mvrm.save_hq_latent_root_path}/ai_{volume}_{scene}/scene_cam_{camera}'
-                        os.makedirs(save_root_path, exist_ok=True)
-                        save_feat = lq_latent[i].reshape(save_n, save_d).detach().cpu()
-                        torch.save(save_feat, f'{save_root_path}/{frame_id}.pt')
-                        print(f'saving {full_cfg.mvrm.input_img} latent: {volume}_{scene}_{camera}_{frame_id} - shape: {lq_latent.shape}')
-                    continue
+            # # FOR SAVING HQ LATENT
+            # if full_cfg.mvrm.save_hq_latent:
+            #     lq_latent = lq_mvrm_out['extract_feat']      # b v n+1 d
+            #     save_b, save_v, save_n, save_d = lq_latent.shape 
+            #     for i in range(save_b):
+            #         batch_id = hq_id[i]
+            #         full_id = batch_id[0]
+            #         volume = full_id.split('_')[-4]
+            #         scene = full_id.split('_')[-3]
+            #         camera = full_id.split('_')[-2]
+            #         frame_id = full_id.split('_')[-1]
+            #         save_root_path = f'{full_cfg.mvrm.save_hq_latent_root_path}/ai_{volume}_{scene}/scene_cam_{camera}'
+            #         os.makedirs(save_root_path, exist_ok=True)
+            #         save_feat = lq_latent[i].reshape(save_n, save_d).detach().cpu()
+            #         torch.save(save_feat, f'{save_root_path}/{frame_id}.pt')
+            #         print(f'saving {full_cfg.mvrm.input_img} latent: {volume}_{scene}_{camera}_{frame_id} - shape: {lq_latent.shape}')
+            #     continue
                 
-                        
-                # hypersim 
-                orig_H, orig_W = 768, 1024 
-                model_H, model_W = 378, 504
-                pH = pW = 14 
-                num_pH = model_H//pH    # 27
-                num_pW = model_W//pW    # 36
-                
-                                    
-                lq_latent = mvrm_out['extract_feat']      # b v 973 3072
-                # lq_cam_tkn = lq_latent[:,:,0]       # lq latent camera token (b v 3072)
-                # lq_patch_tkn = lq_latent[:,:,1:]    # lq latent patch tokens (b v 972 3072)
-                # lq_patch_tkn = rearrange(lq_patch_tkn, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
-                
-                
-                hq_latent = batch['hq_latent_views'].to(device)
-                # hq_cam_tkn = hq_latent[:,:,0]       # hq latent camera token (b v 3072)
-                # hq_patch_tkn = hq_latent[:,:,1:]    # hq latent patch tokens (b v 972 3072)
-                # hq_patch_tkn = rearrange(hq_patch_tkn, 'b v (num_pH num_pW) d -> b v d num_pH num_pW', v=1, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
+            
+
+            # # hypersim 
+            # orig_H, orig_W = 768, 1024 
+            # model_H, model_W = 378, 504
+            # pH = pW = 14 
+            # num_pH = model_H//pH    # 27
+            # num_pW = model_W//pW    # 36
             
                 
 
-                assert lq_latent.shape == hq_latent.shape 
-
-
-                # NAN DEBUG
-                check_tensor("lq_latent", lq_latent, global_train_step)
-                check_tensor("hq_latent", hq_latent, global_train_step)
-                
-                # check_tensor("lq_patch_tkn", lq_patch_tkn, global_train_step)
-                # check_tensor("hq_patch_tkn", hq_patch_tkn, global_train_step)
-                
-                
-
-            # optimizer.zero_grad(set_to_none=True)
-            # with autocast(**autocast_kwargs):
-            transport_output = transport.training_losses_mvrm(model=ddp_model, x1=hq_latent, xcond=lq_latent, cfg=full_cfg)
+            # compute loss
+            transport_output = transport.training_losses_mvrm(model=models['ddp_denoiser'], x1=hq_latent, xcond=lq_latent, cfg=full_cfg)
             loss = transport_output["loss"].mean() 
-
-            # NAN DEBUG
-            check_tensor("raw_loss", transport_output["loss"], global_train_step)
-            if loss.isnan():
-                print('NAN DETECTED')
-                breakpoint()
+            raw_loss = loss.detach()
+            loss = loss / grad_accum_steps
             print(f"global step: {global_train_step}, lq_id: {batch['lq_ids']} hq_id: {batch['hq_ids']}")
                 
                 
-            raw_loss = loss.detach()
             
-            loss = loss / grad_accum_steps
-                
-                
+            # compute gradients
             if (global_train_step + 1) % grad_accum_steps != 0:
-                with ddp_model.no_sync():
+                with models['ddp_denoiser'].no_sync():
                     loss.backward()
             else:
                 loss.backward()
@@ -554,18 +318,19 @@ def main():
             # optimizer update
             if (global_train_step + 1) % grad_accum_steps == 0:
                 if clip_grad:
-                    torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), clip_grad)
+                    torch.nn.utils.clip_grad_norm_(models['ddp_denoiser'].parameters(), clip_grad)
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
                 if scheduler is not None:
                     scheduler.step()
-                update_ema(ema_model, ddp_model.module, decay=ema_decay)
+                update_ema(models['ema_denoiser'], models['ddp_denoiser'].module, decay=ema_decay)
                 optimizer_step += 1
-
+            global_train_step += 1
+            
+            
                 
             running_loss += raw_loss.item()
             epoch_metrics['loss'] += raw_loss
-            global_train_step += 1
             
             
             if log_interval > 0 and global_train_step % log_interval == 0 and rank == 0:
@@ -585,20 +350,18 @@ def main():
                         step=global_train_step,
                     )
                 running_loss = 0.0
-                
-            # if global_train_step % sample_every == 0:
-            if optimizer_step > 0 and optimizer_step % sample_every == 0:
-                model.eval()
+            
+            
+            
+            # training visualization
+            if optimizer_step == 1 or optimizer_step % sample_every == 0:
+                models['denoiser'].eval()
                 logger.info("Generating EMA samples...")
                 with torch.no_grad():
-
-
 
                     # safety check 
                     val_b, val_v, val_n, val_d = lq_latent.shape    # b v n+1 d 
                     assert pure_noise.shape == lq_latent.shape 
-                    
-                    
                     val_pure_noise = pure_noise
                     
             
@@ -610,38 +373,38 @@ def main():
                         val_xt = torch.concat([val_pure_noise, lq_latent], dim=1)
                     
                     
+                    
                     # forward pass
-                    # with autocast(**autocast_kwargs):
                     restored_samples = eval_sampler(val_xt, ema_model_fn, **sample_model_kwargs)[-1]     # b v n d
                     restored_samples.float()
 
                     mvrm_result={}
                     mvrm_result['restored_latent'] = restored_samples
 
-                    val_stage1_out_raw, val_mvrm_out = stage1_enc(
-                                                                image=model_input, 
+                    val_encoder_out, val_mvrm_out = models['encoder'](
+                                                                image=lq_views, 
                                                                 export_feat_layers=[], 
                                                                 mvrm_cfg=full_cfg.mvrm.val, 
                                                                 mvrm_result=mvrm_result,
                                                                 mode='val'
                                                                 )
-                    val_stage1_out = stage1_output_processor(val_stage1_out_raw)
-                    val_pred_depth_np = val_stage1_out.depth                            # b v 378 504
+                    val_encoder_out = processors['encoder_output_processor'](val_encoder_out)
+                    val_pred_depth_np = val_encoder_out.depth                            # b v 378 504
                     val_pred_depth = torch.from_numpy(val_pred_depth_np).to(device)
                     
 
                     # VIS DEPTH 
                     # gt_depth_np: b v 378 504
                     # model_input: b v 3 378 504 
-                    # train_pred_depth_np: b*v 378 504
+                    # train_lq_pred_depth_np: b*v 378 504
                     # val_pred_depth_np: b*v 378 504
                     
                     
-                    np_model_input = model_input[0,0]   # # 378 504 3  
+                    np_model_input = lq_views[0,0]   # # 378 504 3  
                     np_model_input = (np_model_input - np_model_input.min()) / (np_model_input.max() - np_model_input.min()) * 255.0
                     np_model_input = np_model_input.permute(1,2,0).detach().cpu().numpy()[:,:,::-1]     
                     np_gt_depth = gt_depth[0,0,0].detach().cpu().numpy()    # 378 504
-                    np_train_depth = train_pred_depth_np[0]                 # 378 504
+                    np_train_depth = train_lq_pred_depth_np[0]                 # 378 504
                     np_val_depth = val_pred_depth_np[0]                     # 378 504
 
                     vis_gt_depth = depth_to_colormap(np_gt_depth)               # 378 504 3
@@ -665,10 +428,10 @@ def main():
                 
                     dist.barrier()
                 logger.info("Generating EMA samples done.")
-                model.train()
+                models['denoiser'].train()
+
 
             # ckpt saving
-            # if global_train_step > 0 and global_train_step % ckpt_step_interval == 0 and rank == 0:
             if optimizer_step > 0 and optimizer_step % ckpt_step_interval == 0 and rank == 0:
                 logger.info(f"Saving checkpoint at global_train_step {global_train_step}...")
                 ckpt_path = f"{checkpoint_dir}/ep-{global_train_step:07d}.pt" 
@@ -676,46 +439,15 @@ def main():
                     ckpt_path,
                     global_train_step,
                     epoch,
-                    ddp_model,
-                    ema_model,
+                    models['ddp_denoiser'],
+                    models['ema_denoiser'],
                     optimizer,
                     scheduler,
                 )
-                
-            # if do_eval and (eval_interval > 0 and global_train_step % eval_interval == 0):
-            #     logger.info("Starting evaluation...")
-            #     model.eval()
-            #     eval_models = [(ema_model_fn, "ema")]
-            #     if eval_model:
-            #         eval_models.append((model_fn, "model"))
-            #     for fn, mod_name in eval_models:
-            #         eval_stats = evaluate_generation_distributed(
-            #             fn,
-            #             eval_sampler,
-            #             latent_size,
-            #             sample_model_kwargs,
-            #             use_guidance,
-            #             stage1_enc, 
-            #             eval_dataset,
-            #             len(eval_dataset),
-            #             rank = rank,
-            #             world_size = world_size,
-            #             device = device,
-            #             batch_size = micro_batch_size,
-            #             experiment_dir = experiment_dir,
-            #             global_train_step = global_train_step,
-            #             autocast_kwargs = autocast_kwargs,
-            #             reference_npz_path = reference_npz_path
-            #         )
-            #         # log with prefix
-            #         eval_stats = {f"eval_{mod_name}/{k}": v for k, v in eval_stats.items()} if eval_stats is not None else {}
-            #         if full_cfg.log.tracker.name == 'wandb':
-            #             wandb_utils.log(eval_stats, step=global_train_step)
-            #         model.train()
-            #     logger.info("Evaluation done.")
-            # global_train_step += 1
             num_batches += 1
         
+        
+        # log epoch stats
         if rank == 0 and num_batches > 0:
             avg_loss = epoch_metrics['loss'].item() / num_batches 
             epoch_stats = {
@@ -727,6 +459,8 @@ def main():
             )
             if full_cfg.log.tracker.name == 'wandb':
                 wandb_utils.log(epoch_stats, step=global_train_step)
+    
+    
     # save the final ckpt
     if rank == 0:
         logger.info(f"Saving final checkpoint at epoch {num_epochs}...")
@@ -735,8 +469,8 @@ def main():
             ckpt_path,
             global_train_step,
             num_epochs,
-            ddp_model,
-            ema_model,
+            models['ddp_denoiser'],
+            models['ema_denoiser'],
             optimizer,
             scheduler,
         )
