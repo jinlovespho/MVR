@@ -44,18 +44,19 @@ def pose_encoding_to_extri_intri(
 ):
     """Convert a pose encoding back to camera extrinsics and intrinsics."""
 
-    T = pose_encoding[..., :3]
-    quat = pose_encoding[..., 3:7]
-    fov_h = pose_encoding[..., 7]
-    fov_w = pose_encoding[..., 8]
+    # breakpoint()
+    T = pose_encoding[..., :3]          # b v 3
+    quat = pose_encoding[..., 3:7]      # b v 4
+    fov_h = pose_encoding[..., 7]       # b v
+    fov_w = pose_encoding[..., 8]       # b v 
 
-    R = quat_to_mat(quat)
-    extrinsics = torch.cat([R, T[..., None]], dim=-1)
+    R = quat_to_mat(quat)               # b v 3 3
+    extrinsics = torch.cat([R, T[..., None]], dim=-1)   # b v 3 4
 
     H, W = image_size_hw
     fy = (H / 2.0) / torch.clamp(torch.tan(fov_h / 2.0), 1e-6)
     fx = (W / 2.0) / torch.clamp(torch.tan(fov_w / 2.0), 1e-6)
-    intrinsics = torch.zeros(pose_encoding.shape[:2] + (3, 3), device=pose_encoding.device)
+    intrinsics = torch.zeros(pose_encoding.shape[:2] + (3, 3), device=pose_encoding.device) # b v 3 3
     intrinsics[..., 0, 0] = fx
     intrinsics[..., 1, 1] = fy
     intrinsics[..., 0, 2] = W / 2

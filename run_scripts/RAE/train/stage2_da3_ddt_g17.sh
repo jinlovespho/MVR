@@ -1,6 +1,6 @@
 
 SERVER=20
-CUDA=4
+CUDA=5
 
 export SERVER=${SERVER}
 export CUDA=${CUDA}

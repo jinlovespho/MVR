@@ -31,15 +31,16 @@ class CameraDec(nn.Module):
         self.fc_fov = nn.Sequential(nn.Linear(output_dim, 2), nn.ReLU())
 
     def forward(self, feat, camera_encoding=None, *args, **kwargs):
+        # breakpoint()
         B, N = feat.shape[:2]
         feat = feat.reshape(B * N, -1)
         feat = self.backbone(feat)
-        out_t = self.fc_t(feat.float()).reshape(B, N, 3)
+        out_t = self.fc_t(feat.float()).reshape(B, N, 3)            # b v 3
         if camera_encoding is None:
-            out_qvec = self.fc_qvec(feat.float()).reshape(B, N, 4)
-            out_fov = self.fc_fov(feat.float()).reshape(B, N, 2)
+            out_qvec = self.fc_qvec(feat.float()).reshape(B, N, 4)  # b v 4
+            out_fov = self.fc_fov(feat.float()).reshape(B, N, 2)    # b v 2
         else:
             out_qvec = camera_encoding[..., 3:7]
             out_fov = camera_encoding[..., -2:]
-        pose_enc = torch.cat([out_t, out_qvec, out_fov], dim=-1)
+        pose_enc = torch.cat([out_t, out_qvec, out_fov], dim=-1)    # b v 3+4+2
         return pose_enc

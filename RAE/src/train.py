@@ -46,10 +46,34 @@ from RAE.src.initialize import (save_checkpoint, load_checkpoint,
                          load_sampler,)
 
 
+from motionblur.motionblur import Kernel 
+
 
 # torch.backends.cuda.enable_flash_sdp(False)
 # torch.backends.cuda.enable_mem_efficient_sdp(False)
 # torch.backends.cuda.enable_math_sdp(True)
+
+
+
+def tensor_stats(x: torch.Tensor):
+    x_detached = x.detach()
+    finite = torch.isfinite(x_detached)
+    return {
+        "min": x_detached[finite].min().item() if finite.any() else float("nan"),
+        "max": x_detached[finite].max().item() if finite.any() else float("nan"),
+        "mean": x_detached[finite].mean().item() if finite.any() else float("nan"),
+        "std": x_detached[finite].std().item() if finite.any() else float("nan"),
+        "norm": x_detached.norm().item(),
+        "nan_frac": (~torch.isfinite(x_detached)).float().mean().item(),
+        "dtype": str(x_detached.dtype),
+    }
+
+
+def has_nan_or_inf(x: torch.Tensor):
+    return not torch.isfinite(x).all()
+
+
+
 
 
 
@@ -221,11 +245,19 @@ def main():
 
 
             # load batch data
-            frame_id = batch['frame_ids']                           # b v
-            hq_id = batch['hq_ids']                                 # len(hq_id) = b, len(hq_id[i]) = v
-            gt_depth = batch['gt_depths'].to(device)                 # b v 1 378 504
-            hq_views = batch['hq_views'].to(device)                  # b v 3 378 504
-            lq_views = batch['lq_views'].to(device)                  # b v 3 378 504
+            frame_id = batch['frame_ids']               # b v
+            hq_id = batch['hq_ids']                     # len(hq_id) = b, len(hq_id[i]) = v
+            gt_depth = batch['gt_depths'].to(device)    # b v 1 378 504
+            hq_views = batch['hq_views'].to(device)     # b v 3 378 504
+            lq_views = batch['lq_views'].to(device)     # b v 3 378 504
+            
+            
+            # save_image(lq_views.view(-1, 3, 378, 504), 'tmp.jpg', normalize=True)
+
+
+            if full_cfg.mvrm.input_img == 'hq':
+                lq_views = hq_views 
+
 
 
 
@@ -301,11 +333,51 @@ def main():
             # num_pH = model_H//pH    # 27
             # num_pW = model_W//pW    # 36
             
-                
+            
+                        
+            # NAN DEBUGGING
+            if rank == 0 and global_train_step % log_interval == 0:
+                hq_stats = tensor_stats(hq_latent)
+                lq_stats = tensor_stats(lq_latent)
 
+                wandb_utils.log(
+                    {
+                        "latent_hq/hq_min": hq_stats["min"],
+                        "latent_hq/hq_max": hq_stats["max"],
+                        "latent_hq/hq_mean": hq_stats["mean"],
+                        "latent_hq/hq_std": hq_stats["std"],
+                        "latent_hq/hq_norm": hq_stats["norm"],
+                        "latent_hq/hq_nan_frac": hq_stats["nan_frac"],
+
+                        "latent_lq/lq_min": lq_stats["min"],
+                        "latent_lq/lq_max": lq_stats["max"],
+                        "latent_lq/lq_mean": lq_stats["mean"],
+                        "latent_lq/lq_std": lq_stats["std"],
+                        "latent_lq/lq_norm": lq_stats["norm"],
+                        "latent_lq/lq_nan_frac": lq_stats["nan_frac"],
+                    },
+                    step=global_train_step,
+                )
+
+                
+                
             # compute loss
             transport_output = transport.training_losses_mvrm(model=models['ddp_denoiser'], x1=hq_latent, xcond=lq_latent, cfg=full_cfg)
             loss = transport_output["loss"].mean() 
+            
+            
+            # NAN DEBUG LOSS
+            if rank == 0 and global_train_step % log_interval == 0:
+                wandb_utils.log(
+                    {
+                        "debug/loss_value": loss.detach().item(),
+                        "debug/loss_isfinite": float(torch.isfinite(loss)),
+                    },
+                    step=global_train_step,
+                )
+                
+    
+    
             raw_loss = loss.detach()
             loss = loss / grad_accum_steps
             print(f"global step: {global_train_step}, lq_id: {batch['lq_ids']} hq_id: {batch['hq_ids']}")
@@ -325,6 +397,23 @@ def main():
             if (global_train_step + 1) % grad_accum_steps == 0:
                 if clip_grad:
                     torch.nn.utils.clip_grad_norm_(models['ddp_denoiser'].parameters(), clip_grad)
+
+
+                # NAN DEBUGGING
+                if rank == 0:
+                    total_norm = torch.norm(
+                        torch.stack([
+                            p.grad.norm()
+                            for p in models['ddp_denoiser'].parameters()
+                            if p.grad is not None
+                        ])
+                    )
+                    wandb_utils.log(
+                        {"train/grad_norm": total_norm.item()},
+                        step=global_train_step,
+                    )
+
+
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
                 if scheduler is not None:
@@ -360,7 +449,7 @@ def main():
             
             
             # training visualization
-            if optimizer_step == 1 or optimizer_step % sample_every == 0:
+            if rank==0 and (optimizer_step == 1 or optimizer_step % sample_every == 0):
                 models['denoiser'].eval()
                 logger.info("Generating EMA samples...")
                 with torch.no_grad():

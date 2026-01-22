@@ -33,13 +33,19 @@ stage_2:
     mlp_ratio: 4.0
     class_dropout_prob: 0.1
     num_classes: 
-    use_qknorm: false
+    use_qknorm: true 
     use_swiglu: true
     use_rope: true
     use_rmsnorm: true
     wo_shift: false
     use_pos_embed: true
-  ckpt: 
+  ckpt:
+
+  # # input: lq, ckpt: hq15k
+  # ckpt: result_train/stage2/260119/hypersim/TRAIN__fp32__hypersim__stage1-da3__stage2-DiTwDDTHeadMVRM__bs-1-accum-1__lr-2e-04__msg-hq-recon-global17-rerere-ckpt-5k/checkpoints/ep-0015000.pt
+  
+  # ckpt: result_train/stage2/260119/hypersim/TRAIN__fp32__hypersim__stage1-da3__stage2-DiTwDDTHeadMVRM__bs-1-accum-1__lr-2e-04__msg-hq-recon-global17-rerere/checkpoints/ep-0005000.pt
+  # ckpt: result_train/stage2/260119/hypersim/TRAIN__fp32__hypersim__stage1-da3__stage2-DiTwDDTHeadMVRM__bs-1-accum-1__lr-2e-04__msg-lq-kernel50-global17-re/checkpoints/ep-0050000.pt
 
 
 transport:
@@ -48,6 +54,7 @@ transport:
     prediction: 'velocity'
     loss_weight: null
     time_dist_type: 'logit-normal_0_1'
+
 
 sampler:
   mode: ODE
@@ -58,17 +65,20 @@ sampler:
     rtol: 1.0e-3
     reverse: false
 
+
 guidance:
   method: 'cfg'
   scale: 1.0
   t_min: 0.0
   t_max: 1.0
 
+
 misc:
   latent_size: [1, 973, 1536] # [v, n+1, d]
   num_classes: 
   time_dist_shift_dim: 1492992  # 1536*27*36
   time_dist_shift_base: 4096
+
 
 training:
   global_seed: 42
@@ -77,19 +87,21 @@ training:
   global_batch_size: 1    # this is the final total batch size
   grad_accum_steps: 1     # by controling grad_accum_step, the batch_size is adjusted automatically
   ema_decay: 0.9995
-  num_workers: 4
+  num_workers: 0
   shuffle: True
   log_interval: 1
   # checkpoint_interval: 
 
-  ckpt_step_interval: 25000   # 25k
+  ckpt_step_interval: 20000   # 20k
+  # ckpt_step_interval: 5000   # 5k
   
   sample_every: 1000
 
   
   clip_grad: 1.0
   optimizer:
-    lr: 2.0e-4
+    # lr: 2.0e-4
+    lr: 1.0e-4
     betas: [0.9, 0.95]
     weight_decay: 0.0
   scheduler:
@@ -102,7 +114,7 @@ training:
 
 
 log:
-  result_root_dir: result_train/stage2/260119
+  result_root_dir: result_train/stage2/260121
   tracker:
     name: wandb 
     wandb:
@@ -111,11 +123,15 @@ log:
       project: eccv26_mv_restoration
 
 
-      # msg: "hq-recon-global17"
-      msg: "lq-kernel50-global17-re"
+      # msg: "hq-recon-global17-rerere-ckpt-5k"
+      # msg: "lq-kernel50-global17-re__ckpt-50k"
+
+      # msg: "lq-kernel50-global17__hqckpt-15k__lqckpt-40k"
+
+      # msg: "lq-kernel50-global17"
 
 
-      # msg: "TMPTMPTMPTMPTMP"
+      msg: "TMP"
 
 
 data:
@@ -136,9 +152,10 @@ data:
       hq_latent_root_path: 
       # hq_latent_root_path: /mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview_g17
 
+      lq_root_path:
       # lq_root_path: /mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel10_intensity01
       # lq_root_path: /mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel30_intensity01
-      lq_root_path: /mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel50_intensity01
+      # lq_root_path: /mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel50_intensity01
       # lq_root_path: /mnt/dataset1/MV_Restoration/hypersim/deg_blur/kernel100_intensity01
       
       depth_path: /mnt/dataset1/MV_Restoration/hypersim/data
@@ -168,6 +185,7 @@ mvrm:
 
   # input_img: hq               # [hq, lq]
   input_img: lq               # [hq, lq]
+
   lq_latent_cond: addition    # [addition, concat]
 
   train:

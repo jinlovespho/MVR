@@ -150,6 +150,14 @@ class DepthAnything3Net(nn.Module):
         # Process features through depth head
         with torch.autocast(device_type=x.device.type, enabled=False):
             output = self._process_depth_head(feats, H, W)
+            
+            '''
+            (Pdb) output['depth']       torch.Size([1, 38, 336, 504])
+            (Pdb) output['depth_conf']  torch.Size([1, 38, 336, 504])
+            (Pdb) output['ray']         torch.Size([1, 38, 192, 288, 6])
+            (Pdb) output['ray_conf']    torch.Size([1, 38, 192, 288])
+            '''
+            
             if use_ray_pose:    # f
                 output = self._process_ray_pose_estimation(output, H, W)
             else:   # t
@@ -166,7 +174,7 @@ class DepthAnything3Net(nn.Module):
         self, output: Dict[str, torch.Tensor]
     ) -> Dict[str, torch.Tensor]:
         """Process mono sky estimation."""
-        if "sky" not in output:
+        if "sky" not in output: # t
             return output
         non_sky_mask = compute_sky_mask(output.sky, threshold=0.3)
         if non_sky_mask.sum() <= 10:
@@ -223,7 +231,7 @@ class DepthAnything3Net(nn.Module):
     ) -> Dict[str, torch.Tensor]:
         """Process camera pose estimation if camera decoder is available."""
         if self.cam_dec is not None:
-            pose_enc = self.cam_dec(feats[-1][1])
+            pose_enc = self.cam_dec(feats[-1][1])   # b v 9
             # Remove ray information as it's not needed for pose estimation
             if "ray" in output:
                 del output.ray
@@ -232,9 +240,8 @@ class DepthAnything3Net(nn.Module):
 
             # Convert pose encoding to extrinsics and intrinsics
             c2w, ixt = pose_encoding_to_extri_intri(pose_enc, (H, W))
-            output.extrinsics = affine_inverse(c2w)
-            output.intrinsics = ixt
-
+            output.extrinsics = affine_inverse(c2w)     # b v 3 4
+            output.intrinsics = ixt                     # b v 3 3 
         return output
 
     def _process_gs_head(

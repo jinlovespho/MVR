@@ -315,6 +315,12 @@ def compute_pose(pred_se3: torch.Tensor, gt_se3: torch.Tensor) -> Dict:
     Returns:
         Dict with AUC metrics at different thresholds (auc30, auc15, auc05, auc03)
     """
+    breakpoint()
+    '''
+        aligning to the first camera X0 means, 
+        obtaining the extrinsic matrix as Ti<-0: TiT0^-1
+        
+    '''
     pred_se3 = align_to_first_camera(pred_se3)
     gt_se3 = align_to_first_camera(gt_se3)
 

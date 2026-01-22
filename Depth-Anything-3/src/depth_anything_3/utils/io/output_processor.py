@@ -84,6 +84,7 @@ class OutputProcessor:
         Returns:
             Depth array with shape (N, H, W)
         """
+        
         depth = model_output["depth"].squeeze(0).squeeze(-1).cpu().numpy()  # (N, H, W)
         return depth
 

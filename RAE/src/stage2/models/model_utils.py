@@ -512,18 +512,6 @@ class NormAttentionMVRM(nn.Module):
         q, k, v = qkv.unbind(0)
         q, k = self.q_norm(q), self.k_norm(k)
 
-
-# (Pdb) print(q.shape)
-# torch.Size([1, 24, 973, 64])
-# (Pdb) pos.shape
-# torch.Size([1, 973, 2])
-
-
-# (Pdb) print(q.shape)
-# torch.Size([1, 16, 973, 96])
-# (Pdb) print(pos.shape)
-# torch.Size([1, 1, 973, 2])
-
         if self.rope is not None and pos is not None:
             q = self.rope(q, pos)
             k = self.rope(k, pos)

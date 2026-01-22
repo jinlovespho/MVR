@@ -97,6 +97,7 @@ class Evaluator:
         self.max_frames = max_frames
         self.gpu_id = gpu_id
         self.total_gpus = total_gpus
+        
 
         # Validate modes
         unknown = self.modes - self.VALID_MODES
@@ -155,9 +156,10 @@ class Evaluator:
             api: DepthAnything3 API instance
             model_path: Model path (unused, kept for API compatibility)
         """
+        
         need_unposed = {"pose", "recon_unposed"} & self.modes
         need_posed = {"recon_posed", "view_syn"} & self.modes
-        export_format = "mini_npz-glb" if self.debug else "mini_npz"
+        export_format = "mini_npz-glb" if self.debug else "mini_npz"    # mini_npz
 
         # Collect all tasks
         all_tasks = []
@@ -165,12 +167,19 @@ class Evaluator:
             dataset = self.datasets[data]
             for scene in self._get_scenes(dataset):
                 all_tasks.append((data, scene))
+        
+        
+        '''
+        (Pdb) all_tasks[:10]
+            [('eth3d', 'courtyard'), ('eth3d', 'electro'), ('eth3d', 'kicker'), ('eth3d', 'pipes'), ('eth3d', 'relief'), ('eth3d', 'delivery_area'), ('eth3d', 'facade'), ('eth3d', 'office'), ('eth3d', 'playground'), ('eth3d', 'relief_2')]
+        '''
 
+        
         # Distribute tasks across GPUs
-        if self.total_gpus > 1:
+        if self.total_gpus > 1: # f
             tasks = [t for i, t in enumerate(all_tasks) if i % self.total_gpus == self.gpu_id]
             print(f"[INFO] GPU {self.gpu_id}/{self.total_gpus}: {len(tasks)}/{len(all_tasks)} tasks")
-        else:
+        else:   # t
             tasks = all_tasks
             print(f"[INFO] Total inference tasks: {len(tasks)}")
 
@@ -179,8 +188,9 @@ class Evaluator:
             scene_data = dataset.get_data(scene)
             scene_data = self._sample_frames(scene_data, scene)
 
-            if need_unposed:
+            if need_unposed:    # t
                 export_dir = self._export_dir(data, scene, posed=False)
+                # breakpoint()
                 api.inference(
                     scene_data.image_files,
                     export_dir=export_dir,
@@ -193,8 +203,8 @@ class Evaluator:
                 export_dir = self._export_dir(data, scene, posed=True)
                 api.inference(
                     scene_data.image_files,
-                    scene_data.extrinsics,
-                    scene_data.intrinsics,
+                    scene_data.extrinsics,      # provide extrinsics
+                    scene_data.intrinsics,      # provide intrinsics
                     export_dir=export_dir,
                     export_format=export_format,
                     ref_view_strategy=self.ref_view_strategy,
@@ -215,6 +225,7 @@ class Evaluator:
         """
         summary: TDict[str, dict] = {}
 
+        breakpoint()
         # Evaluate by mode (all datasets per mode)
         if "pose" in self.modes:
             print(f"\n{'='*60}")
@@ -259,6 +270,7 @@ class Evaluator:
 
     def _eval_pose(self) -> Iterable[tuple]:
         """Compute pose-estimation metrics for each dataset and scene."""
+        breakpoint()
         os.makedirs(self._metric_dir, exist_ok=True)
 
         for data in tqdm(self.datas, desc="Datasets (pose eval)"):
@@ -419,6 +431,7 @@ class Evaluator:
 
         _wait_for_file_ready(result_path)
         pred = np.load(result_path)
+        breakpoint()
         return compute_pose(
             torch.from_numpy(as_homogeneous(pred["extrinsics"])),
             torch.from_numpy(as_homogeneous(gt_meta["extrinsics"])),
@@ -687,7 +700,7 @@ Examples:
         # Auto multi-GPU: if multiple GPUs and not a worker process
         is_worker = os.environ.get("_DA3_WORKER") == "1"
 
-        if len(gpu_list) > 1 and not is_worker:
+        if len(gpu_list) > 1 and not is_worker: # f
             # Launch worker processes
             import subprocess
 
@@ -735,7 +748,7 @@ Examples:
             # Run evaluation after all inference is done
             metrics = evaluator.eval()
             evaluator.print_metrics(metrics)
-        else:
+        else:   # t
             # Single GPU or worker process
             from depth_anything_3.api import DepthAnything3
 
@@ -748,5 +761,6 @@ Examples:
             # Only run eval if single GPU mode (workers don't eval)
             if not is_worker:
                 metrics = evaluator.eval()
+                breakpoint()
                 evaluator.print_metrics(metrics)
 

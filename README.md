@@ -29,6 +29,22 @@ MVR: Multi-View Resetoration</h1>
 
 
 
+# 📁 Dataset Preparation
+**1. Hypersim**
+```bash 
+# run the bash file to download hypersim at ./data/hypersim
+bash download_bash/data/hypersim/download_hypersim.sh
+```
+
+**2. Tartanair**
+```bash 
+# run the bash file to download tartanair at ./data/tartanair
+pip install boto3 colorama minio
+bash download_bash/data/tartanair_tools/download_tartanair.sh
+```
+
+
+
 
 #  👟 Installation Walkthrough
 
@@ -43,7 +59,10 @@ conda activate mvr
 **2. Library Installation**
 - Download the following libraries in the order listed below.
 ```bash
-pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cu121
+
+pip install torch==2.5.0 torchvision==0.20.0 torchaudio==2.5.0 --index-url https://download.pytorch.org/whl/cu121
+
+
 pip install -r requirements.txt
 
 cd vggt/

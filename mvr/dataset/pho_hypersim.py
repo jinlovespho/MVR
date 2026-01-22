@@ -4,10 +4,12 @@ import h5py
 import cv2 
 import numpy as np 
 import torch 
+from PIL import Image
 from torch.utils.data import Dataset 
 
 from depth_anything_3.utils.io.input_processor import InputProcessor
 
+from motionblur.motionblur import Kernel 
 
 
 class PhoHypersim(Dataset):
@@ -196,13 +198,15 @@ class PhoHypersim(Dataset):
         gt_depth = np.nan_to_num(gt_depth, nan=0.0, posinf=0.0, neginf=0.0)
         return gt_depth.astype(np.float32)
         
-        
+
+
     def __getitem__(self, items):
         idx, num_input_view = items
         frame_ids = self.get_nearby_ids(anchor=idx, num_frames=num_input_view)
         
         outputs={}
         outputs['frame_ids'] = frame_ids
+        
         
         # ----------------------
         #       process hq
@@ -242,22 +246,55 @@ class PhoHypersim(Dataset):
                 outputs['hq_latent_views'] = hq_latent_view_list
             
             
-        # ----------------------
-        #       process lq
-        # ----------------------
+            
+            
+        # # ----------------------
+        # #       process lq
+        # # ----------------------
+        # lq_view_id=[]
+        # lq_view_list=[]
+        # if 'lq_img' in self.data.keys():
+        #     lq_views = [self.data['lq_img'][i] for i in frame_ids]
+        #     for lq_view in lq_views:
+        #         volume = lq_view.split('/')[-4].split('_')[-2]
+        #         scene = lq_view.split('/')[-4].split('_')[-1]
+        #         camera = lq_view.split('/')[-3].split('_')[-3]
+        #         view_id = lq_view.split('/')[-1].split('.')[-2].split('_')[-2]
+        #         lq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
+        #         lq_view_list.append(self.resize(self.convert_imgpath(lq_view)))
+        #         outputs['lq_ids'] = lq_view_id 
+        #         outputs['lq_views'] = lq_view_list
+                
+
+
+
+
+        # ----------------------------------
+        #       get lq on the fly
+        # ----------------------------------
         lq_view_id=[]
         lq_view_list=[]
-        if 'lq_img' in self.data.keys():
-            lq_views = [self.data['lq_img'][i] for i in frame_ids]
-            for lq_view in lq_views:
-                volume = lq_view.split('/')[-4].split('_')[-2]
-                scene = lq_view.split('/')[-4].split('_')[-1]
-                camera = lq_view.split('/')[-3].split('_')[-3]
-                view_id = lq_view.split('/')[-1].split('.')[-2].split('_')[-2]
+        if 'hq_img' in self.data.keys():
+            hq_views = [self.data['hq_img'][i] for i in frame_ids]
+            for hq_view in hq_views:
+                volume = hq_view.split('/')[-4].split('_')[-2]
+                scene = hq_view.split('/')[-4].split('_')[-1]
+                camera = hq_view.split('/')[-2].split('_')[-3]
+                view_id = hq_view.split('/')[-1].split('.')[-3]
                 lq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
-                lq_view_list.append(self.resize(self.convert_imgpath(lq_view)))
+                img_pil = self.convert_hdf5_img(hq_view)
+                
+
+                KERNEL_SIZE=50
+                BLUR_INTENSITY=0.1
+                kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
+                blurred = kernel.applyTo(img_pil, keep_image_dim=True)
+                blurred = np.array(blurred)
+                lq_view_list.append(self.resize(blurred))
                 outputs['lq_ids'] = lq_view_id 
                 outputs['lq_views'] = lq_view_list
+
+
         
         
         # -------------------------

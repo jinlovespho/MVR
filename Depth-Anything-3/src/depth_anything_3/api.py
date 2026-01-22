@@ -202,7 +202,6 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             image, extrinsics, intrinsics, process_res, process_res_method
         )
 
-        # breakpoint()
         # Prepare tensors for model
         imgs, ex_t, in_t = self._prepare_model_inputs(imgs_cpu, extrinsics, intrinsics)
 
@@ -213,6 +212,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         export_feat_layers = list(export_feat_layers) if export_feat_layers is not None else []
 
 
+        # imgs: b v 3 h w 
         raw_output = self._run_model_forward(
             imgs, ex_t_norm, in_t, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy
         )
@@ -220,7 +220,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         # Convert raw output to prediction
         prediction = self._convert_to_prediction(raw_output)
         
-        # breakpoint()
+
         # Align prediction to extrinsincs
         prediction = self._align_to_input_extrinsics_intrinsics(
             extrinsics, intrinsics, prediction, align_to_input_ext_scale
@@ -232,6 +232,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         # Export if requested
         if export_dir is not None:
 
+            # breakpoint()
             if "gs" in export_format:
                 if infer_gs and "gs_video" not in export_format:
                     export_format = f"{export_format}-gs_video"
@@ -354,6 +355,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         align_to_input_ext_scale: bool = True,
         ransac_view_thresh: int = 10,
     ) -> Prediction:
+        # breakpoint()
         """Align depth map to input extrinsics"""
         if extrinsics is None:
             return prediction
@@ -389,7 +391,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             torch.cuda.synchronize(device)
         start_time = time.time()
         feat_layers = list(export_feat_layers) if export_feat_layers is not None else None
-        output = self.forward(imgs, ex_t, in_t, feat_layers, infer_gs, use_ray_pose, ref_view_strategy)
+        output, mvrm_out = self.forward(imgs, ex_t, in_t, feat_layers, infer_gs, use_ray_pose, ref_view_strategy)
         if need_sync:
             torch.cuda.synchronize(device)
         end_time = time.time()

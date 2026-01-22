@@ -38,7 +38,7 @@ EVAL_REF_VIEW_STRATEGY = "first"
 
 # Root directory for DTU evaluation data (MVSNet format)
 # Download from: https://drive.google.com/file/d/1rX0EXlUL4prRxrRu2DgLJv2j7-tpUD4D/view
-DTU_EVAL_DATA_ROOT = "workspace/benchmark_dataset/dtu"
+DTU_EVAL_DATA_ROOT = "../da3_ds/workspace/benchmark_dataset/dtu"
 
 # List of DTU evaluation scenes
 DTU_SCENES = [
@@ -83,8 +83,8 @@ DTU_MAX_DIST = 20  # Outlier threshold for accuracy/completeness (mm)
 # -----------------------------------------------------------------------------
 
 # Root directory for DTU-64 evaluation data
-DTU64_EVAL_DATA_ROOT = "workspace/benchmark_dataset/dtu64"
-DTU64_CAMERA_ROOT = "workspace/benchmark_dataset/dtu64/Cameras"
+DTU64_EVAL_DATA_ROOT = "../da3_ds/workspace/benchmark_dataset/dtu64"
+DTU64_CAMERA_ROOT = "../da3_ds/workspace/benchmark_dataset/dtu64/Cameras"
 
 # List of DTU-64 evaluation scenes (13 scenes)
 DTU64_SCENES = [
@@ -111,7 +111,7 @@ DTU64_SCENES = [
 # -----------------------------------------------------------------------------
 
 # Root directory for ETH3D evaluation data
-ETH3D_EVAL_DATA_ROOT = "workspace/benchmark_dataset/eth3d"
+ETH3D_EVAL_DATA_ROOT = "../da3_ds/workspace/benchmark_dataset/eth3d"
 
 # List of ETH3D evaluation scenes (indoor and outdoor)
 ETH3D_SCENES = [
@@ -165,7 +165,7 @@ ETH3D_DOWN_SAMPLE = 4.0 / 512.0 * 5  # Voxel size for evaluation downsampling (m
 # Note: Indoor RGB-D dataset with ground truth poses and meshes.
 
 # Root directory for 7Scenes evaluation data
-SEVENSCENES_EVAL_DATA_ROOT = "workspace/benchmark_dataset/7scenes"
+SEVENSCENES_EVAL_DATA_ROOT = "../da3_ds/workspace/benchmark_dataset/7scenes"
 
 # List of 7Scenes evaluation scenes
 SEVENSCENES_SCENES = [
@@ -204,7 +204,7 @@ SEVENSCENES_DOWN_SAMPLE = 4.0 / 512.0  # Voxel size for evaluation downsampling 
 # Note: High-quality indoor RGB-D dataset with iPhone and DSLR images.
 
 # Root directory for ScanNet++ evaluation data
-SCANNETPP_EVAL_DATA_ROOT = "workspace/benchmark_dataset/scannetpp"
+SCANNETPP_EVAL_DATA_ROOT = "../da3_ds/workspace/benchmark_dataset/scannetpp"
 
 # List of ScanNet++ evaluation scenes
 SCANNETPP_SCENES = [
@@ -253,9 +253,9 @@ SCANNETPP_DOWN_SAMPLE = 0.02  # Voxel size for evaluation downsampling (meters)
 # Note: Indoor RGB-D dataset.
 
 # Root directory for HiRoom evaluation data
-HIROOM_EVAL_DATA_ROOT = "workspace/benchmark_dataset/hiroom/data"
-HIROOM_GT_ROOT_PATH = "workspace/benchmark_dataset/hiroom/fused_pcd"
-HIROOM_SCENE_LIST_PATH = "workspace/benchmark_dataset/hiroom/selected_scene_list_val.txt"
+HIROOM_EVAL_DATA_ROOT = "../da3_ds/workspace/benchmark_dataset/hiroom/data"
+HIROOM_GT_ROOT_PATH = "../da3_ds/workspace/benchmark_dataset/hiroom/fused_pcd"
+HIROOM_SCENE_LIST_PATH = "../da3_ds/workspace/benchmark_dataset/hiroom/selected_scene_list_val.txt"
 
 # TSDF fusion hyperparameters (indoor scenes)
 HIROOM_VOXEL_LENGTH = 4.0 / 512.0  # Voxel size for TSDF (meters)

@@ -231,7 +231,7 @@ class ETH3D(Dataset):
             if cam_info is None:
                 continue
 
-            # Build intrinsics matrix
+            # Build intrinsics matrix, shape:(3,3)
             ixt = np.array([
                 [cam_info["fx"], 0, cam_info["cx"]],
                 [0, cam_info["fy"], cam_info["cy"]],
@@ -240,10 +240,10 @@ class ETH3D(Dataset):
 
             # Build extrinsics matrix (world-to-camera)
             # COLMAP format: world point -> camera point
-            rot = quat2rotmat(pose_info["quat"])
+            rot = quat2rotmat(pose_info["quat"])    # (3,3)
             ext = np.eye(4, dtype=np.float32)
             ext[:3, :3] = rot
-            ext[:3, 3] = pose_info["trans"]
+            ext[:3, 3] = pose_info["trans"] # (4,4)
 
             out.image_files.append(image_path)
             out.extrinsics.append(ext)

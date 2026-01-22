@@ -178,9 +178,10 @@ class DualDPT(nn.Module):
               aux:     [B, S, 7,       H/down_ratio, W/down_ratio]
               aux_cf:  [B, S, 1,       H/down_ratio, W/down_ratio]
         """
+        
         B, S, N, C = feats[0][0].shape
         feats = [feat[0].reshape(B * S, N, C) for feat in feats]
-        if chunk_size is None or chunk_size >= S:
+        if chunk_size is None or chunk_size >= S:   # f
             out_dict = self._forward_impl(feats, H, W, patch_start_idx)
             out_dict = {k: v.reshape(B, S, *v.shape[1:]) for k, v in out_dict.items()}
             return Dict(out_dict)
@@ -216,13 +217,12 @@ class DualDPT(nn.Module):
         ph, pw = H // self.patch_size, W // self.patch_size
         resized_feats = []
         for stage_idx, take_idx in enumerate(self.intermediate_layer_idx):
-            # breakpoint()
-            x = feats[take_idx][:, patch_start_idx:]
+            x = feats[take_idx][:, patch_start_idx:]    # 8 864 3072 (B*S ph*pw C)
             x = self.norm(x)
             x = x.permute(0, 2, 1).reshape(B, C, ph, pw)  # [B*S, C, ph, pw]
 
-            x = self.projects[stage_idx](x)
-            if self.pos_embed:
+            x = self.projects[stage_idx](x) # B*S 256 ph pw
+            if self.pos_embed:  # t
                 x = self._add_pos_embed(x, W, H)
             x = self.resize_layers[stage_idx](x)  # align scales
             resized_feats.append(x)
@@ -243,7 +243,7 @@ class DualDPT(nn.Module):
         # Primary head: conv1 -> conv2 -> activate
         # fused_main = self.scratch.output_conv1(fused_main)
         main_logits = self.scratch.output_conv2(fused_main)
-        fmap = main_logits.permute(0, 2, 3, 1)
+        fmap = main_logits.permute(0, 2, 3, 1)  # b 336 504 2, where 2=depth(1)+conf(1)
         main_pred = self._apply_activation_single(fmap[..., :-1], self.activation)
         main_conf = self._apply_activation_single(fmap[..., -1], self.conf_activation)
 
@@ -254,7 +254,7 @@ class DualDPT(nn.Module):
         # neck (per-level pre-conv) then final projection (only for last level)
         # last_aux = self.scratch.output_conv1_aux[-1](last_aux)
         last_aux_logits = self.scratch.output_conv2_aux[-1](last_aux)
-        fmap_last = last_aux_logits.permute(0, 2, 3, 1)
+        fmap_last = last_aux_logits.permute(0, 2, 3, 1) # b 192 288 7, where 7=camera(6)+conf(1)
         aux_pred = self._apply_activation_single(fmap_last[..., :-1], "linear")
         aux_conf = self._apply_activation_single(fmap_last[..., -1], self.conf_activation)
         return {
@@ -275,12 +275,20 @@ class DualDPT(nn.Module):
             fused_main: Tensor at finest scale (after refinenet1)
             aux_pyr:    List of aux tensors at each level (pre out_conv1_aux)
         """
+        
         l1, l2, l3, l4 = feats
+        
+        '''
+            l1: torch.Size([8, 256, 96, 144])
+            l2: torch.Size([8, 512, 48, 72])
+            l3: torch.Size([8, 1024, 24, 36])
+            l4: torch.Size([8, 1024, 24, 36])
+        '''
 
-        l1_rn = self.scratch.layer1_rn(l1)
-        l2_rn = self.scratch.layer2_rn(l2)
-        l3_rn = self.scratch.layer3_rn(l3)
-        l4_rn = self.scratch.layer4_rn(l4)
+        l1_rn = self.scratch.layer1_rn(l1)  # 8 256 96 144
+        l2_rn = self.scratch.layer2_rn(l2)  # 8 256 48 72   
+        l3_rn = self.scratch.layer3_rn(l3)  # 8 256 24 36
+        l4_rn = self.scratch.layer4_rn(l4)  # 8 256 12 18
 
         # level 4 -> 3
         out = self.scratch.refinenet4(l4_rn, size=l3_rn.shape[2:])
