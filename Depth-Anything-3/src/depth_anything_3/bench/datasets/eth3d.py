@@ -278,8 +278,9 @@ class ETH3D(Dataset):
         Returns:
             Dict with metrics: acc, comp, overall, precision, recall, fscore
         """
+        # breakpoint()
         gt_data = self.get_data(scene)
-        gt_mesh_path = gt_data.aux.gt_mesh_path
+        gt_mesh_path = gt_data.aux.gt_mesh_path     # '../da3_ds/workspace/benchmark_dataset/eth3d/courtyard/combined_mesh.ply'
 
         # Load and sample ground truth mesh
         gt_mesh = o3d.io.read_triangle_mesh(gt_mesh_path)
@@ -350,12 +351,18 @@ class ETH3D(Dataset):
         _wait_for_file_ready(result_path)
         pred_data = Dict({k: v for k, v in np.load(result_path).items()})
 
+
+        '''
+            (Pdb) gt_data.keys()    dict_keys(['extrinsics', 'intrinsics', 'image_files'])
+            (Pdb) pred_data.keys()  dict_keys(['depth', 'conf', 'extrinsics', 'intrinsics'])
+        '''
+
         # Load original images (keep original size)
         images = []
         orig_sizes = []  # (H, W) for each image
         for img_path in gt_data.image_files:
-            img = cv2.imread(img_path)
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img = cv2.imread(img_path)                      # 4032 6048 3
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)      # 4032 6048 3
             images.append(img)
             orig_sizes.append((img.shape[0], img.shape[1]))
 

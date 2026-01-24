@@ -87,7 +87,7 @@ training:
   global_batch_size: 1    # this is the final total batch size
   grad_accum_steps: 1     # by controling grad_accum_step, the batch_size is adjusted automatically
   ema_decay: 0.9995
-  num_workers: 0
+  num_workers: 4
   shuffle: True
   log_interval: 1
   # checkpoint_interval: 
@@ -95,7 +95,7 @@ training:
   ckpt_step_interval: 20000   # 20k
   # ckpt_step_interval: 5000   # 5k
   
-  sample_every: 1000
+  sample_every: 5000
 
   
   clip_grad: 1.0
@@ -114,7 +114,7 @@ training:
 
 
 log:
-  result_root_dir: result_train/stage2/260121
+  result_root_dir: result_train/stage2/260124
   tracker:
     name: wandb 
     wandb:
@@ -128,10 +128,11 @@ log:
 
       # msg: "lq-kernel50-global17__hqckpt-15k__lqckpt-40k"
 
-      # msg: "lq-kernel50-global17"
+      # msg: "lq-kernel50-fly__global17"
+      msg: "lq-kernel50-fly__global17__val-hypersim"
 
 
-      msg: "TMP"
+      # msg: "TMPTMPTMPTMPTMPTMP"
 
 
 data:
@@ -148,7 +149,11 @@ data:
       lq_root_path: 
 
     hypersim:
+      ann_path: /mnt/dataset1/MV_Restoration/hypersim/metadata_images_split_scene_v1.csv
       hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data
+
+
+
       hq_latent_root_path: 
       # hq_latent_root_path: /mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview_g17
 
@@ -170,10 +175,20 @@ data:
 
   val:
     image_size: 512 
-    list: [eth3d]
-    eth3d:
-      hq_root_path:
-      lq_root_path:
+    num_input_view: 1
+    list: [hypersim]
+
+    hypersim:
+      num_eval_img: 10
+      ann_path: /mnt/dataset1/MV_Restoration/hypersim/metadata_images_split_scene_v1.csv
+      hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data
+      view_sel_strategy:
+    
+    tartanair:
+      num_eval_img: 10
+      ann_path: 
+      hq_root_path: /mnt/dataset1/MV_Restoration/tartanair/data
+      view_sel_strategy:
   
 
 mvrm:

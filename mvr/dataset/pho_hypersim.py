@@ -1,9 +1,11 @@
 import os 
+import csv 
 import glob
 import h5py
 import cv2 
 import numpy as np 
 import torch 
+import random 
 from PIL import Image
 from torch.utils.data import Dataset 
 
@@ -13,41 +15,97 @@ from motionblur.motionblur import Kernel
 
 
 class PhoHypersim(Dataset):
-    def __init__(self, data_cfg):
+    def __init__(self, data_cfg, mode='train'):
         
+        self.data_cfg = data_cfg 
+        self.mode = mode 
         self.data = {}
         
         
-        keep_volumes = ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010']
+        # annotation
+        with open(data_cfg.ann_path) as f:
+            anns = list(csv.DictReader(f))  # len: 82,900
+        train_anns = [ann for ann in anns if ann['split_partition_name']=='train']      # 59,543
+        val_anns = [ann for ann in anns if ann['split_partition_name']=='val']          # 7,386
+        test_anns = [ann for ann in anns if ann['split_partition_name']=='test']        # 7,690
         
         
-        
-        if data_cfg.hq_root_path is not None:
-            self.data['hq_img'] = sorted(glob.glob(f'{data_cfg.hq_root_path}/*/images/*final_hdf5*/*color*'))
-            # filter only hypersim volume 001~010
-            self.data['hq_img'] = sorted(data for data in self.data['hq_img'] if data.split('/')[-4].split('_')[-2] in keep_volumes)
+        # HQ 
+        train_hq_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_final_hdf5/frame.{int(ann['frame_id']):04}.color.hdf5" for ann in train_anns])
+        val_hq_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_final_hdf5/frame.{int(ann['frame_id']):04}.color.hdf5" for ann in val_anns])
+        test_hq_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_final_hdf5/frame.{int(ann['frame_id']):04}.color.hdf5" for ann in test_anns])
 
-        # if data_cfg.hq_latent_root_path is not None:
-        #     self.data['hq_latent'] = sorted(glob.glob(f'{data_cfg.hq_latent_root_path}/*/*/*'))
+
+        # depth 
+        train_depth_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_geometry_hdf5/frame.{int(ann['frame_id']):04}.depth_meters.hdf5" for ann in train_anns])
+        val_depth_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_geometry_hdf5/frame.{int(ann['frame_id']):04}.depth_meters.hdf5" for ann in val_anns])
+        test_depth_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_geometry_hdf5/frame.{int(ann['frame_id']):04}.depth_meters.hdf5" for ann in test_anns])
+        
+
+        if mode == 'train':
+            self.data['hq_img'] = sorted([path for path in train_hq_paths if os.path.exists(path)])
+            self.data['gt_depth'] = sorted([path for path in train_depth_paths if os.path.exists(path)])
+        elif mode == 'val':
+            # self.data['hq_img'] = sorted([path for path in val_hq_paths if os.path.exists(path)])[:data_cfg.num_eval_img]
+            # self.data['gt_depth'] = sorted([path for path in val_depth_paths if os.path.exists(path)])[:data_cfg.num_eval_img]
+
+            hq_imgs = sorted([p for p in val_hq_paths if os.path.exists(p)])
+            gt_depths = sorted([p for p in val_depth_paths if os.path.exists(p)])
+            assert len(hq_imgs) == len(gt_depths), "HQ and GT depth count mismatch"
+            idx = list(range(len(hq_imgs)))
+            random.seed(97)
+            random.shuffle(idx)
+            idx = idx[:data_cfg.num_eval_img]
+            self.data['hq_img'] = [hq_imgs[i] for i in idx]
+            self.data['gt_depth'] = [gt_depths[i] for i in idx]
+            
+            
+            # fix validation lq images
+            self.lq_ids = []
+            self.lq_imgs = []
+            for hq_view in self.data['hq_img']:
+                volume = hq_view.split('/')[-4].split('_')[-2]
+                scene = hq_view.split('/')[-4].split('_')[-1]
+                camera = hq_view.split('/')[-2].split('_')[-3]
+                view_id = hq_view.split('/')[-1].split('.')[-3]
+                self.lq_ids.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
+                img_pil = self.convert_hdf5_img(hq_view)
+                KERNEL_SIZE=50
+                BLUR_INTENSITY=0.1
+                kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
+                blurred = kernel.applyTo(img_pil, keep_image_dim=True)
+                blurred = np.array(blurred)
+                self.lq_imgs.append(self.resize(blurred))
+            
+        elif mode == 'test':
+            self.data['hq_img'] = sorted([path for path in test_hq_paths if os.path.exists(path)])
+            self.data['gt_depth'] = sorted([path for path in test_depth_paths if os.path.exists(path)])
+        
+        
+        # keep_volumes = ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010']
+        # if data_cfg.hq_root_path is not None:
+        #     self.data['hq_img'] = sorted(glob.glob(f'{data_cfg.hq_root_path}/*/images/*final_hdf5*/*color*'))
         #     # filter only hypersim volume 001~010
+        #     self.data['hq_img'] = sorted(data for data in self.data['hq_img'] if data.split('/')[-4].split('_')[-2] in keep_volumes)
+
+        # # if data_cfg.hq_latent_root_path is not None:
+        # #     self.data['hq_latent'] = sorted(glob.glob(f'{data_cfg.hq_latent_root_path}/*/*/*'))
+        # #     # filter only hypersim volume 001~010
         
             
-        if data_cfg.lq_root_path is not None:
-            self.data['lq_img'] = sorted(glob.glob(f'{data_cfg.lq_root_path}/*/*/images/*'))
-            # filter only hypersim volume 001~010
+        # if data_cfg.lq_root_path is not None:
+        #     self.data['lq_img'] = sorted(glob.glob(f'{data_cfg.lq_root_path}/*/*/images/*'))
+        #     # filter only hypersim volume 001~010
 
 
-        
-        if data_cfg.depth_path is not None:
-            self.data['gt_depth'] = sorted(glob.glob(f"{data_cfg.depth_path}/*/images/*geometry_hdf5*/*depth_meters*"))
-            # filter only hypersim volume 001~010
-            self.data['gt_depth'] = sorted(data for data in self.data['gt_depth'] if data.split('/')[-4].split('_')[-2] in keep_volumes)
-
+        # if data_cfg.depth_path is not None:
+        #     keep_volumes = ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010']
+        #     self.data['gt_depth'] = sorted(glob.glob(f"{data_cfg.depth_path}/*/images/*geometry_hdf5*/*depth_meters*"))
+        #     # filter only hypersim volume 001~010
+        #     self.data['gt_depth'] = sorted(data for data in self.data['gt_depth'] if data.split('/')[-4].split('_')[-2] in keep_volumes)
 
           
         self.view_sel_strategy = data_cfg.view_sel_strategy 
-        
-        
         self.input_processor = InputProcessor()
         
     
@@ -228,22 +286,22 @@ class PhoHypersim(Dataset):
 
 
         
-        # ----------------------------------
-        #       process hq latent 
-        # ----------------------------------
-        hq_latent_view_id=[]
-        hq_latent_view_list=[]
-        if 'hq_latent' in self.data.keys():
-            hq_latent_views = [self.data['hq_latent'][i] for i in frame_ids]
-            for hq_latent_view in hq_latent_views:
-                volume = hq_latent_view.split('/')[-3].split('_')[-2]
-                scene = hq_latent_view.split('/')[-3].split('_')[-1]
-                camera = hq_latent_view.split('/')[-2].split('_')[-1]
-                view_id = hq_latent_view.split('/')[-1].split('.')[-2]
-                hq_latent_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
-                hq_latent_view_list.append(torch.load(hq_latent_view))  # torch.Size([972, 3072])
-                outputs['hq_latent_ids'] = hq_latent_view_id
-                outputs['hq_latent_views'] = hq_latent_view_list
+        # # ----------------------------------
+        # #       process hq latent 
+        # # ----------------------------------
+        # hq_latent_view_id=[]
+        # hq_latent_view_list=[]
+        # if 'hq_latent' in self.data.keys():
+        #     hq_latent_views = [self.data['hq_latent'][i] for i in frame_ids]
+        #     for hq_latent_view in hq_latent_views:
+        #         volume = hq_latent_view.split('/')[-3].split('_')[-2]
+        #         scene = hq_latent_view.split('/')[-3].split('_')[-1]
+        #         camera = hq_latent_view.split('/')[-2].split('_')[-1]
+        #         view_id = hq_latent_view.split('/')[-1].split('.')[-2]
+        #         hq_latent_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
+        #         hq_latent_view_list.append(torch.load(hq_latent_view))  # torch.Size([972, 3072])
+        #         outputs['hq_latent_ids'] = hq_latent_view_id
+        #         outputs['hq_latent_views'] = hq_latent_view_list
             
             
             
@@ -274,7 +332,8 @@ class PhoHypersim(Dataset):
         # ----------------------------------
         lq_view_id=[]
         lq_view_list=[]
-        if 'hq_img' in self.data.keys():
+        
+        if self.mode == 'train':
             hq_views = [self.data['hq_img'][i] for i in frame_ids]
             for hq_view in hq_views:
                 volume = hq_view.split('/')[-4].split('_')[-2]
@@ -284,7 +343,7 @@ class PhoHypersim(Dataset):
                 lq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
                 img_pil = self.convert_hdf5_img(hq_view)
                 
-
+                
                 KERNEL_SIZE=50
                 BLUR_INTENSITY=0.1
                 kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
@@ -294,8 +353,10 @@ class PhoHypersim(Dataset):
                 outputs['lq_ids'] = lq_view_id 
                 outputs['lq_views'] = lq_view_list
 
+        elif self.mode == 'val':
+            outputs['lq_ids'] = [self.lq_ids[i] for i in frame_ids]
+            outputs['lq_views'] = [self.lq_imgs[i] for i in frame_ids]
 
-        
         
         # -------------------------
         #       process depth

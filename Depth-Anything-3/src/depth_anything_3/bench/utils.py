@@ -315,7 +315,6 @@ def compute_pose(pred_se3: torch.Tensor, gt_se3: torch.Tensor) -> Dict:
     Returns:
         Dict with AUC metrics at different thresholds (auc30, auc15, auc05, auc03)
     """
-    breakpoint()
     '''
         aligning to the first camera X0 means, 
         obtaining the extrinsic matrix as Ti<-0: TiT0^-1
@@ -366,11 +365,12 @@ def rotation_angle(
     Returns:
         Rotation angle error in degrees
     """
-    q_pred = mat_to_quat(rot_pred)
-    q_gt = mat_to_quat(rot_gt)
+    q_pred = mat_to_quat(rot_pred)  # nC2 4
+    q_gt = mat_to_quat(rot_gt)      # nC2 4
 
-    loss_q = (1 - (q_pred * q_gt).sum(dim=1) ** 2).clamp(min=eps)
-    err_q = torch.arccos(1 - 2 * loss_q)
+    # loss_q = 1 - (q_pred ⋅ q_gt)²
+    loss_q = (1 - (q_pred * q_gt).sum(dim=1) ** 2).clamp(min=eps)   # nC2
+    err_q = torch.arccos(1 - 2 * loss_q)    # nC2 
 
     rel_rangle_deg = err_q * 180 / np.pi
 
@@ -398,7 +398,7 @@ def translation_angle(
     Returns:
         Translation angle error in degrees
     """
-    rel_tangle_deg = compare_translation_by_angle(tvec_gt, tvec_pred)
+    rel_tangle_deg = compare_translation_by_angle(tvec_gt, tvec_pred)   # nC2
     rel_tangle_deg = rel_tangle_deg * 180.0 / np.pi
 
     if ambiguity:
@@ -475,15 +475,15 @@ def se3_to_relative_pose_error(
     Returns:
         Tuple of (rotation angle errors, translation angle errors) in degrees
     """
-    pair_idx_i1, pair_idx_i2 = build_pair_index(num_frames)
+    pair_idx_i1, pair_idx_i2 = build_pair_index(num_frames)     # nC2 
 
     # Compute relative camera poses between pairs using closed-form inverse
-    relative_pose_gt = closed_form_inverse_se3(gt_se3[pair_idx_i1]).bmm(gt_se3[pair_idx_i2])
-    relative_pose_pred = closed_form_inverse_se3(pred_se3[pair_idx_i1]).bmm(pred_se3[pair_idx_i2])
+    relative_pose_gt = closed_form_inverse_se3(gt_se3[pair_idx_i1]).bmm(gt_se3[pair_idx_i2])        # (nC2 4 4)
+    relative_pose_pred = closed_form_inverse_se3(pred_se3[pair_idx_i1]).bmm(pred_se3[pair_idx_i2])  # (nC2 4 4)
 
     # Compute the difference in rotation and translation
-    rel_rangle_deg = rotation_angle(relative_pose_gt[:, :3, :3], relative_pose_pred[:, :3, :3])
-    rel_tangle_deg = translation_angle(relative_pose_gt[:, :3, 3], relative_pose_pred[:, :3, 3])
+    rel_rangle_deg = rotation_angle(relative_pose_gt[:, :3, :3], relative_pose_pred[:, :3, :3])     # (nC2, )
+    rel_tangle_deg = translation_angle(relative_pose_gt[:, :3, 3], relative_pose_pred[:, :3, 3])    # (nC2, )
 
     return rel_rangle_deg, rel_tangle_deg
 

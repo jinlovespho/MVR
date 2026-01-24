@@ -13,6 +13,9 @@ from utils.model_utils import instantiate_from_config
 import numpy as np 
 from PIL import Image 
 
+from mvr.dataset.pho_sampler import PhoSampler, PhoBatchSampler
+from mvr.dataset.pho_concat_ds import PhoConcatDataset, multiview_collate_fn
+
 
 def save_checkpoint(
     path: str,
@@ -93,16 +96,14 @@ def load_train_data(
         train_loader = DataLoader(dataset, batch_size=batch_size, sampler=train_sampler, num_workers=cfg.training.num_workers, pin_memory=True, drop_last=False)
         
     else:
-        from mvr.dataset.pho_sampler import PhoSampler, PhoBatchSampler
-        from mvr.dataset.pho_concat_ds import PhoConcatDataset, multiview_collate_fn
         datasets=[]
         if 'hypersim' in cfg.data.train.list:
             from mvr.dataset.pho_hypersim import PhoHypersim
-            hypersim_ds = PhoHypersim(cfg.data.train.hypersim)
+            hypersim_ds = PhoHypersim(cfg.data.train.hypersim, mode='train')
             datasets.append(hypersim_ds)
         if 'tartanair' in cfg.data.train.list:
             from mvr.dataset.pho_tartanair import PhoTartanAir
-            tartanair_ds = PhoTartanAir(cfg.data.train.tartanair)
+            tartanair_ds = PhoTartanAir(cfg.data.train.tartanair, mode='train')
             datasets.append(tartanair_ds)
         train_ds = PhoConcatDataset(datasets, cfg)
         train_sampler = PhoSampler(train_ds, shuffle=cfg.training.shuffle)
@@ -112,8 +113,26 @@ def load_train_data(
 
 
 
-def load_val_data():
-    pass
+def load_val_data(
+    cfg,
+    batch_size: int,
+    rank: int,
+    world_size: int,
+):
+    datasets=[]
+    if 'hypersim' in cfg.data.val.list:
+        from mvr.dataset.pho_hypersim import PhoHypersim
+        hypersim_ds = PhoHypersim(cfg.data.val.hypersim, mode='val')
+        datasets.append(hypersim_ds)
+    if 'tartanair' in cfg.data.val.list:
+        from mvr.dataset.pho_tartanair import PhoTartanAir
+        tartanair_ds = PhoTartanAir(cfg.data.val.tartanair, mode='val')
+        datasets.append(tartanair_ds)
+    val_ds = PhoConcatDataset(datasets, cfg)
+    val_sampler = PhoSampler(val_ds, shuffle=False)
+    val_batchsampler = PhoBatchSampler(sampler=val_sampler, batch_size=batch_size)
+    val_loader = DataLoader(val_ds, batch_sampler=val_batchsampler, num_workers=cfg.training.num_workers, pin_memory=True, drop_last=False, collate_fn=multiview_collate_fn)
+    return val_loader, val_sampler
 
 
 

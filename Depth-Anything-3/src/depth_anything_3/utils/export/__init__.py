@@ -34,6 +34,7 @@ def export(
             export(prediction, export_format, export_dir, **kwargs)
         return  # Prevent falling through to single-format handling
 
+    # breakpoint()
     if export_format == "glb":
         export_to_glb(prediction, export_dir, **kwargs.get(export_format, {}))
     elif export_format == "mini_npz":

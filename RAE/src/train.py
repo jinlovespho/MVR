@@ -150,7 +150,9 @@ def main():
     train_loader, train_sampler = load_train_data(full_cfg, micro_batch_size, rank, world_size)
     loader_batches = len(train_loader)
     steps_per_epoch = math.ceil(loader_batches / grad_accum_steps)
-    # val_data = load_val_data(full_cfg)
+    
+    
+    val_loader, val_sampler = load_val_data(full_cfg, 1, rank, world_size)
 
 
     # load optimizer
@@ -243,21 +245,16 @@ def main():
         for train_step, batch in enumerate(train_loader):
 
 
-
             # load batch data
             frame_id = batch['frame_ids']               # b v
             hq_id = batch['hq_ids']                     # len(hq_id) = b, len(hq_id[i]) = v
             gt_depth = batch['gt_depths'].to(device)    # b v 1 378 504
             hq_views = batch['hq_views'].to(device)     # b v 3 378 504
             lq_views = batch['lq_views'].to(device)     # b v 3 378 504
-            
-            
             # save_image(lq_views.view(-1, 3, 378, 504), 'tmp.jpg', normalize=True)
-
 
             if full_cfg.mvrm.input_img == 'hq':
                 lq_views = hq_views 
-
 
 
 
@@ -450,42 +447,70 @@ def main():
             
             # training visualization
             if rank==0 and (optimizer_step == 1 or optimizer_step % sample_every == 0):
-                models['denoiser'].eval()
-                logger.info("Generating EMA samples...")
-                with torch.no_grad():
-
-
-
-                    # safety check 
-                    val_b, val_v, val_n, val_d = lq_latent.shape    # b v n+1 d 
-                    assert pure_noise.shape == lq_latent.shape 
-                    val_pure_noise = pure_noise
+                
+                logger.info(f'Num Validation Samples: {len(val_loader.dataset)}')
+                
+                # val loop
+                for val_step, val_batch in enumerate(val_loader):
                     
-            
 
+                    # load val batch 
+                    val_frame_id = val_batch['frame_ids']               # b v
+                    val_hq_id = val_batch['hq_ids']                     # len(hq_id) = b, len(hq_id[i]) = v
+                    val_gt_depth = val_batch['gt_depths'].to(device)    # b v 1 378 504
+                    # val_hq_views = val_batch['hq_views'].to(device)     # b v 3 378 504
+                    val_lq_views = val_batch['lq_views'].to(device)     # b v 3 378 504
+
+
+
+                    # apply imagenet normalization
+                    val_b, val_v, val_c, val_h, val_w = val_lq_views.shape 
+                    # val_hq_views = IMAGENET_NORMALIZE(val_hq_views.view(val_b*val_v, val_c, val_h, val_w)).view(val_b, val_v, val_c, val_h, val_w)
+                    val_lq_views = IMAGENET_NORMALIZE(val_lq_views.view(val_b*val_v, val_c, val_h, val_w)).view(val_b, val_v, val_c, val_h, val_w)
+
+
+                    # val - lq view forward pass
+                    with torch.no_grad():
+                        val_lq_encoder_out, val_lq_mvrm_out = models['encoder'](
+                                                            image=val_lq_views, 
+                                                            export_feat_layers=[], 
+                                                            mvrm_cfg=full_cfg.mvrm.train, 
+                                                            mode='train'
+                                                            )
+                    val_lq_encoder_out = processors['encoder_output_processor'](val_lq_encoder_out)
+                    val_lq_pred_depth_np = val_lq_encoder_out.depth                  # b v 378 504
+                    val_lq_pred_depth = torch.from_numpy(val_lq_pred_depth_np).to(device) 
+                    val_lq_latent = val_lq_mvrm_out['extract_feat']      # b v 973 3072
+
+                            
+                            
                     # lq_latent condition method
+                    val_pure_noise = pure_noise
                     if full_cfg.mvrm.lq_latent_cond == 'addition':
-                        val_xt = val_pure_noise + lq_latent
+                        val_xt = val_pure_noise + val_lq_latent
                     elif full_cfg.mvrm.lq_latent_cond == 'concat':
-                        val_xt = torch.concat([val_pure_noise, lq_latent], dim=1)
+                        val_xt = torch.concat([val_pure_noise, val_lq_latent], dim=1)
                     
                     
                     
-                    # forward pass
-                    restored_samples = eval_sampler(val_xt, ema_model_fn, **sample_model_kwargs)[-1]     # b v n d
+                    models['denoiser'].eval()
+                    with torch.no_grad():
+                        restored_samples = eval_sampler(val_xt, ema_model_fn, **sample_model_kwargs)[-1]     # b v n d
                     restored_samples.float()
+
 
                     mvrm_result={}
                     mvrm_result['restored_latent'] = restored_samples
 
 
-                    val_encoder_out, val_mvrm_out = models['encoder'](
-                                                                image=lq_views, 
-                                                                export_feat_layers=[], 
-                                                                mvrm_cfg=full_cfg.mvrm.val, 
-                                                                mvrm_result=mvrm_result,
-                                                                mode='val'
-                                                                )
+                    with torch.no_grad():
+                        val_encoder_out, val_mvrm_out = models['encoder'](
+                                                                    image=val_lq_views, 
+                                                                    export_feat_layers=[], 
+                                                                    mvrm_cfg=full_cfg.mvrm.val, 
+                                                                    mvrm_result=mvrm_result,
+                                                                    mode='val'
+                                                                    )
                     val_encoder_out = processors['encoder_output_processor'](val_encoder_out)
                     val_pred_depth_np = val_encoder_out.depth                            # b v 378 504
                     val_pred_depth = torch.from_numpy(val_pred_depth_np).to(device)
@@ -498,34 +523,31 @@ def main():
                     # val_pred_depth_np: b*v 378 504
                     
                     
-                    np_model_input = lq_views[0,0]   # # 378 504 3  
+                    np_model_input = val_lq_views[0,0]   # # 378 504 3  
                     np_model_input = (np_model_input - np_model_input.min()) / (np_model_input.max() - np_model_input.min()) * 255.0
                     np_model_input = np_model_input.permute(1,2,0).detach().cpu().numpy()[:,:,::-1]     
-                    np_gt_depth = gt_depth[0,0,0].detach().cpu().numpy()    # 378 504
-                    np_train_depth = train_lq_pred_depth_np[0]                 # 378 504
-                    np_val_depth = val_pred_depth_np[0]                     # 378 504
+                    np_gt_depth = val_gt_depth[0,0,0].detach().cpu().numpy()    # 378 504
+                    np_lq_depth = val_lq_pred_depth_np[0]                 # 378 504
+                    np_restored_depth = val_pred_depth_np[0]                     # 378 504
 
                     vis_gt_depth = depth_to_colormap(np_gt_depth)               # 378 504 3
-                    vis_train_depth = depth_to_colormap(np_train_depth)         # 378 504 3
-                    vis_val_depth = depth_to_colormap(np_val_depth)             # 378 504 3
+                    vis_lq_depth = depth_to_colormap(np_lq_depth)         # 378 504 3
+                    vis_restored_depth = depth_to_colormap(np_restored_depth)             # 378 504 3
                     
-                    vis_err_train_depth = depth_error_to_colormap_thresholded(np_gt_depth, np_train_depth, thr=0.1)
-                    vis_err_val_depth = depth_error_to_colormap_thresholded(np_gt_depth, np_val_depth, thr=0.1)
+                    vis_err_lq_depth = depth_error_to_colormap_thresholded(np_gt_depth, np_lq_depth, thr=0.1)
+                    vis_err_restored_depth = depth_error_to_colormap_thresholded(np_gt_depth, np_restored_depth, thr=0.1)
                     
                     vis_depth_cat = np.concatenate(
-                        [np_model_input, vis_train_depth, vis_val_depth, vis_gt_depth, vis_err_train_depth, vis_err_val_depth, ],
+                        [np_model_input, vis_lq_depth, vis_restored_depth, vis_gt_depth, vis_err_lq_depth, vis_err_restored_depth, ],
                         axis=1
                     )
 
                     # Output path
                     vis_depth_save_dir = f'{experiment_dir}/vis_depth'
                     os.makedirs(vis_depth_save_dir, exist_ok=True)
-                    cv2.imwrite(f'{vis_depth_save_dir}/step{global_train_step:07}_{hq_id[0][0]}.jpg', vis_depth_cat)               
-
-                    # breakpoint()
-                
+                    cv2.imwrite(f'{vis_depth_save_dir}/{val_hq_id[0][0]}_step{global_train_step:07}.jpg', vis_depth_cat)               
                     dist.barrier()
-                logger.info("Generating EMA samples done.")
+                logger.info("Validation done.")
                 models['denoiser'].train()
 
 

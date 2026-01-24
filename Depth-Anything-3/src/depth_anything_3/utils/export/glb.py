@@ -110,6 +110,7 @@ def export_to_glb(
     if prediction.processed_images is None:
         raise ValueError("prediction.processed_images is required but not available")
 
+    # breakpoint()
     images_u8 = prediction.processed_images  # (N,H,W,3) uint8
 
     # 2) Sky processing (if sky_mask is provided)
@@ -162,7 +163,7 @@ def export_to_glb(
         scene.add_geometry(pc)
 
     # 8) Draw cameras (wireframe pyramids), using the same transform A
-    if show_cameras and prediction.intrinsics is not None and prediction.extrinsics is not None:
+    if show_cameras and prediction.intrinsics is not None and prediction.extrinsics is not None:    # t
         scene_scale = _estimate_scene_scale(points, fallback=1.0)
         H, W = prediction.depth.shape[1:]
         _add_cameras_to_scene(

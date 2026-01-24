@@ -211,6 +211,7 @@ class Evaluator:
                 )
                 self._save_gt_meta(export_dir, scene_data)
 
+            
     def eval(self) -> TDict[str, dict]:
         """
         Evaluate for all configured modes and write JSON files.
@@ -225,7 +226,6 @@ class Evaluator:
         """
         summary: TDict[str, dict] = {}
 
-        breakpoint()
         # Evaluate by mode (all datasets per mode)
         if "pose" in self.modes:
             print(f"\n{'='*60}")
@@ -270,7 +270,6 @@ class Evaluator:
 
     def _eval_pose(self) -> Iterable[tuple]:
         """Compute pose-estimation metrics for each dataset and scene."""
-        breakpoint()
         os.makedirs(self._metric_dir, exist_ok=True)
 
         for data in tqdm(self.datas, desc="Datasets (pose eval)"):
@@ -431,7 +430,7 @@ class Evaluator:
 
         _wait_for_file_ready(result_path)
         pred = np.load(result_path)
-        breakpoint()
+        # breakpoint()
         return compute_pose(
             torch.from_numpy(as_homogeneous(pred["extrinsics"])),
             torch.from_numpy(as_homogeneous(gt_meta["extrinsics"])),
@@ -761,6 +760,5 @@ Examples:
             # Only run eval if single GPU mode (workers don't eval)
             if not is_worker:
                 metrics = evaluator.eval()
-                breakpoint()
                 evaluator.print_metrics(metrics)
 
