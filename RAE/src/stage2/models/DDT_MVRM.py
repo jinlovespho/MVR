@@ -19,7 +19,7 @@ from typing import *
 from einops import rearrange
 from .model_utils import NormAttentionMVRM
 from .rope import RotaryPositionEmbedding2D, PositionGetter
-
+from torch.utils.checkpoint import checkpoint
 
 
 def DDTModulate(x: torch.Tensor, shift: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
@@ -447,7 +447,19 @@ class DiTwDDTHeadMVRM(nn.Module):
         else:
             raise ValueError(f"Invalid attention type: {attn_type}")
 
-        x = block(x, c, pos=pos)
+
+        # x = block(x, c, pos=pos)
+        # ✅ gradient checkpointing here
+        def block_forward(x, c, pos):
+            return block(x, c, pos=pos)
+
+        if self.training:
+            x = checkpoint(block_forward, x, c, pos)
+        else:
+            x = block(x, c, pos=pos)
+            
+        # x = checkpoint(block_forward, x, c, pos)
+
 
         if attn_type == "local":
             x = rearrange(x, "(b s) n c -> b s n c", b=b, s=s)

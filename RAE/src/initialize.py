@@ -169,7 +169,19 @@ def load_model(cfg, rank, device):
     ema_denoiser.requires_grad_(False)
     ema_denoiser.eval()
     denoiser.requires_grad_(True) # train stage2 model
-    ddp_denoiser = DDP(denoiser, device_ids=[device.index], broadcast_buffers=False, find_unused_parameters=False)
+    # ddp_denoiser = DDP(denoiser, device_ids=[device.index], broadcast_buffers=False, find_unused_parameters=True)
+    
+    
+    ddp_denoiser = DDP(
+        denoiser,
+        device_ids=[device.index],
+        broadcast_buffers=False,
+        find_unused_parameters=True,
+    )
+
+    ddp_denoiser._set_static_graph()
+
+
     denoiser = ddp_denoiser.module
     ddp_denoiser.train()
     models['denoiser'] = denoiser

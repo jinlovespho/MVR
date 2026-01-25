@@ -143,6 +143,10 @@ def main():
     
     # load encoder and denoiser 
     models, processors = load_model(full_cfg, rank, device)
+    
+    
+    # save memory
+    # models['denoiser'].gradient_checkpointing_enable(
 
 
 
@@ -224,7 +228,7 @@ def main():
         # print optim and schel
         logger.info(optim_msg)
         print(sched_msg if sched_msg else "No LR scheduler.")
-        logger.info(f"Training for {num_epochs} epochs, batch size {micro_batch_size} per GPU.")
+        logger.info(f"Training for {num_epochs} epochs, batch size {micro_batch_size} per GPU. grad accum {full_cfg.training.grad_accum_steps} per GPU")
         logger.info(f"Dataset contains {len(train_loader.dataset)} samples, {steps_per_epoch} steps per epoch.")
         logger.info(f"Running with world size {world_size}, starting from epoch {start_epoch} to {num_epochs}.")
 
@@ -377,7 +381,7 @@ def main():
     
             raw_loss = loss.detach()
             loss = loss / grad_accum_steps
-            print(f"global step: {global_train_step}, lq_id: {batch['lq_ids']} hq_id: {batch['hq_ids']}")
+            # print(f"global step: {global_train_step}, lq_id: {batch['lq_ids']} hq_id: {batch['hq_ids']}")
                 
 
             
@@ -425,7 +429,7 @@ def main():
             epoch_metrics['loss'] += raw_loss
             
             
-            if log_interval > 0 and global_train_step % log_interval == 0 and rank == 0:
+            if rank==0 and log_interval > 0 and global_train_step % log_interval == 0:
                 avg_loss = running_loss / log_interval # flow loss often has large variance so we record avg loss
                 steps = torch.tensor(log_interval, device=device)
                 stats = {
@@ -446,7 +450,7 @@ def main():
             
             
             # training visualization
-            if rank==0 and (optimizer_step == 1 or optimizer_step % sample_every == 0):
+            if rank==0 and (optimizer_step % sample_every == 0) and ((global_train_step + 1) % grad_accum_steps == 0):
                 
                 logger.info(f'Num Validation Samples: {len(val_loader.dataset)}')
                 
@@ -494,6 +498,7 @@ def main():
                     
                     
                     models['denoiser'].eval()
+                    torch.cuda.synchronize()
                     with torch.no_grad():
                         restored_samples = eval_sampler(val_xt, ema_model_fn, **sample_model_kwargs)[-1]     # b v n d
                     restored_samples.float()
@@ -546,13 +551,13 @@ def main():
                     vis_depth_save_dir = f'{experiment_dir}/vis_depth'
                     os.makedirs(vis_depth_save_dir, exist_ok=True)
                     cv2.imwrite(f'{vis_depth_save_dir}/{val_hq_id[0][0]}_step{global_train_step:07}.jpg', vis_depth_cat)               
-                    dist.barrier()
+                    # dist.barrier()
                 logger.info("Validation done.")
                 models['denoiser'].train()
 
 
             # ckpt saving
-            if optimizer_step > 0 and optimizer_step % ckpt_step_interval == 0 and rank == 0:
+            if rank==0 and optimizer_step > 0 and optimizer_step % ckpt_step_interval == 0:
                 logger.info(f"Saving checkpoint at global_train_step {global_train_step}...")
                 ckpt_path = f"{checkpoint_dir}/ep-{global_train_step:07d}.pt" 
                 save_checkpoint(
