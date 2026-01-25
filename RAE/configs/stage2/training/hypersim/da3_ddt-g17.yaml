@@ -83,21 +83,21 @@ misc:
 training:
   global_seed: 42
   precision: fp32
-  epochs: 20
+  epochs: 10
   # batch_per_gpu = global_batch_size / (num_gpu * grad_accum)
-  global_batch_size: 4    
-  grad_accum_steps: 4     
+  global_batch_size: 16
+  grad_accum_steps: 16     
   ema_decay: 0.9995
   num_workers: 4
   shuffle: True
   log_interval: 1
-  # checkpoint_interval: 
 
+  # ckpt_step_interval: 100000   # 100k
   ckpt_step_interval: 20000   # 20k
   # ckpt_step_interval: 5000   # 5k
-  
-  sample_every: 5000
 
+  
+  sample_every: 2000
   
   clip_grad: 1.0
   optimizer:
@@ -106,15 +106,15 @@ training:
     weight_decay: 0.0
   scheduler:
     type: linear
-    warmup_epochs: 10
-    decay_end_epoch: 20
+    warmup_epochs: 5
+    decay_end_epoch: 10
     base_lr: 2e-4
     final_lr: 2e-5
     warmup_from_zero: false
 
 
 log:
-  result_root_dir: result_train/stage2/260125
+  result_root_dir: result_train/stage2/260126
   tracker:
     name: wandb 
     wandb:
@@ -132,7 +132,7 @@ log:
       msg: "lq-kernel50-fly__global17"
 
 
-      # msg: "TMPTMPTMPTMPTMPTMPTMP"
+      # msg: "TMPTMP"
 
 
 data:

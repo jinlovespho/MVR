@@ -445,12 +445,13 @@ def main():
                         stats,
                         step=global_train_step,
                     )
-                running_loss = 0.0
+                running_loss = 0.0 
             
             
             
             # training visualization
-            if rank==0 and (optimizer_step % sample_every == 0) and ((global_train_step + 1) % grad_accum_steps == 0):
+            # if rank==0 and (optimizer_step % sample_every == 0) and ((global_train_step + 1) % grad_accum_steps == 0):
+            if rank==0 and ( (global_train_step % sample_every == 0) or (global_train_step == 1) ) :
                 
                 logger.info(f'Num Validation Samples: {len(val_loader.dataset)}')
                 
@@ -557,7 +558,8 @@ def main():
 
 
             # ckpt saving
-            if rank==0 and optimizer_step > 0 and optimizer_step % ckpt_step_interval == 0:
+            # if rank==0 and optimizer_step > 0 and optimizer_step % ckpt_step_interval == 0:
+            if rank==0 and global_train_step > 0 and global_train_step % ckpt_step_interval == 0:
                 logger.info(f"Saving checkpoint at global_train_step {global_train_step}...")
                 ckpt_path = f"{checkpoint_dir}/ep-{global_train_step:07d}.pt" 
                 save_checkpoint(
