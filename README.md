@@ -39,7 +39,7 @@ bash download_bash/data/hypersim/download_hypersim.sh
 **2. Tartanair**
 ```bash 
 # run the bash file to download tartanair at ./data/tartanair
-pip install boto3 colorama minio
+pip install boto3 colorama minio huggingface_hub
 bash download_bash/data/tartanair_tools/download_tartanair.sh
 ```
 

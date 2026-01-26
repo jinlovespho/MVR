@@ -85,8 +85,8 @@ training:
   precision: fp32
   epochs: 10
   # batch_per_gpu = global_batch_size / (num_gpu * grad_accum)
-  global_batch_size: 16
-  grad_accum_steps: 16     
+  global_batch_size: 8
+  grad_accum_steps: 8
   ema_decay: 0.9995
   num_workers: 4
   shuffle: True
