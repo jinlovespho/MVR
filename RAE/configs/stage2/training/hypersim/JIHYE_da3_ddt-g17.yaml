@@ -144,7 +144,7 @@ data:
       # --------------------------------- JIHYE -----------------------------------------
       # hypersim dataset path 설정
       ann_path: metadata_images_split_scene_v1.csv                
-      hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data    # hypersim 데이터셋 경로 설정해주세요
+      hq_root_path: /mnt/dataset1/MV_Restoration/hypersim    # hypersim 데이터셋 경로 설정해주세요
       # ---------------------------------------------------------------------------------
       view_sel_strategy:
     tartanair:
