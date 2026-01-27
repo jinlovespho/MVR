@@ -13,11 +13,9 @@ def configure_experiment_dirs(cfg, rank) -> Tuple[str, str, logging.Logger]:
     # assert experiment_name is not None, "Please set the EXPERIMENT_NAME environment variable."
     experiment_dir = os.path.join(cfg.log.result_root_dir, "-".join(cfg.data.train.list), experiment_name)
     checkpoint_dir = os.path.join(experiment_dir, "checkpoints") 
-    vis_recon_dir = f'{experiment_dir}/vis_recon'
     if rank == 0:
         os.makedirs(cfg.log.result_root_dir, exist_ok=True)
         os.makedirs(checkpoint_dir, exist_ok=True)
-        os.makedirs(vis_recon_dir, exist_ok=True)
         logger = create_logger(experiment_dir, 'rae')
         logger.info(f"Experiment directory created at {experiment_dir}")
         if cfg.log.tracker.name == 'wandb':
@@ -34,7 +32,7 @@ def configure_experiment_dirs(cfg, rank) -> Tuple[str, str, logging.Logger]:
             initialize(cfg, entity, wandb_exp_name, project)
     else:
         logger = create_logger(None, 'rae')
-    return experiment_dir, checkpoint_dir, vis_recon_dir, logger
+    return experiment_dir, checkpoint_dir, logger
 def find_resume_checkpoint(resume_dir) -> Optional[str]:
     """
     Find the latest checkpoint file in the resume directory.

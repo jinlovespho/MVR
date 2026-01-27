@@ -49,11 +49,6 @@ from RAE.src.initialize import (save_checkpoint, load_checkpoint,
 from motionblur.motionblur import Kernel 
 
 
-# torch.backends.cuda.enable_flash_sdp(False)
-# torch.backends.cuda.enable_mem_efficient_sdp(False)
-# torch.backends.cuda.enable_math_sdp(True)
-
-
 
 def tensor_stats(x: torch.Tensor):
     x_detached = x.detach()
@@ -98,11 +93,6 @@ def main():
     # load configs
     args = parse_args()
     full_cfg = OmegaConf.load(args.config)
-    # stage2_cfg = full_cfg.stage_2 
-    # transport_cfg = full_cfg.transport 
-    # sampler_cfg = full_cfg.sampler 
-    # guidance_cfg = full_cfg.guidance 
-    # misc = full_cfg.misc 
     training_cfg = full_cfg.training 
     
     
@@ -144,10 +134,6 @@ def main():
     # load encoder and denoiser 
     models, processors = load_model(full_cfg, rank, device)
     
-    
-    # save memory
-    # models['denoiser'].gradient_checkpointing_enable(
-
 
 
     # load training and validation data 
@@ -156,7 +142,7 @@ def main():
     steps_per_epoch = math.ceil(loader_batches / grad_accum_steps)
     
     
-    val_loader, val_sampler = load_val_data(full_cfg, 1, rank, world_size)
+    # val_loader, val_sampler = load_val_data(full_cfg, 1, rank, world_size)
 
 
     # load optimizer
@@ -190,7 +176,8 @@ def main():
     global_train_step = 0
     optimizer_step = 0 
     running_loss = 0.0
-    
+
+
     
     # maybe_resume_ckpt_path = find_resume_checkpoint(experiment_dir)
     maybe_resume_ckpt_path = full_cfg.stage_2.ckpt
@@ -296,85 +283,10 @@ def main():
             lq_latent = lq_mvrm_out['extract_feat']      # b v 973 3072
             assert lq_latent.shape == hq_latent.shape 
             
-            
-            # save_image(model_input[:,0], './img.jpg')
-            # save_image(train_pred_depth, './img_pred.jpg', normalize=True)
-            # save_image(gt_depth[:,0], './img_gt.jpg', normalize=True)
-            # save_image(batch['lq_views'][:,0], './img_lq.jpg', normalize=True)
-            # save_image(batch['hq_views'][:,0], './img_hq.jpg', normalize=True)
-            # breakpoint()
 
-
-            # # FOR SAVING HQ LATENT
-            # if full_cfg.mvrm.save_hq_latent:
-            #     lq_latent = lq_mvrm_out['extract_feat']      # b v n+1 d
-            #     save_b, save_v, save_n, save_d = lq_latent.shape 
-            #     for i in range(save_b):
-            #         batch_id = hq_id[i]
-            #         full_id = batch_id[0]
-            #         volume = full_id.split('_')[-4]
-            #         scene = full_id.split('_')[-3]
-            #         camera = full_id.split('_')[-2]
-            #         frame_id = full_id.split('_')[-1]
-            #         save_root_path = f'{full_cfg.mvrm.save_hq_latent_root_path}/ai_{volume}_{scene}/scene_cam_{camera}'
-            #         os.makedirs(save_root_path, exist_ok=True)
-            #         save_feat = lq_latent[i].reshape(save_n, save_d).detach().cpu()
-            #         torch.save(save_feat, f'{save_root_path}/{frame_id}.pt')
-            #         print(f'saving {full_cfg.mvrm.input_img} latent: {volume}_{scene}_{camera}_{frame_id} - shape: {lq_latent.shape}')
-            #     continue
-                
-            
-
-            # # hypersim 
-            # orig_H, orig_W = 768, 1024 
-            # model_H, model_W = 378, 504
-            # pH = pW = 14 
-            # num_pH = model_H//pH    # 27
-            # num_pW = model_W//pW    # 36
-            
-            
-                        
-            # NAN DEBUGGING
-            if rank == 0 and global_train_step % log_interval == 0:
-                hq_stats = tensor_stats(hq_latent)
-                lq_stats = tensor_stats(lq_latent)
-
-                wandb_utils.log(
-                    {
-                        "latent_hq/hq_min": hq_stats["min"],
-                        "latent_hq/hq_max": hq_stats["max"],
-                        "latent_hq/hq_mean": hq_stats["mean"],
-                        "latent_hq/hq_std": hq_stats["std"],
-                        "latent_hq/hq_norm": hq_stats["norm"],
-                        "latent_hq/hq_nan_frac": hq_stats["nan_frac"],
-
-                        "latent_lq/lq_min": lq_stats["min"],
-                        "latent_lq/lq_max": lq_stats["max"],
-                        "latent_lq/lq_mean": lq_stats["mean"],
-                        "latent_lq/lq_std": lq_stats["std"],
-                        "latent_lq/lq_norm": lq_stats["norm"],
-                        "latent_lq/lq_nan_frac": lq_stats["nan_frac"],
-                    },
-                    step=global_train_step,
-                )
-
-                
-                
             # compute loss
             transport_output = transport.training_losses_mvrm(model=models['ddp_denoiser'], x1=hq_latent, xcond=lq_latent, cfg=full_cfg)
             loss = transport_output["loss"].mean() 
-            
-            
-            # NAN DEBUG LOSS
-            if rank == 0 and global_train_step % log_interval == 0:
-                wandb_utils.log(
-                    {
-                        "debug/loss_value": loss.detach().item(),
-                        "debug/loss_isfinite": float(torch.isfinite(loss)),
-                    },
-                    step=global_train_step,
-                )
-                
     
     
             raw_loss = loss.detach()
@@ -396,21 +308,6 @@ def main():
             if (global_train_step + 1) % grad_accum_steps == 0:
                 if clip_grad:
                     torch.nn.utils.clip_grad_norm_(models['ddp_denoiser'].parameters(), clip_grad)
-
-
-                # NAN DEBUGGING
-                if rank == 0:
-                    total_norm = torch.norm(
-                        torch.stack([
-                            p.grad.norm()
-                            for p in models['ddp_denoiser'].parameters()
-                            if p.grad is not None
-                        ])
-                    )
-                    wandb_utils.log(
-                        {"train/grad_norm": total_norm.item()},
-                        step=global_train_step,
-                    )
 
 
                 optimizer.step()
@@ -445,115 +342,6 @@ def main():
                     )
                 running_loss = 0.0 
             
-            
-            
-            # training visualization
-            # if rank==0 and (optimizer_step % sample_every == 0) and ((global_train_step + 1) % grad_accum_steps == 0):
-            if rank==0 and (full_cfg.training.sample) and ( (global_train_step % sample_every == 0) or (global_train_step == 1) ) :
-                
-                logger.info(f'Num Validation Samples: {len(val_loader.dataset)}')
-                
-                # val loop
-                for val_step, val_batch in enumerate(val_loader):
-                    
-
-                    # load val batch 
-                    val_frame_id = val_batch['frame_ids']               # b v
-                    val_hq_id = val_batch['hq_ids']                     # len(hq_id) = b, len(hq_id[i]) = v
-                    val_gt_depth = val_batch['gt_depths'].to(device)    # b v 1 378 504
-                    # val_hq_views = val_batch['hq_views'].to(device)     # b v 3 378 504
-                    val_lq_views = val_batch['lq_views'].to(device)     # b v 3 378 504
-
-
-
-                    # apply imagenet normalization
-                    val_b, val_v, val_c, val_h, val_w = val_lq_views.shape 
-                    # val_hq_views = IMAGENET_NORMALIZE(val_hq_views.view(val_b*val_v, val_c, val_h, val_w)).view(val_b, val_v, val_c, val_h, val_w)
-                    val_lq_views = IMAGENET_NORMALIZE(val_lq_views.view(val_b*val_v, val_c, val_h, val_w)).view(val_b, val_v, val_c, val_h, val_w)
-
-
-                    # val - lq view forward pass
-                    with torch.no_grad():
-                        val_lq_encoder_out, val_lq_mvrm_out = models['encoder'](
-                                                            image=val_lq_views, 
-                                                            export_feat_layers=[], 
-                                                            mvrm_cfg=full_cfg.mvrm.train, 
-                                                            mode='train'
-                                                            )
-                    val_lq_encoder_out = processors['encoder_output_processor'](val_lq_encoder_out)
-                    val_lq_pred_depth_np = val_lq_encoder_out.depth                  # b v 378 504
-                    val_lq_pred_depth = torch.from_numpy(val_lq_pred_depth_np).to(device) 
-                    val_lq_latent = val_lq_mvrm_out['extract_feat']      # b v 973 3072
-
-                            
-                            
-                    # lq_latent condition method
-                    val_pure_noise = pure_noise
-                    if full_cfg.mvrm.lq_latent_cond == 'addition':
-                        val_xt = val_pure_noise + val_lq_latent
-                    elif full_cfg.mvrm.lq_latent_cond == 'concat':
-                        val_xt = torch.concat([val_pure_noise, val_lq_latent], dim=1)
-                    
-                    
-                    
-                    models['denoiser'].eval()
-                    torch.cuda.synchronize()
-                    with torch.no_grad():
-                        restored_samples = eval_sampler(val_xt, ema_model_fn, **sample_model_kwargs)[-1]     # b v n d
-                    restored_samples.float()
-
-
-                    mvrm_result={}
-                    mvrm_result['restored_latent'] = restored_samples
-
-
-                    with torch.no_grad():
-                        val_encoder_out, val_mvrm_out = models['encoder'](
-                                                                    image=val_lq_views, 
-                                                                    export_feat_layers=[], 
-                                                                    mvrm_cfg=full_cfg.mvrm.val, 
-                                                                    mvrm_result=mvrm_result,
-                                                                    mode='val'
-                                                                    )
-                    val_encoder_out = processors['encoder_output_processor'](val_encoder_out)
-                    val_pred_depth_np = val_encoder_out.depth                            # b v 378 504
-                    val_pred_depth = torch.from_numpy(val_pred_depth_np).to(device)
-                    
-
-                    # VIS DEPTH 
-                    # gt_depth_np: b v 378 504
-                    # model_input: b v 3 378 504 
-                    # train_lq_pred_depth_np: b*v 378 504
-                    # val_pred_depth_np: b*v 378 504
-                    
-                    
-                    np_model_input = val_lq_views[0,0]   # # 378 504 3  
-                    np_model_input = (np_model_input - np_model_input.min()) / (np_model_input.max() - np_model_input.min()) * 255.0
-                    np_model_input = np_model_input.permute(1,2,0).detach().cpu().numpy()[:,:,::-1]     
-                    np_gt_depth = val_gt_depth[0,0,0].detach().cpu().numpy()    # 378 504
-                    np_lq_depth = val_lq_pred_depth_np[0]                 # 378 504
-                    np_restored_depth = val_pred_depth_np[0]                     # 378 504
-
-                    vis_gt_depth = depth_to_colormap(np_gt_depth)               # 378 504 3
-                    vis_lq_depth = depth_to_colormap(np_lq_depth)         # 378 504 3
-                    vis_restored_depth = depth_to_colormap(np_restored_depth)             # 378 504 3
-                    
-                    vis_err_lq_depth = depth_error_to_colormap_thresholded(np_gt_depth, np_lq_depth, thr=0.1)
-                    vis_err_restored_depth = depth_error_to_colormap_thresholded(np_gt_depth, np_restored_depth, thr=0.1)
-                    
-                    vis_depth_cat = np.concatenate(
-                        [np_model_input, vis_lq_depth, vis_restored_depth, vis_gt_depth, vis_err_lq_depth, vis_err_restored_depth, ],
-                        axis=1
-                    )
-
-                    # Output path
-                    vis_depth_save_dir = f'{experiment_dir}/vis_depth'
-                    os.makedirs(vis_depth_save_dir, exist_ok=True)
-                    cv2.imwrite(f'{vis_depth_save_dir}/{val_hq_id[0][0]}_step{global_train_step:07}.jpg', vis_depth_cat)               
-                    # dist.barrier()
-                logger.info("Validation done.")
-                models['denoiser'].train()
-
 
             # ckpt saving
             # if rank==0 and optimizer_step > 0 and optimizer_step % ckpt_step_interval == 0:

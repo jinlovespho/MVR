@@ -37,8 +37,7 @@ stage_2:
     use_rmsnorm: true
     wo_shift: false
     use_pos_embed: true
-  ckpt:
-
+  ckpt: 
 
 
 transport:
@@ -67,38 +66,48 @@ guidance:
 
 
 misc:
-  latent_size: [1, 973, 1536] # [v, n+1, d]
+  latent_size: [1, 973, 1536] 
   num_classes: 
-  time_dist_shift_dim: 1492992  # 1536*27*36
+  time_dist_shift_dim: 1492992  
   time_dist_shift_base: 4096
 
 
 training:
   global_seed: 42
   precision: fp32
-  epochs: 20
   
-
+  
+  
+  # --------------------------------- JIHYE -----------------------------------------
+  # 아래 내용 수정 주시면 될 것 같습니다
+  # 일단 20 에폭으로 돌려보고, global_batch_size, grad_accum_steps를 조정해보면 될 것 같아요 
+  # global_batch_size가 뭔지 조금 헷갈릴 수 있어서 부연 설명 드리겠습니다
   # 공식: global_batch_size = tot_num_gpu * batch_per_gpu * grad_accum
-  # 만약 8대 gpu에서, gpu당 bs=2, grad_accum=4를 하고 싶으면
-  # 먼저 grad_accum_steps = 4 을 설정하고 
+  # 만약 8대 gpu에서, 한 gpu당 bs=2, grad_accum=4를 하고 싶으면
+  # 먼저 grad_accum_steps = 4 를 먼저 설정하시고, global_batch_size는 아래로 맞춰주시면 됩니다. 
   # global_batch_size = 8(tot_gpu_num) * 2(bs per gpu) * 4(grad_accum) = 64 로 설정하기
+  epochs: 20
+  grad_accum_steps: 4
+  global_batch_size: 64     # 8(gpu8대) * 2(한 gpu bs) * 4(grad_accum)
+  num_workers: 32           # 4 * gpu개수 로 설정해주세요
+  # ---------------------------------------------------------------------------------
 
 
-  global_batch_size: 2
-  grad_accum_steps: 1
   ema_decay: 0.9995
-  num_workers: 4
   shuffle: True
   log_interval: 1
 
 
-  ckpt_step_interval: 20000   # 20k
 
-  sample: True
-  sample_every: 2000  # 2k
+  # --------------------------------- JIHYE -----------------------------------------
+  # ckpt 저장 step을 일단 10k로 설정했습니다
+  ckpt_step_interval: 10000
+  # ---------------------------------------------------------------------------------
   
 
+
+  sample: False
+  sample_every: 2000  
   clip_grad: 1.0
   optimizer:
     lr: 2.0e-4
@@ -114,64 +123,54 @@ training:
 
 
 log:
-  result_root_dir: result_train/stage2/260126
+  # --------------------------------- JIHYE -----------------------------------------
+  # ckpt와 log 저장 directory
+  result_root_dir: result_train/stage2/jihye
+  # ---------------------------------------------------------------------------------
   tracker:
-    name: wandb 
+    name:  
     wandb:
-      key: e32eed0c2509bf898b850b0065ab62345005fb73
-      entity: jinlovespho
-      project: eccv26_mv_restoration
-      msg: "lq-kernel50-fly__global17"
-
+      key: 
+      entity: 
+      project: 
+      msg:
 
 data:
   train:
     image_size: 512 
     num_input_view: 1
     list: [hypersim]
-    # list: [hypersim, tartanair,]
     hypersim:
-      ann_path: /mnt/dataset1/MV_Restoration/hypersim/metadata_images_split_scene_v1.csv
-      hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data
+      # --------------------------------- JIHYE -----------------------------------------
+      # hypersim dataset path 설정
+      ann_path: metadata_images_split_scene_v1.csv                
+      hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data    # hypersim 데이터셋 경로 설정해주세요
+      # ---------------------------------------------------------------------------------
       view_sel_strategy:
-    
     tartanair:
       ann_path: 
-      hq_root_path: /mnt/dataset1/MV_Restoration/tartanair/data
+      hq_root_path: 
       view_sel_strategy:
-
   val:
-    image_size: 512 
-    num_input_view: 1
-    list: [hypersim]
-
+    image_size:  
+    num_input_view: 
+    list:
     hypersim:
-      num_eval_img: 20
-      ann_path: /mnt/dataset1/MV_Restoration/hypersim/metadata_images_split_scene_v1.csv
-      hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data
-      view_sel_strategy:
-    
+      num_eval_img: 
+      ann_path: 
+      hq_root_path: 
+      view_sel_strategy:    
     tartanair:
       num_eval_img: 
       ann_path: 
-      hq_root_path: /mnt/dataset1/MV_Restoration/tartanair/data
+      hq_root_path: 
       view_sel_strategy:
   
 
 mvrm:
-  
-  save_hq_latent: False
-  save_hq_latent_root_path:
-  # save_hq_latent_root_path: /mnt/dataset1/MV_Restoration/hypersim/da3_clean_latent/input_singleview_g17
-
-
-  # input_img: hq               # [hq, lq]
-  input_img: lq               # [hq, lq]
-
-  lq_latent_cond: addition    # [addition, concat]
-
+  input_img: lq               
+  lq_latent_cond: addition    
   train:
-    # DPT Head input feats = [19, 27, 33, 39]
     extract_feat_layers: [17]
     concat_feat: False
   val:

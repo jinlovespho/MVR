@@ -1,6 +1,6 @@
 <div align="center">
 <h1>
-MVR: Multi-View Resetoration</h1>
+UniT: Unified Diffusion Transformer for High-Fidelity Text-Aware Image Restoration</h1>
 
 
 [**Jin Hyeon Kim**](https://github.com/jinlovespho)<sup>1</sup>,&nbsp;&nbsp;
@@ -22,10 +22,10 @@ MVR: Multi-View Resetoration</h1>
 
 
 # 🔈 News 
-- [ ] 🔥Training code coming soon.
-- [x] 📄 **2025.12.10** — Arxiv paper released!
-- [x] ⚔️ **2025.12.10** — Demo inference code released!
-- [x] 🚀 **2025.12.09** — Official launch of the repository and project page!
+- [ ] 🔥 Training code coming soon.
+- [ ] 📄 **2026.xx.xx** — Arxiv paper released!
+- [ ] ⚔️ **2026.xx.xx** — Demo inference code released!
+- [x] 🚀 **2026.01.27** — Shared code to jihye
 
 
 
@@ -59,63 +59,51 @@ conda activate mvr
 **2. Library Installation**
 - Download the following libraries in the order listed below.
 ```bash
+# download torch
+pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cu121
 
-pip install torch==2.5.0 torchvision==0.20.0 torchaudio==2.5.0 --index-url https://download.pytorch.org/whl/cu121
-
-
+# download other libraries
 pip install -r requirements.txt
 
-cd vggt/
-pip install -e .
-
-cd ../Depth-Anything-3/
+# download da3
+cd Depth-Anything-3/
 pip install -e . 
 pip install --no-build-isolation git+https://github.com/nerfstudio-project/gsplat.git@0b4dddf04cb687367602c01196913cde6a743d70
 
 
-
-
-
-pip install numpy==1.26.3 --no-deps
-pip install pyiqa==0.1.14.1 --no-deps 
-cd transformers
-pip install -e .
-cd ../detectron2 
-pip install -e . --no-deps --no-build-isolation --config-settings editable_mode=compat
-cd ../testr 
-pip install -e . --no-deps --no-build-isolation --config-settings editable_mode=compat
-pip install cloudpickle --no-deps
+# # download vggt (이건 나중에 지금 말고)
+# cd vggt/
+# pip install -e .
 ```
 
-**3. Model Pretrained Weights**
 
-Download the respective model weights by running the respective bash files below.
 
-- **Stable Diffusion3 Weights (vae, noise scheduler, tokenizer, etc)**
+
+
+# 🔥 Training 
+
+
+
+### 1. Configure bash file
+First, modify the bash file to set gpu ddp training -> [here](run_scripts/RAE/train/JIHYE_stage2_da3_ddt_g17.sh)
+
+
+
+### 2. Configure yaml file
+Second, modify the yaml file to set up training_data_path, batch_size, saving_dir, etc -> [here](RAE/configs/stage2/training/hypersim/JIHYE_da3_ddt-g17.yaml)
+
+
+
+### 3. Run the following bash file
+Lastly, run the bash file for training
 ```bash
-# Authenticate with your HF access token
-huggingface-cli login   
-# Then run the bash file
-bash download_bash/download_sd3.sh 
-```
-
-- **Text Spotting Module (TSM) Weights**
-```bash
-# Required for training only
-bash download_bash/download_testr.sh 
-```
-
-- **Diffusion Transformer (DiT) Weights**
-```bash
-# Required for training only
-bash download_bash/download_testr.sh 
+bash run_scripts/RAE/train/JIHYE_stage2_da3_ddt_g17.sh
 ```
 
 
 
 
-
-# 🚀 Inference Demo
+<!-- # 🚀 Inference Demo
 ### Demo Script 
 Download the released UniT weight from [google drive](https://drive.google.com/drive/folders/1JJOdEgM-rdu9GYGifG4kFxKF66JMeagR?usp=drive_link), and set the corresponding path in the demo [configuration file](run_configs/val/val_unit_demo.yaml). Then, run the script below to perform text-aware image restoration on low-quality image samples. The results will be saved in result_val/ by default.
 ```bash
@@ -136,7 +124,9 @@ Running the demo inference script will generate the following text restoration r
 </p>
 <p align="center">
   <img src="assets/demo_result/demo4.png" width="800">
-</p>
+</p> -->
+
+
 
 <!-- 
 # 🔥 Training Recipe  
@@ -167,7 +157,7 @@ bash run_scripts/train/JIHYE_train_stage1_dit4sr.sh
 # stage2 training 
 bash run_scripts/train/JIHYE_train_stage2_testr.sh
 ``` -->
-
+<!-- 
 
 ## Citation
 
@@ -181,4 +171,4 @@ bash run_scripts/train/JIHYE_train_stage2_testr.sh
 ```
 
 ## Acknowledgement
-We thank the authors of [DiT4SR](https://github.com/Adam-duan/DiT4SR), [TAIR](https://github.com/cvlab-kaist/TAIR), and [TESTR](https://github.com/mlpc-ucsd/TESTR) for their excellent work and code, which served as the foundation for this project.
+We thank the authors of [DiT4SR](https://github.com/Adam-duan/DiT4SR), [TAIR](https://github.com/cvlab-kaist/TAIR), and [TESTR](https://github.com/mlpc-ucsd/TESTR) for their excellent work and code, which served as the foundation for this project. -->

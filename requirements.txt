@@ -8,6 +8,7 @@ safetensors
 pre-commit
 trimesh
 huggingface_hub
+timm
 imageio
 open3d
 fastapi
@@ -25,6 +26,7 @@ safetensors
 pycolmap
 gdown
 nvitop
+h5py
 
 
 # vggt
