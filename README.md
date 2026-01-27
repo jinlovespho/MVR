@@ -33,14 +33,19 @@ UniT: Unified Diffusion Transformer for High-Fidelity Text-Aware Image Restorati
 **1. Hypersim**
 ```bash 
 # run the bash file to download hypersim at ./data/hypersim
-bash download_bash/data/hypersim/download_hypersim.sh
+
+# download only color hdf5 images
+bash download_bash/download_data/hypersim/download_hypersim_select.sh
+
+# download all data including images, geometry etc
+bash download_bash/download_data/hypersim/download_hypersim.sh
 ```
 
 **2. Tartanair**
 ```bash 
 # run the bash file to download tartanair at ./data/tartanair
 pip install boto3 colorama minio huggingface_hub
-bash download_bash/data/tartanair_tools/download_tartanair.sh
+bash download_bash/download_data/tartanair_tools/download_tartanair.sh
 ```
 
 
