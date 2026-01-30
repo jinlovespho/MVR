@@ -190,6 +190,7 @@ def main():
     global_train_step = 0
     optimizer_step = 0 
     running_loss = 0.0
+
     
     
     # maybe_resume_ckpt_path = find_resume_checkpoint(experiment_dir)
@@ -236,11 +237,13 @@ def main():
 
     dist.barrier() 
     for epoch in range(start_epoch, num_epochs):
-        models['denoiser'].train()
+        models['ddp_denoiser'].train()
         train_sampler.set_epoch(epoch)
         epoch_metrics = defaultdict(lambda: torch.zeros(1, device=device))
         num_batches = 0
         optimizer.zero_grad(set_to_none=True)
+        accum_loss = 0.0
+        accum_count = 0
 
 
         # train loop
@@ -359,46 +362,76 @@ def main():
                 )
 
                 
-                
-            # compute loss
-            transport_output = transport.training_losses_mvrm(model=models['ddp_denoiser'], x1=hq_latent, xcond=lq_latent, cfg=full_cfg)
-            loss = transport_output["loss"].mean() 
+                            
+            # compute loss (per microbatch)
+            transport_output = transport.training_losses_mvrm(
+                model=models['ddp_denoiser'],
+                x1=hq_latent,
+                xcond=lq_latent,
+                cfg=full_cfg
+            )
+
+            loss_raw = transport_output["loss"].mean()
             
             
             # NAN DEBUG LOSS
             if rank == 0 and global_train_step % log_interval == 0:
                 wandb_utils.log(
                     {
-                        "debug/loss_value": loss.detach().item(),
-                        "debug/loss_isfinite": float(torch.isfinite(loss)),
+                        "debug/loss_raw": loss_raw.item(),
+                        "debug/loss_isfinite": float(torch.isfinite(loss_raw)),
                     },
                     step=global_train_step,
                 )
-                
+                            
     
     
-            raw_loss = loss.detach()
-            loss = loss / grad_accum_steps
+            loss_scaled = loss_raw / grad_accum_steps
             # print(f"global step: {global_train_step}, lq_id: {batch['lq_ids']} hq_id: {batch['hq_ids']}")
+            
+            
+            if rank == 0 and global_train_step % log_interval == 0:
+                wandb_utils.log(
+                    {"debug/loss_scaled": loss_scaled.item()},
+                    step=global_train_step,
+                )
                 
 
             
             # compute gradients
             if (global_train_step + 1) % grad_accum_steps != 0:
                 with models['ddp_denoiser'].no_sync():
-                    loss.backward()
+                    loss_scaled.backward()
             else:
-                loss.backward()
+                loss_scaled.backward()
+
+
+            accum_loss += loss_raw.item()
+            accum_count += 1
+
+
+            if (global_train_step + 1) % grad_accum_steps == 0:
+                loss_accum_avg = accum_loss / accum_count  # == mean over grad_accum_steps
+                if rank == 0:
+                    wandb_utils.log(
+                        {
+                            "train/loss_accum_avg": loss_accum_avg,
+                        },
+                        step=global_train_step,
+                    )
+                # reset accumulators
+                accum_loss = 0.0
+                accum_count = 0
 
 
             
             # optimizer update
             if (global_train_step + 1) % grad_accum_steps == 0:
                 if clip_grad:
-                    torch.nn.utils.clip_grad_norm_(models['ddp_denoiser'].parameters(), clip_grad)
+                    torch.nn.utils.clip_grad_norm_(
+                        models['ddp_denoiser'].parameters(), clip_grad
+                    )
 
-
-                # NAN DEBUGGING
                 if rank == 0:
                     total_norm = torch.norm(
                         torch.stack([
@@ -412,44 +445,42 @@ def main():
                         step=global_train_step,
                     )
 
-
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
+
                 if scheduler is not None:
                     scheduler.step()
-                update_ema(models['ema_denoiser'], models['ddp_denoiser'].module, decay=ema_decay)
+
+                update_ema(
+                    models['ema_denoiser'],
+                    models['ddp_denoiser'].module,
+                    decay=ema_decay,
+                )
+
                 optimizer_step += 1
-            global_train_step += 1
             
-            
-                
-            running_loss += raw_loss.item()
-            epoch_metrics['loss'] += raw_loss
-            
-            
-            if rank==0 and log_interval > 0 and global_train_step % log_interval == 0:
-                avg_loss = running_loss / log_interval # flow loss often has large variance so we record avg loss
-                steps = torch.tensor(log_interval, device=device)
+                            
+            running_loss += loss_raw.item()
+            epoch_metrics['loss'] += loss_raw.detach()
+
+
+            if rank == 0 and log_interval > 0 and global_train_step % log_interval == 0:
+                avg_loss = running_loss / log_interval
                 stats = {
-                    "train/loss": avg_loss,
+                    "train/loss_interval_avg": avg_loss,
                     "train/lr": optimizer.param_groups[0]["lr"],
                 }
                 logger.info(
                     f"[Epoch {epoch} | Step {global_train_step}] "
                     + ", ".join(f"{k}: {v:.4f}" for k, v in stats.items())
                 )
-                if full_cfg.log.tracker.name == 'wandb':
-                    wandb_utils.log(
-                        stats,
-                        step=global_train_step,
-                    )
-                running_loss = 0.0 
+                wandb_utils.log(stats, step=global_train_step)
+                running_loss = 0.0
+                        
             
             
-            
-            # training visualization
-            # if rank==0 and (optimizer_step % sample_every == 0) and ((global_train_step + 1) % grad_accum_steps == 0):
-            if rank==0 and (full_cfg.training.sample) and ( (global_train_step % sample_every == 0) or (global_train_step == 1) ) :
+
+            if rank==0 and full_cfg.training.sample and global_train_step % sample_every == 0:
                 
                 logger.info(f'Num Validation Samples: {len(val_loader.dataset)}')
                 
@@ -496,7 +527,7 @@ def main():
                     
                     
                     
-                    models['denoiser'].eval()
+                    models['ddp_denoiser'].eval()
                     torch.cuda.synchronize()
                     with torch.no_grad():
                         restored_samples = eval_sampler(val_xt, ema_model_fn, **sample_model_kwargs)[-1]     # b v n d
@@ -552,7 +583,7 @@ def main():
                     cv2.imwrite(f'{vis_depth_save_dir}/{val_hq_id[0][0]}_step{global_train_step:07}.jpg', vis_depth_cat)               
                     # dist.barrier()
                 logger.info("Validation done.")
-                models['denoiser'].train()
+                models['ddp_denoiser'].train()
 
 
             # ckpt saving
@@ -570,6 +601,7 @@ def main():
                     scheduler,
                 )
             num_batches += 1
+            global_train_step += 1
         
         
         # log epoch stats

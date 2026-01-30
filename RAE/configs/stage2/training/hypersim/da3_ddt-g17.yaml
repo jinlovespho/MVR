@@ -37,7 +37,8 @@ stage_2:
     use_rmsnorm: true
     wo_shift: false
     use_pos_embed: true
-  ckpt: result_train/stage2/260126/hypersim/TRAIN__fp32__hypersim__stage1-da3__stage2-DiTwDDTHeadMVRM__bs-2-accum-1__lr-2e-04__msg-lq-kernel50-fly__global17_ddp/checkpoints/ep-0060000.pt
+  ckpt:
+  # ckpt: result_train/stage2/260126/hypersim/TRAIN__fp32__hypersim__stage1-da3__stage2-DiTwDDTHeadMVRM__bs-2-accum-1__lr-2e-04__msg-lq-kernel50-fly__global17_ddp/checkpoints/ep-0060000.pt
 
 
 
@@ -76,7 +77,7 @@ misc:
 training:
   global_seed: 42
   precision: fp32
-  epochs: 20
+  epochs: 10
   
 
   # 공식: global_batch_size = tot_num_gpu * batch_per_gpu * grad_accum
@@ -85,10 +86,10 @@ training:
   # global_batch_size = 8(tot_gpu_num) * 2(bs per gpu) * 4(grad_accum) = 64 로 설정하기
 
 
-  global_batch_size: 2
-  grad_accum_steps: 1
+  global_batch_size: 64
+  grad_accum_steps: 16
   ema_decay: 0.9995
-  num_workers: 4
+  num_workers: 16
   shuffle: True
   log_interval: 1
 
@@ -106,22 +107,22 @@ training:
     weight_decay: 0.0
   scheduler:
     type: linear
-    warmup_epochs: 10
-    decay_end_epoch: 20
+    warmup_epochs: 5
+    decay_end_epoch: 10
     base_lr: 2e-4
     final_lr: 2e-5
     warmup_from_zero: false
 
 
 log:
-  result_root_dir: result_train/stage2/260127
+  result_root_dir: result_train/stage2/260129
   tracker:
     name: wandb 
     wandb:
       key: e32eed0c2509bf898b850b0065ab62345005fb73
       entity: jinlovespho
       project: eccv26_mv_restoration
-      msg: "lq-kernel50-fly__global17_tmp"
+      msg: "lq-kernel50-fly__global17__re"
 
 
 data:
@@ -146,7 +147,7 @@ data:
     list: [hypersim]
 
     hypersim:
-      num_eval_img: 20
+      num_eval_img: 30
       ann_path: /mnt/dataset1/MV_Restoration/hypersim/metadata_images_split_scene_v1.csv
       hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data
       view_sel_strategy:
