@@ -34,7 +34,12 @@ def DDTModulate(x: torch.Tensor, shift: torch.Tensor, scale: torch.Tensor) -> to
         Tensor of shape (B, L_x, D): x * (1 + scale) + shift, 
         with shift and scale repeated to match L_x if necessary.
     """
-    # breakpoint()
+    
+    if shift.shape[0] != x.shape[0]:
+        repeat_v = x.shape[0] // shift.shape[0]  # = num_view
+        shift = shift.repeat_interleave(repeat_v, dim=0)
+        scale = scale.repeat_interleave(repeat_v, dim=0)    
+
     B, Lx, D = x.shape
     _, L, _ = shift.shape
     if Lx % L != 0:
@@ -60,6 +65,11 @@ def DDTGate(x: torch.Tensor, gate: torch.Tensor) -> torch.Tensor:
         Tensor of shape (B, L_x, D): x * gate, 
         with gate repeated to match L_x if necessary.
     """
+
+    if gate.shape[0] != x.shape[0]:
+        repeat_v = x.shape[0] // gate.shape[0]  # = num_view
+        gate = gate.repeat_interleave(repeat_v, dim=0)
+    
     B, Lx, D = x.shape
     _, L, _ = gate.shape
     if Lx % L != 0:
@@ -148,14 +158,6 @@ class LightningDDTBlock(nn.Module):
 
     def forward(self, x, c, pos=None):
         
-        # encoder: c (d,)
-        # decoder: c (n,d)
-        
-        # print('c shape: ', c.shape)
-        # if len(c.shape) > 2:
-        #     breakpoint()
-        
-        
         if len(c.shape) < len(x.shape): # t
             c = c.unsqueeze(1)  # (B, 1, C)
         if self.wo_shift:   # f
@@ -175,9 +177,7 @@ class LightningDDTBlock(nn.Module):
                     However, for adaptiveLN, while (v-v.mean())/v.std() is the same, every tokens gets a different SC and SH value.
                     this value is learnable. Also the scale and shift equation is computed as x*(1+scale) + shift, instead of x*scale + shift
             '''
-            # c: (b 1 1152)
-            # all shift_xxx, scale_xxx, and gate_xxx have the same shape as (b1 1 1152)
-            shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=-1)
+            shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=-1)        
         x = x + DDTGate(self.attn(DDTModulate(self.norm1(x), shift_msa, scale_msa), pos=pos), gate_msa)
         x = x + DDTGate(self.mlp(DDTModulate(self.norm2(x), shift_mlp, scale_mlp)), gate_mlp)
         return x
@@ -211,7 +211,7 @@ class DDTFinalLayer(nn.Module):
         return x
 
 
-class DiTwDDTHeadMVRM(nn.Module):
+class DiTwDDTHeadMVRM_Multiview(nn.Module):
     def __init__(
             self,
             input_size: int = 1,
@@ -461,12 +461,8 @@ class DiTwDDTHeadMVRM(nn.Module):
         return pos, pos_nodiff
 
 
-    def process_attention(self, x, c, block, attn_type="global", pos=None):
+    def process_attention_encoder(self, x, c, block, attn_type="global", pos=None):
         
-        # PHO DEBUG
-        # if pos is not None:
-        #     breakpoint()
-            
         b, s, n, _ = x.shape
         if attn_type == "local":
             x = rearrange(x, "b s n c -> (b s) n c")
@@ -474,6 +470,43 @@ class DiTwDDTHeadMVRM(nn.Module):
                 pos = rearrange(pos, "b s n c -> (b s) n c")
         elif attn_type == "global":
             x = rearrange(x, "b s n c -> b (s n) c")
+            if pos is not None:
+                pos = rearrange(pos, "b s n c -> b (s n) c")
+        else:
+            raise ValueError(f"Invalid attention type: {attn_type}")
+
+
+        # x = block(x, c, pos=pos)
+        # ✅ gradient checkpointing here
+        def block_forward(x, c, pos):
+            return block(x, c, pos=pos)
+
+        if self.training:
+            x = checkpoint(block_forward, x, c, pos)
+        else:
+            x = block(x, c, pos=pos)
+            
+        # x = checkpoint(block_forward, x, c, pos)
+
+
+        if attn_type == "local":
+            x = rearrange(x, "(b s) n c -> b s n c", b=b, s=s)
+        elif attn_type == "global":
+            x = rearrange(x, "b (s n) c -> b s n c", b=b, s=s)
+        return x
+
+
+    def process_attention_decoder(self, x, c, block, attn_type="global", pos=None):
+        
+        b, s, n, _ = x.shape
+        if attn_type == "local":
+            x = rearrange(x, "b s n c -> (b s) n c")
+            c = rearrange(c, "b s n c -> (b s) n c")
+            if pos is not None:
+                pos = rearrange(pos, "b s n c -> (b s) n c")
+        elif attn_type == "global":
+            x = rearrange(x, "b s n c -> b (s n) c")
+            c = rearrange(c, "b s n c -> b (s n) c")
             if pos is not None:
                 pos = rearrange(pos, "b s n c -> b (s n) c")
         else:
@@ -517,7 +550,7 @@ class DiTwDDTHeadMVRM(nn.Module):
         b, v, n, d = patch_tkns.shape
         x = rearrange(patch_tkns, 'b v (num_pH num_pW) d -> (b v) d num_pH num_pW', b=b, v=v, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
         
-        
+
         # time condition
         t = self.t_embedder(t)          # b*v d        
         c = nn.functional.silu(t)       # b*v d
@@ -531,8 +564,6 @@ class DiTwDDTHeadMVRM(nn.Module):
         s = self.s_embedder(x)  # b*v 1536 27 36 -> b*v 972 1536
         
         
-        
-
         # # prepare encoder cls tkn
         # enc_cls_tkn = self.enc_cls_tkn.expand(b, v, -1)                         # b v d
         # enc_cls_tkn = enc_cls_tkn.reshape(b*v, -1, self.encoder_hidden_size)    # b*v 1 d 
@@ -560,16 +591,23 @@ class DiTwDDTHeadMVRM(nn.Module):
         # ddt encoder forward apss     
         for i in range(self.num_encoder_blocks):    # len: 28
             # s = self.blocks[i](s, c, feat_rope=self.enc_feat_rope)
-            s = self.process_attention(s, c, self.blocks[i], 'local', pos=l_pos)    # b v n+1 d
+            if i % 2 == 0:
+                # print(f'encoder - {i} local attn')
+                s = self.process_attention_encoder(s, c, self.blocks[i], 'local', pos=l_pos)    # b v n+1 d
+            else:
+                # print(f'encoder - {i} global attn')
+                s = self.process_attention_encoder(s, c, self.blocks[i], 'global', pos=g_pos)    # b v n+1 d
 
-
+        
         # reshape to (b*v n d)
-        s = rearrange(s, 'b v n d -> (b v) n d')    # b*v 973 1536
+        s = rearrange(s, 'b v n d -> (b v) n d')    # 16 973 1536
 
 
-        # broadcast t to s
-        t = t.unsqueeze(1).repeat(1, s.shape[1], 1) # b 973 1536
-        s = nn.functional.silu(t + s)
+        # expand t across views
+        t = t.repeat_interleave(s.shape[0]//t.shape[0], dim=0)   # (b*v, d)
+        # expand across tokens
+        t = t.unsqueeze(1).expand(-1, s.shape[1], -1)   # 16 973 1536
+        s = nn.functional.silu(t + s)                   # 16 973 1536
             
         
         # expand encoder output dimension to decoder dimension
@@ -599,24 +637,32 @@ class DiTwDDTHeadMVRM(nn.Module):
             
         
         # reshape to (b v n d)
-        x = rearrange(x, '(b v) n d -> b v n d', b=b, v=v)
+        x = rearrange(x, '(b v) n d -> b v n d', b=b, v=v)  # 4 4 973 3072
+        s = rearrange(s, '(b v) n d -> b v n d', b=b, v=v)  # 4 4 973 3072
         
-        
+
+
         # ddt decoder forward pass
         for i in range(self.num_encoder_blocks, self.num_blocks):   # len: 2
-            x = self.process_attention(x, s, self.blocks[i], 'local', pos=l_pos)
             # x = self.blocks[i](x, s, feat_rope=self.dec_feat_rope)
-
+            if i % 2 == 0:
+                # print(f'decoder - {i} local attn')
+                x = self.process_attention_decoder(x, s, self.blocks[i], 'local', pos=l_pos)
+            else:
+                # print(f'decoder - {i} global attn')
+                x = self.process_attention_decoder(x, s, self.blocks[i], 'global', pos=g_pos)
+            
 
         # reshape to (b*v n d)
         x = rearrange(x, 'b v n d -> (b v) n d')
+        s = rearrange(s, 'b v n d -> (b v) n d')
         
         
         x = self.final_layer(x, s)  # last adaLN and restore to original dim: 2048 -> 768
 
 
         x = rearrange(x, '(b v) n d -> b v n d', b=b, v=v)
-        
+
         
         return x
 

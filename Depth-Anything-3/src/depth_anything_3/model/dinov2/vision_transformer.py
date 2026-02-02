@@ -354,7 +354,6 @@ class DinoVisionTransformer(nn.Module):
                 local_x = x                                             # b v 972+1 1536
             
             
-            
             # MVRM output
             if kwargs['mode'] == 'train':
                 mvrm_train_cfg = kwargs['mvrm_cfg']
@@ -378,7 +377,6 @@ class DinoVisionTransformer(nn.Module):
                         local_x = restored_latent[..., :1536]
                     else:
                         x = restored_latent
-
 
 
             # collect feat layers for DPT Head
@@ -413,6 +411,7 @@ class DinoVisionTransformer(nn.Module):
         else:
             raise ValueError(f"Invalid attention type: {attn_type}")
 
+        # breakpoint()
         x = block(x, pos=pos, attn_mask=attn_mask)
 
         if attn_type == "local":

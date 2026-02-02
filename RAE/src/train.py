@@ -254,7 +254,6 @@ def main():
             
             print(train_hq_views.shape)
 
-
             # apply imagenet normalization
             b, v, c, h, w = train_hq_views.shape 
             train_hq_views = IMAGENET_NORMALIZE(train_hq_views.view(b*v, c, h, w)).view(b, v, c, h, w)
@@ -296,7 +295,7 @@ def main():
             # save_image(train_hq_pred_depth.view(-1,1,h,w), 'img_depth_hq.jpg')
             # save_image(train_lq_pred_depth.view(-1,1,h,w), 'img_depth_lq.jpg')
             
-           
+
             # compute loss (per microbatch)
             transport_output = transport.training_losses_mvrm(
                 model=models['ddp_denoiser'],
@@ -305,7 +304,7 @@ def main():
                 model_img_size=(h,w),
                 cfg=full_cfg
             )
-
+            
             loss_raw = transport_output["loss"].mean()
             
             
