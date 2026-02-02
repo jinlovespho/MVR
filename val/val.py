@@ -11,7 +11,15 @@ import numpy as np
 import torch 
 import torch.nn.functional as F 
 
-from test_utils import load_depth, align_scale_median, compute_depth_metrics, depth_to_colormap, depth_error_to_colormap, fmt, fmt_int, write_scene_header
+
+
+import val_initialize
+import val_utils 
+
+
+
+
+# from test_utils import load_depth, align_scale_median, compute_depth_metrics, depth_to_colormap, depth_error_to_colormap, fmt, fmt_int, write_scene_header
 
 
 def main(cfg):
@@ -20,19 +28,136 @@ def main(cfg):
     # set cuda
     device = "cuda" if torch.cuda.is_available() else "cpu"
     dtype = (torch.bfloat16 if torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8 else torch.float16)
+
+
+
+
+    
+    # -------------------------------------
+    #           load val data
+    # -------------------------------------
+    val_datasets = val_initialize.load_data(cfg)
+
+
+
+    # -------------------------------------
+    #           load models 
+    # -------------------------------------
+    val_models = val_initialize.load_model(cfg, device, dtype)
     
     
-    # load 3D Feed Forward (3DFF) model 
-    if cfg.model.val.mv_3dff.model == 'vggt':
-        from vggt.models.vggt import VGGT
-        from vggt.utils.load_fn import load_and_preprocess_images
-        model = VGGT.from_pretrained("facebook/VGGT-1B").to(device)
-        model.eval()
-        
-    elif cfg.model.val.mv_3dff.model == 'da3':
-        from depth_anything_3.api import DepthAnything3
-        model = DepthAnything3.from_pretrained("depth-anything/DA3-GIANT-1.1").to(device)
-        model.eval()
+    
+    # -------------------------------------
+    #           print val info
+    # -------------------------------------
+    print('-'*50)
+    print('Val models loaded: ', val_models.keys())
+    print('Val datasets loaded: ', val_datasets.keys())
+    print('-'*50)
+    
+    
+
+
+    # -----------------------
+    #       Metrics
+    # -----------------------
+    metrics={}
+
+
+
+    # ------------------------------------------
+    #        validation loop (per dataset)
+    # ------------------------------------------
+    for val_data_name, val_data in val_datasets.items():
+
+
+        # -------------------------------------------------------------------------
+        # Initialize metric for full-image and cropped-image evaluation
+        # -------------------------------------------------------------------------
+
+        # ===== Full image metrics =====
+        metrics[f'{val_data_name}_full_psnr'] = []
+        metrics[f'{val_data_name}_full_ssim'] = []
+        metrics[f'{val_data_name}_full_lpips'] = []
+        metrics[f'{val_data_name}_full_dists'] = []
+        metrics[f'{val_data_name}_full_niqe'] = []
+        metrics[f'{val_data_name}_full_musiq'] = []
+        metrics[f'{val_data_name}_full_maniqa'] = []
+        metrics[f'{val_data_name}_full_clipiqa'] = []
+
+        # Min–max normalized (full)
+        metrics[f'{val_data_name}_full_norm_psnr'] = []
+        metrics[f'{val_data_name}_full_norm_ssim'] = []
+        metrics[f'{val_data_name}_full_norm_lpips'] = []
+        metrics[f'{val_data_name}_full_norm_dists'] = []
+        metrics[f'{val_data_name}_full_norm_niqe'] = []
+        metrics[f'{val_data_name}_full_norm_musiq'] = []
+        metrics[f'{val_data_name}_full_norm_maniqa'] = []
+        metrics[f'{val_data_name}_full_norm_clipiqa'] = []
+
+
+
+        # ------------------------------------------
+        #        validation loop (per sample)
+        # ------------------------------------------
+        for val_sample_idx, val_sample in enumerate(val_data):
+            
+            print(f'{val_data_name} - {val_sample_idx+1}/{len(val_data)}') 
+            
+            if val_data_name == 'hypersim':
+                pass 
+            elif val_data_name == 'tartanair':
+                pass
+            elif val_data_name == 'eth3d':
+                lq = val_sample['lq_path']
+                hq = val_sample['hq_path']
+                depth = val_sample['depth_path']
+            
+            
+            
+            if cfg.val.model == 'da3':
+                pred_da3 = val_models['da3'].inference(imgs_path)
+                pred_depth = torch.from_numpy(pred_da3.depth).to(device)                 # (F, 336 504)
+
+            
+            # set seed 
+            generator = None
+            if accelerator.is_main_process and cfg.init.seed is not None:
+                generator = torch.Generator(device=accelerator.device)
+                generator.manual_seed(cfg.init.seed)
+
+
+            # load val anns
+            val_lq_path = val_sample['lq_path']
+            val_hq_path = val_sample['hq_path']
+            val_gt_text = val_sample['text']
+            val_bbox = val_sample['bbox']       # xyxy
+            val_polys = val_sample['poly']
+            val_img_id = val_sample['img_id']
+            val_vlm_cap = val_sample['vlm_cap']
+            
+            
+            # process hq image 
+            val_hq_pil = Image.open(val_hq_path).convert("RGB") 
+            
+            
+            # process lq image 
+            val_lq_pil = Image.open(val_lq_path).convert("RGB") # 128 128 
+            ori_width, ori_height = val_lq_pil.size
+            rscale = 4  # upscale x4
+            # for shortest side smaller than 128, resize
+            if ori_width < 512//rscale or ori_height < 512//rscale:
+                scale = (512//rscale)/min(ori_width, ori_height)
+                tmp_image = val_lq_pil.resize((int(scale*ori_width), int(scale*ori_height)),Image.BICUBIC)
+                val_lq_pil = tmp_image
+            val_lq_pil = val_lq_pil.resize((val_lq_pil.size[0]*rscale, val_lq_pil.size[1]*rscale), Image.BICUBIC)
+            val_lq_pil = val_lq_pil.resize((val_lq_pil.size[0]//8*8, val_lq_pil.size[1]//8*8), Image.BICUBIC)
+            
+
+
+
+
+
 
     
     # loop through eval data paths
@@ -224,7 +349,7 @@ def main(cfg):
     print('Finish !')
     
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="mvr_val_eth3d")
+    parser = argparse.ArgumentParser(description="mvr_val")
     parser.add_argument("--config", type=str, required=True)
     args = parser.parse_args()
     cfg = OmegaConf.load(args.config)

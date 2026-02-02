@@ -10,12 +10,15 @@ class PhoConcatDataset(Dataset):
     Routes (idx, image_num, aspect_ratio) to the correct sub-dataset.
     """
 
-    def __init__(self, datasets, cfg):
+    def __init__(self, datasets, cfg, mode='train'):
 
         self.datasets = datasets
         self.cumulative_sizes = self._compute_cumulative_sizes()
         
-        self.num_input_view = cfg.data.train.num_input_view 
+        if mode == 'train':
+            self.num_input_view = cfg.data.train.num_input_view 
+        elif mode == 'val':
+            self.num_input_view = cfg.data.val.num_input_view 
 
     def _compute_cumulative_sizes(self):
         sizes = []
@@ -169,19 +172,6 @@ def multiview_collate_fn(batch):
         outputs['hq_views'] = hq_views
         outputs['hq_ids'] = hq_ids
 
-
-    # ------------------------
-    # HQ latents
-    # ------------------------
-    if 'hq_latent_views' in batch[0].keys():
-        hq_latent_views = []
-        for b in batch:
-            # each element already torch.Tensor (972, 3072)
-            v_latents = [latent for latent in b["hq_latent_views"]]
-            hq_latent_views.append(torch.stack(v_latents, dim=0))  # (V,972,3072)
-        hq_latent_views = torch.stack(hq_latent_views, dim=0)      # (B,V,972,3072)
-        outputs['hq_latent_views'] = hq_latent_views
-        outputs['hq_latent_ids'] = hq_latent_ids
 
     # ------------------------
     # LQ images

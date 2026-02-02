@@ -38,20 +38,81 @@ def save_checkpoint(
     torch.save(state, path)
 
 
+# def load_checkpoint(
+#     path: str,
+#     model: DDP,
+#     ema_denoiser: torch.nn.Module,
+#     optimizer: torch.optim.Optimizer,
+#     scheduler=None,
+# ):
+#     checkpoint = torch.load(path, map_location="cpu")
+#     model.module.load_state_dict(checkpoint["model"], strict=False)
+#     ema_denoiser.load_state_dict(checkpoint["ema"], strict=False)
+#     optimizer.load_state_dict(checkpoint["optimizer"])
+#     if scheduler is not None and checkpoint.get("scheduler") is not None:
+#         scheduler.load_state_dict(checkpoint["scheduler"])
+#     return checkpoint.get("epoch", 0), checkpoint.get("step", 0)
+
+
 def load_checkpoint(
     path: str,
     model: DDP,
     ema_denoiser: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
     scheduler=None,
+    verbose: bool = True,
 ):
     checkpoint = torch.load(path, map_location="cpu")
-    model.module.load_state_dict(checkpoint["model"])
-    ema_denoiser.load_state_dict(checkpoint["ema"])
+
+    # --- load states ---
+    model_missing, model_unexpected = model.module.load_state_dict(
+        checkpoint["model"], strict=False
+    )
+    ema_missing, ema_unexpected = ema_denoiser.load_state_dict(
+        checkpoint["ema"], strict=False
+    )
     optimizer.load_state_dict(checkpoint["optimizer"])
+
     if scheduler is not None and checkpoint.get("scheduler") is not None:
         scheduler.load_state_dict(checkpoint["scheduler"])
-    return checkpoint.get("epoch", 0), checkpoint.get("step", 0)
+
+    epoch = checkpoint.get("epoch", 0)
+    step = checkpoint.get("step", 0)
+
+    # --- neat logging ---
+    if verbose:
+        print("=" * 60)
+        print(f"  Loaded checkpoint: {path}")
+        print("-" * 60)
+        print(f"  Epoch: {epoch}")
+        print(f"  Step : {step}")
+        print()
+
+        def _print_keys(title, missing, unexpected):
+            print(f"🔹 {title}")
+            if not missing and not unexpected:
+                print("   ✓ All parameters matched\n")
+                return
+
+            if missing:
+                print(f"   ⚠ Missing keys ({len(missing)}):")
+                for k in missing:
+                    print(f"     - {k}")
+            if unexpected:
+                print(f"   ⚠ Unexpected keys ({len(unexpected)}):")
+                for k in unexpected:
+                    print(f"     - {k}")
+            print()
+
+        _print_keys("Model", model_missing, model_unexpected)
+        _print_keys("EMA Model", ema_missing, ema_unexpected)
+
+        print("🔹 Optimizer state: loaded ✓")
+        if scheduler is not None and checkpoint.get("scheduler") is not None:
+            print("🔹 Scheduler state: loaded ✓")
+        print("=" * 60)
+
+    return epoch, step
 
 
 
@@ -105,7 +166,7 @@ def load_train_data(
             from mvr.dataset.pho_tartanair import PhoTartanAir
             tartanair_ds = PhoTartanAir(cfg.data.train.tartanair, mode='train')
             datasets.append(tartanair_ds)
-        train_ds = PhoConcatDataset(datasets, cfg)
+        train_ds = PhoConcatDataset(datasets, cfg, mode='train')
         train_sampler = PhoSampler(train_ds, shuffle=cfg.training.shuffle)
         train_batchsampler = PhoBatchSampler(sampler=train_sampler, batch_size=batch_size)
         train_loader = DataLoader(train_ds, batch_sampler=train_batchsampler, num_workers=cfg.training.num_workers, pin_memory=True, drop_last=False, collate_fn=multiview_collate_fn)
@@ -128,7 +189,12 @@ def load_val_data(
         from mvr.dataset.pho_tartanair import PhoTartanAir
         tartanair_ds = PhoTartanAir(cfg.data.val.tartanair, mode='val')
         datasets.append(tartanair_ds)
-    val_ds = PhoConcatDataset(datasets, cfg)
+    if 'eth3d' in cfg.data.val.list:
+        from mvr.dataset.pho_eth3d import PhoETH3D 
+        eth3d_ds = PhoETH3D(cfg.data.val.eth3d, mode='val')
+        datasets.append(eth3d_ds)
+        
+    val_ds = PhoConcatDataset(datasets, cfg, mode='val')
     val_sampler = PhoSampler(val_ds, shuffle=False)
     val_batchsampler = PhoBatchSampler(sampler=val_sampler, batch_size=batch_size)
     val_loader = DataLoader(val_ds, batch_sampler=val_batchsampler, num_workers=cfg.training.num_workers, pin_memory=True, drop_last=False, collate_fn=multiview_collate_fn)

@@ -1,0 +1,59 @@
+
+
+val:
+  model: 
+    3dff:
+      model_name: da3 
+      
+      da3:
+        ckpt: depth-anything/DA3-GIANT-1.1
+      
+      vggt:
+        ckpt: 
+
+    denoiser: 
+      model_name: sv_da3_ddt_g17 
+      
+      
+
+
+  ff_3d_model:
+  
+
+
+  data_list: [eth3d, ]
+
+
+  hypersim:
+    ann_path: metadata_images_split_scene_v1.csv
+    lq_root_path:
+    hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data
+
+
+  tartanair:
+    ann_path:
+    lq_root_path:
+    hq_root_path:
+
+
+  eth3d:
+    ann_path: 
+    lq_root_path: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/eth3d/deg_blur/kernel800_intensity01
+    hq_root_path: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/eth3d/clean
+    gt_depth_root_path: /mnt/dataset1/MV_Restoration/eth3d/eth3d_jisang_train/depth
+
+
+  co3d:
+    ann_path:
+    lq_root_path:
+    hq_root_path:
+
+
+  scannetpp:
+    ann_path:
+    lq_root_path:
+    hq_root_path:
+  
+
+
+  

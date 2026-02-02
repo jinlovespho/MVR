@@ -230,6 +230,7 @@ class DiTwDDTHeadMVRM(nn.Module):
         self.vit_patch_size=14  # for giant
         
         
+        # self.input_size = input_size 
         
         
         self.in_channels = in_channels      # 768
@@ -254,28 +255,34 @@ class DiTwDDTHeadMVRM(nn.Module):
         self.x_patch_size = patch_size[1]
         
         self.s_channel_per_token = in_channels * self.s_patch_size * self.s_patch_size   # 768
-        s_input_size = input_size           # 32
+        # s_input_size = input_size           # 32
         s_patch_size = self.s_patch_size    # 1
         
-        x_input_size = input_size           # 32
+        # x_input_size = input_size           # 32
         x_patch_size = self.x_patch_size    # 1
         self.x_channel_per_token = in_channels * self.x_patch_size * self.x_patch_size   # 768
 
         self.s_projector = nn.Linear(self.encoder_hidden_size, self.decoder_hidden_size) if self.encoder_hidden_size != self.decoder_hidden_size else nn.Identity()
         self.s_embedder = PatchEmbed(
-            img_size=s_input_size, 
+            # img_size=s_input_size, 
+            img_size=None,
             patch_size=s_patch_size, 
             in_chans=self.s_channel_per_token, 
             embed_dim=self.encoder_hidden_size, 
-            bias=True
+            bias=True,
+            strict_img_size=False,          
+            dynamic_img_pad=True,            
             )
         
         self.x_embedder = PatchEmbed(
-            img_size=x_input_size, 
+            # img_size=x_input_size, 
+            img_size=None,
             patch_size=x_patch_size, 
             in_chans=self.x_channel_per_token, 
             embed_dim=self.decoder_hidden_size, 
-            bias=True
+            bias=True,
+            strict_img_size=False,          
+            dynamic_img_pad=True,    
             )
         
         self.t_embedder = GaussianFourierEmbedding(self.encoder_hidden_size)
@@ -284,6 +291,9 @@ class DiTwDDTHeadMVRM(nn.Module):
         
         self.final_layer = DDTFinalLayer(self.decoder_hidden_size, 1, self.x_channel_per_token, use_rmsnorm=use_rmsnorm)
         # Will use fixed sin-cos embedding:
+        
+        
+        use_pos_embed = False
         if use_pos_embed:   # t
             num_patches = self.s_embedder.num_patches
             self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + self.num_cls_tkn, self.encoder_hidden_size), requires_grad=False)
@@ -468,18 +478,15 @@ class DiTwDDTHeadMVRM(nn.Module):
         return x
 
 
-    def forward(self, x, t, y=None, s=None, mask=None):
+    def forward(self, x, t, model_img_size):
         
         
-        # hypersim 
-        orig_H, orig_W = 768, 1024 
-        model_H, model_W = 378, 504
+        # print('PRINT!!!', model_img_size)
+        model_H, model_W = model_img_size
         pH = pW = 14 
-        num_pH = model_H//pH    # 27
-        num_pW = model_W//pW    # 36
+        num_pH = model_H//pH    
+        num_pW = model_W//pW    
         
-
-
         
         cls_tkn = x[:,:,0:1]        # b v 1 d
         patch_tkns = x[:,:,1:]      # b v n d

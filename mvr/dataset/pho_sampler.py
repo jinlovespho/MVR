@@ -22,9 +22,6 @@ class PhoBatchSampler(Sampler):
         self.rng.seed(epoch * 100)
 
     def __iter__(self):
-        
-        image_num=10
-        aspect_ratio=1.0
 
         # self.sampler.update_parameters(image_num=image_num, aspect_ratio=aspect_ratio)
         sampler_iter = iter(self.sampler)

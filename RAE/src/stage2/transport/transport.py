@@ -224,6 +224,7 @@ class Transport:
         model,  
         x1, 
         xcond,
+        model_img_size,
         cfg
     ):
         """Loss for training the score model
@@ -233,9 +234,11 @@ class Transport:
         - model_kwargs: additional arguments for the model
         """
         
+        
         assert x1.shape == xcond.shape 
         
         b, v, n, d = x1.shape    # b v n+1 d
+        
         
         # x1 = x1.view(b*v, c, h, w)
         # xcond = xcond.view(b*v, c, h, w)
@@ -271,8 +274,9 @@ class Transport:
         elif cfg.mvrm.lq_latent_cond == 'concat':
             xt = torch.concat([xt, xcond], dim=2)   # channel concat
 
+
         # mvrm forward pass 
-        model_output = model(xt, t)                 # b v 3072 27 36
+        model_output = model(xt, t, model_img_size)                 # b v 3072 27 36
         assert model_output.shape == xt.shape 
 
 

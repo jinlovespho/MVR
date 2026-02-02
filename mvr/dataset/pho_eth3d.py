@@ -1,41 +1,56 @@
 import os 
+import csv 
 import glob
+import h5py
 import cv2 
-import numpy as np
+import numpy as np 
+import torch 
+import random 
+from PIL import Image
 from torch.utils.data import Dataset 
+
 from depth_anything_3.utils.io.input_processor import InputProcessor
+
 from motionblur.motionblur import Kernel 
 
 
-
-
-class PhoTartanAir(Dataset):
+class PhoETH3D(Dataset):
     def __init__(self, data_cfg, mode='train'):
         
         self.data_cfg = data_cfg 
         self.mode = mode 
         
+        
         self.data = {}
         
+            
+        ann_path = data_cfg.ann_path
+        lq_root_path = data_cfg.lq_root_path
+        hq_root_path = data_cfg.hq_root_path
+        gt_depth_root_path = data_cfg.gt_depth_root_path
+            
+            
         # load data paths 
-        hq_paths = sorted(glob.glob(f'{data_cfg.hq_root_path}/*/Easy/*/image_left/*.png'))
-        depth_paths = sorted(glob.glob(f'{data_cfg.hq_root_path}/*/Easy/*/depth_left/*.npy'))
+        lq_paths = sorted(glob.glob(f'{lq_root_path}/image/*/*.png'))[:data_cfg.num_eval_img]
+        hq_paths = sorted(glob.glob(f'{hq_root_path}/*/images/dslr_images/*.JPG'))[:data_cfg.num_eval_img]
+        depth_paths = sorted(glob.glob(f'{gt_depth_root_path}/*/*/*/*/*.JPG'))[:data_cfg.num_eval_img]
         
         
-        # safety check 
-        assert len(hq_paths) == len(depth_paths)
+        # safety check
+        assert len(lq_paths) == len(hq_paths) == len(depth_paths)
+        assert len(lq_paths) != 0 
         assert len(hq_paths) != 0
         assert len(depth_paths) != 0
-        
+            
         
         self.data['hq_img'] = hq_paths 
+        self.data['lq_img'] = lq_paths 
         self.data['gt_depth'] = depth_paths 
         
 
         self.view_sel_strategy = data_cfg.view_sel_strategy 
         self.input_processor = InputProcessor()
-
-
+        
     
     def get_nearby_ids(
         self,
@@ -129,38 +144,30 @@ class PhoTartanAir(Dataset):
             scale = process_res / float(longest)
             new_w = int(round(w * scale))
             new_h = int(round(h * scale))
-            depth = cv2.resize(depth, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
+            depth = cv2.resize(depth, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
 
         h, w = depth.shape
 
-        # def nearest_multiple(x, p):
-        #     return int(round(x / p)) * p
         def nearest_multiple(x, p):
-            return (x // p) * p
+            return int(round(x / p)) * p
 
         new_w = max(1, nearest_multiple(w, patch_size))
         new_h = max(1, nearest_multiple(h, patch_size))
 
         if new_w != w or new_h != h:
-            depth = cv2.resize(depth, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
+            depth = cv2.resize(depth, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
 
         return depth
 
             
     def load_depth(self, depth_path):
-        depth = np.load(depth_path)
-        # depth[np.isinf(depth)] = np.nan
-        # depth[depth > 1000] = np.nan
+        # eth3d all image sizes
+        H, W = 4032, 6048
+        depth = np.fromfile(depth_path, dtype=np.float32)
+        assert depth.size == H * W, f"Size mismatch: {depth_path}"
+        depth = depth.reshape(H, W)
+        depth[np.isinf(depth)] = np.nan
         return depth
-    
-
-
-    def depth2vis(self, depth, maxthresh = 50):
-        depthvis = np.clip(depth,0,maxthresh)
-        depthvis = depthvis/maxthresh*255
-        depthvis = depthvis.astype(np.uint8)
-        depthvis = np.tile(depthvis.reshape(depthvis.shape+(1,)), (1,1,3))
-        return depthvis
 
 
     def __getitem__(self, items):
@@ -177,39 +184,29 @@ class PhoTartanAir(Dataset):
         hq_view_id=[] 
         hq_view_list=[]
         if 'hq_img' in self.data.keys():
-            views = sorted([self.data['hq_img'][i] for i in frame_ids])
+            views = [self.data['hq_img'][i] for i in frame_ids]
             for view in views:
-                scene_id = view.split('/')[-5]
+                scene_id = view.split('/')[-4]
                 view_id = view.split('/')[-1].split('.')[0]
-                hq_view_id.append(f'tartanair_{scene_id}_{view_id}')
+                hq_view_id.append(f'eth3d_{scene_id}_{view_id}')
                 hq_view_list.append(self.resize(self.convert_imgpath(view)))
             outputs['hq_ids'] = hq_view_id
             outputs['hq_views'] = hq_view_list
 
 
-
-
-
-        # ----------------------------------
-        #       get lq on the fly
-        # ----------------------------------
-        lq_view_id=[]
+        # ----------------------
+        #       process lq
+        # ----------------------
+        lq_view_id=[] 
         lq_view_list=[]
-        
-        if self.mode == 'train':
-            views = sorted([self.data['hq_img'][i] for i in frame_ids])
+        if 'lq_img' in self.data.keys():
+            views = [self.data['lq_img'][i] for i in frame_ids]
             for view in views:
-                scene_id = view.split('/')[-5]
+                scene_id = view.split('/')[-2]
                 view_id = view.split('/')[-1].split('.')[0]
-                lq_view_id.append(f'tartanair_{scene_id}_{view_id}')
-                img_pil = self.convert_imgpath(view)
-                KERNEL_SIZE=50
-                BLUR_INTENSITY=0.1
-                kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
-                blurred = kernel.applyTo(img_pil, keep_image_dim=True)
-                blurred = np.array(blurred)
-                lq_view_list.append(self.resize(blurred))
-            outputs['lq_ids'] = lq_view_id 
+                lq_view_id.append(f'eth3d_{scene_id}_{view_id}')
+                lq_view_list.append(self.resize(self.convert_imgpath(view)))
+            outputs['lq_ids'] = lq_view_id
             outputs['lq_views'] = lq_view_list
 
 
@@ -219,19 +216,15 @@ class PhoTartanAir(Dataset):
         # -------------------------
         depth_view_id=[]
         depth_view_list=[]
-        # depth_vis_view_list=[]
         if 'gt_depth' in self.data.keys():
-            views = sorted([self.data['gt_depth'][i] for i in frame_ids])
+            views = [self.data['gt_depth'][i] for i in frame_ids]
             for view in views:
-                scene_id = view.split('/')[-5]
+                scene_id = view.split('/')[-4]
                 view_id = view.split('/')[-1].split('.')[0]
-                depth_view_id.append(f'tartanair_{scene_id}_{view_id}')
-                depth = self.resize_depth(self.load_depth(view))
-                depth_view_list.append(depth)
-                # depth_vis_view_list.append(self.depth2vis(depth))
+                depth_view_id.append(f'eth3d_{scene_id}_{view_id}')
+                depth_view_list.append(self.resize_depth(self.load_depth(view)))
             outputs['gt_depth_ids'] = depth_view_id
             outputs['gt_depths'] = depth_view_list
-            
             
 
         return outputs

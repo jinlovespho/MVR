@@ -19,6 +19,7 @@ class PhoHypersim(Dataset):
         
         self.data_cfg = data_cfg 
         self.mode = mode 
+        
         self.data = {}
         
         
@@ -281,8 +282,8 @@ class PhoHypersim(Dataset):
                 hq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
                 hq_view_list.append(self.resize(self.convert_hdf5_img(hq_view)))
                 # hq_view_list.append({f'hypersim_{volume}_{scene}_{camera}_{view_id}': self.convert_hdf5(hq_view)})
-                outputs['hq_ids'] = hq_view_id
-                outputs['hq_views'] = hq_view_list
+            outputs['hq_ids'] = hq_view_id
+            outputs['hq_views'] = hq_view_list
 
 
         
@@ -350,8 +351,8 @@ class PhoHypersim(Dataset):
                 blurred = kernel.applyTo(img_pil, keep_image_dim=True)
                 blurred = np.array(blurred)
                 lq_view_list.append(self.resize(blurred))
-                outputs['lq_ids'] = lq_view_id 
-                outputs['lq_views'] = lq_view_list
+            outputs['lq_ids'] = lq_view_id 
+            outputs['lq_views'] = lq_view_list
 
         elif self.mode == 'val':
             outputs['lq_ids'] = [self.lq_ids[i] for i in frame_ids]
@@ -372,8 +373,8 @@ class PhoHypersim(Dataset):
                 view_id = depth_view.split('/')[-1].split('.')[-3]
                 depth_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
                 depth_view_list.append(self.resize_depth(self.convert_hdf5_depth(depth_view)))
-                outputs['gt_depth_ids'] = depth_view_id
-                outputs['gt_depths'] = depth_view_list
+            outputs['gt_depth_ids'] = depth_view_id
+            outputs['gt_depths'] = depth_view_list
 
         return outputs
         return {
