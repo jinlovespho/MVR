@@ -40,10 +40,12 @@ import torchvision.transforms as T
 from einops import rearrange
 
 
-from RAE.src.initialize import (save_checkpoint, load_checkpoint,
-                         load_train_data, load_val_data, 
-                         load_model,
-                         load_sampler,)
+# from RAE.src.initialize import (save_checkpoint, load_checkpoint,
+#                          load_train_data, load_val_data, 
+#                          load_model,
+#                          load_sampler,)
+
+from RAE.src import initialize
 
 
 from motionblur.motionblur import Kernel 
@@ -71,8 +73,6 @@ def tensor_stats(x: torch.Tensor):
 
 def has_nan_or_inf(x: torch.Tensor):
     return not torch.isfinite(x).all()
-
-
 
 
 
@@ -140,16 +140,16 @@ def main():
     
     
     # load encoder and denoiser 
-    models, processors = load_model(full_cfg, rank, device)
+    models, processors = initialize.load_model(full_cfg, rank, device)
     
 
     # load training and validation data 
-    train_loader, train_sampler = load_train_data(full_cfg, micro_batch_size, rank, world_size)
+    train_loader, train_sampler = initialize.load_train_data(full_cfg, micro_batch_size, rank, world_size)
     loader_batches = len(train_loader)
     steps_per_epoch = math.ceil(loader_batches / grad_accum_steps)
     
     
-    val_loader, val_sampler = load_val_data(full_cfg, 1, rank, world_size)
+    val_loader, val_sampler = initialize.load_val_data(full_cfg, 1, rank, world_size)
 
 
     # load optimizer
@@ -166,8 +166,7 @@ def main():
 
 
     # load sampler 
-    eval_sampler = load_sampler(full_cfg, transport_sampler)
-
+    eval_sampler = initialize.load_sampler(full_cfg, transport_sampler)
 
     
     # make noise latent 
@@ -193,7 +192,7 @@ def main():
         logger.info(f"Experiment resume checkpoint found at {maybe_resume_ckpt_path}, automatically resuming...")
         ckpt_path = Path(maybe_resume_ckpt_path)
         if ckpt_path.is_file():
-            start_epoch, global_train_step = load_checkpoint(
+            start_epoch, global_train_step = initialize.load_checkpoint(
                 ckpt_path,
                 models['ddp_denoiser'],
                 models['ema_denoiser'],
@@ -461,7 +460,7 @@ def main():
                     val_noise_generator.manual_seed(global_seed)
                     val_pure_noise = torch.randn(val_lq_latent.shape, generator=val_noise_generator, device=device, dtype=torch.float32)
 
-                            
+                    
                     # lq_latent condition method
                     # val_pure_noise = pure_noise
                     if full_cfg.mvrm.lq_latent_cond == 'addition':
@@ -479,7 +478,6 @@ def main():
                     torch.cuda.synchronize()
                     with torch.no_grad():
                         restored_samples = eval_sampler(val_xt, ema_model_fn, **val_model_kwargs)[-1]     # b v n d
-                    restored_samples.float()
 
 
                     mvrm_result={}
@@ -539,7 +537,7 @@ def main():
             if rank==0 and global_train_step > 0 and global_train_step % ckpt_step_interval == 0:
                 logger.info(f"Saving checkpoint at global_train_step {global_train_step}...")
                 ckpt_path = f"{checkpoint_dir}/ep-{global_train_step:07d}.pt" 
-                save_checkpoint(
+                initialize.save_checkpoint(
                     ckpt_path,
                     global_train_step,
                     epoch,
@@ -570,7 +568,7 @@ def main():
     if rank == 0:
         logger.info(f"Saving final checkpoint at epoch {num_epochs}...")
         ckpt_path = f"{checkpoint_dir}/ep-last.pt" 
-        save_checkpoint(
+        initialize.save_checkpoint(
             ckpt_path,
             global_train_step,
             num_epochs,

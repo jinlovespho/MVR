@@ -160,6 +160,10 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         feat_vis_fps: int = 15,
         # Other export parameters, e.g., gs_ply, gs_video
         export_kwargs: Optional[dict] = {},
+        eval_sampler=None,
+        denoiser=None,
+        noise_generator=None,
+        cfg=None,
     ) -> Prediction:
         """
         Run inference on input images.
@@ -212,10 +216,45 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         export_feat_layers = list(export_feat_layers) if export_feat_layers is not None else []
 
 
-        # imgs: b v 3 h w 
-        raw_output = self._run_model_forward(
-            imgs, ex_t_norm, in_t, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy
-        )
+        b, v, c, model_H, model_W = imgs.shape
+
+
+        # Apply MVRM restoration
+        if cfg.APPLY_MVRM: 
+            print('APPLYING MVRM O')
+            _, lq_mvrm_out = self._run_model_forward(
+                imgs, ex_t_norm, in_t, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg=cfg.mvrm.train, mvrm_result=None, mode='train'
+            )
+            lq_latent = lq_mvrm_out['extract_feat']      # b v 973 3072
+            # generate pure noise
+            noise_generator.manual_seed(42)
+            pure_noise = torch.randn(lq_latent.shape, generator=noise_generator, device=imgs.device, dtype=torch.float32)
+            # lq_latent condition method
+            if cfg.mvrm.lq_latent_cond == 'addition':
+                xt = pure_noise + lq_latent
+            elif cfg.mvrm.lq_latent_cond == 'concat':
+                xt = torch.concat([pure_noise, lq_latent], dim=1)
+            model_kwargs={
+                'model_img_size': (model_H, model_W)
+            }
+            autocast_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+            with torch.no_grad():
+                with torch.autocast(device_type=imgs.device.type, dtype=autocast_dtype):                
+                    restored_samples = eval_sampler(xt, denoiser.forward, **model_kwargs)[-1]     # b v n d
+            mvrm_result={}
+            mvrm_result['restored_latent'] = restored_samples
+            raw_output, _ = self._run_model_forward(
+                imgs, ex_t_norm, in_t, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg=cfg.mvrm.val, mvrm_result=mvrm_result, mode='val'
+            )
+
+        else:
+            print('APPLYING MVRM X')
+            # imgs: b v 3 h w 
+            raw_output, _ = self._run_model_forward(
+                imgs, ex_t_norm, in_t, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg=None, mvrm_result=None, mode=None
+            )
+        
+        
         
         # Convert raw output to prediction
         prediction = self._convert_to_prediction(raw_output)
@@ -383,20 +422,27 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         infer_gs: bool = False,
         use_ray_pose: bool = False,
         ref_view_strategy: str = "saddle_balanced",
+        mvrm_cfg=None,
+        mvrm_result=None,
+        mode=None
     ) -> dict[str, torch.Tensor]:
         """Run model forward pass."""
         device = imgs.device
         need_sync = device.type == "cuda"
+        
+        # PHO - manual false for single gpu inference as it makes it slow
+        need_sync=False
+        
         if need_sync:
             torch.cuda.synchronize(device)
         start_time = time.time()
         feat_layers = list(export_feat_layers) if export_feat_layers is not None else None
-        output, mvrm_out = self.forward(imgs, ex_t, in_t, feat_layers, infer_gs, use_ray_pose, ref_view_strategy)
+        output, mvrm_out = self.forward(imgs, ex_t, in_t, feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg, mvrm_result, mode)
         if need_sync:
             torch.cuda.synchronize(device)
         end_time = time.time()
         logger.info(f"Model Forward Pass Done. Time: {end_time - start_time} seconds")
-        return output
+        return output, mvrm_out
 
     def _convert_to_prediction(self, raw_output: dict[str, torch.Tensor]) -> Prediction:
         """Convert raw model output to Prediction object."""

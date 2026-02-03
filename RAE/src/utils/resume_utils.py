@@ -4,7 +4,7 @@ from omegaconf import OmegaConf
 import logging
 from typing import Optional, Tuple
 import shutil
-from .wandb_utils import initialize, create_logger
+from .wandb_utils import initialize_wandb, create_logger
 import logging
 
 def configure_experiment_dirs(cfg, rank) -> Tuple[str, str, logging.Logger]:
@@ -29,7 +29,7 @@ def configure_experiment_dirs(cfg, rank) -> Tuple[str, str, logging.Logger]:
             
             # breakpoint()
             wandb_exp_name = f's{server}-g{gpu}__{experiment_name}'
-            initialize(cfg, entity, wandb_exp_name, project)
+            initialize_wandb(cfg, entity, wandb_exp_name, project)
     else:
         logger = create_logger(None, 'rae')
     return experiment_dir, checkpoint_dir, logger

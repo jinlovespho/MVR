@@ -38,6 +38,13 @@ from depth_anything_3.bench.registries import MV_REGISTRY
 from depth_anything_3.utils.constants import EVAL_REF_VIEW_STRATEGY
 
 
+import math
+from RAE.src.stage2.transport import create_transport, Sampler
+from RAE.src import initialize
+from RAE.src.stage2.models import Stage2ModelProtocol
+from RAE.src.utils.model_utils import instantiate_from_config
+
+
 class Evaluator:
     """
     Main evaluation orchestrator for DepthAnything3 benchmarks.
@@ -68,6 +75,7 @@ class Evaluator:
         max_frames: int = 100,
         gpu_id: int = 0,
         total_gpus: int = 1,
+        full_cfg=None
     ):
         """
         Initialize the evaluator.
@@ -98,6 +106,9 @@ class Evaluator:
         self.gpu_id = gpu_id
         self.total_gpus = total_gpus
         
+        
+        self.full_cfg = full_cfg
+        
 
         # Validate modes
         unknown = self.modes - self.VALID_MODES
@@ -114,8 +125,25 @@ class Evaluator:
                 raise ValueError(f"Dataset '{data}' not found. Available: {available}")
             self.datasets[data] = MV_REGISTRY.get(data)()
 
+
         # Initialize metrics printer
         self._printer = MetricsPrinter()
+        
+        
+        if full_cfg.APPLY_MVRM:
+            time_dist_shift = math.sqrt(full_cfg.misc.time_dist_shift_dim / full_cfg.misc.time_dist_shift_base)
+            # load Transport 
+            transport = create_transport(**full_cfg.transport.params, time_dist_shift=time_dist_shift,)
+            transport_sampler = Sampler(transport)
+            # load sampler 
+            self.eval_sampler = initialize.load_sampler(full_cfg, transport_sampler)
+            # load denoiser 
+            self.denoiser: Stage2ModelProtocol = instantiate_from_config(full_cfg.denoiser)  
+            self.denoiser = self.denoiser.eval()
+        else:
+            self.eval_sampler = None 
+            self.denoiser = None 
+
 
     # -------------------- Public APIs -------------------- #
 
@@ -142,7 +170,7 @@ class Evaluator:
             return scenes
         return all_scenes
 
-    def infer(self, api, model_path: str = None) -> None:
+    def infer(self, api, model_path, noise_generator, device) -> None:
         """
         Run inference according to requested modes.
 
@@ -181,6 +209,11 @@ class Evaluator:
         else:   # t
             tasks = all_tasks
             print(f"[INFO] Total inference tasks: {len(tasks)}")
+        
+        
+        if self.full_cfg.APPLY_MVRM:
+            self.denoiser = self.denoiser.to(device)
+        
 
         for data, scene in tqdm(tasks, desc=f"Inference (GPU {self.gpu_id})"):
             
@@ -196,6 +229,10 @@ class Evaluator:
                     export_dir=export_dir,
                     export_format=export_format,
                     ref_view_strategy=self.ref_view_strategy,
+                    eval_sampler=self.eval_sampler,
+                    denoiser=self.denoiser,
+                    noise_generator=noise_generator,
+                    cfg=self.full_cfg
                 )
                 self._save_gt_meta(export_dir, scene_data)
 
@@ -208,6 +245,10 @@ class Evaluator:
                     export_dir=export_dir,
                     export_format=export_format,
                     ref_view_strategy=self.ref_view_strategy,
+                    eval_sampler=self.eval_sampler,
+                    denoiser=self.denoiser,
+                    noise_generator=noise_generator,
+                    cfg=self.full_cfg
                 )
                 self._save_gt_meta(export_dir, scene_data)
 
@@ -689,6 +730,7 @@ Examples:
         max_frames=max_frames,
         gpu_id=gpu_id,
         total_gpus=total_gpus,
+        full_cfg=config,
     )
 
     if print_only:
@@ -766,8 +808,12 @@ Examples:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         api = DepthAnything3.from_pretrained(model_path)
         api = api.to(device)
+        
+        # generator
+        noise_generator = torch.Generator(device=device)
+        noise_generator.manual_seed(42)  # any fixed seed you like
 
-        evaluator.infer(api, model_path=model_path)
+        evaluator.infer(api, model_path=model_path, noise_generator=noise_generator, device=device)
 
         # Only run eval if single GPU mode (workers don't eval)
         if not is_worker:

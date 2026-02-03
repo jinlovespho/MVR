@@ -8,7 +8,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim.lr_scheduler import LambdaLR
 
 from copy import deepcopy
-from utils.model_utils import instantiate_from_config
+from RAE.src.utils.model_utils import instantiate_from_config
 
 import numpy as np 
 from PIL import Image 
@@ -71,7 +71,9 @@ def load_checkpoint(
     ema_missing, ema_unexpected = ema_denoiser.load_state_dict(
         checkpoint["ema"], strict=False
     )
-    optimizer.load_state_dict(checkpoint["optimizer"])
+    
+    # TODO: pho - comment for now as it raises error when model params and optim params differ
+    #optimizer.load_state_dict(checkpoint["optimizer"])
 
     if scheduler is not None and checkpoint.get("scheduler") is not None:
         scheduler.load_state_dict(checkpoint["scheduler"])

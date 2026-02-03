@@ -5,6 +5,67 @@
 #
 # See depth_anything_3.cfg for config utility functions.
 
+
+# ==============================================================================
+# MVRM Configuration
+# ==============================================================================
+APPLY_MVRM: false
+
+
+# ==============================================================================
+# Denoiser Configuration
+# ==============================================================================
+denoiser:
+  model: DiTwDDTHeadMVRM_Multiview
+  target: RAE.src.stage2.models.DDT_MVRM_multiview.DiTwDDTHeadMVRM_Multiview
+  params:
+    # input_size: [27, 36]  # feat_H, feat_W
+    input_size: 
+    patch_size: 1
+    in_channels: 1536
+    hidden_size: [1536, 3072]
+    depth: [28, 2]
+    num_heads: [16, 16]
+    mlp_ratio: 4.0
+    class_dropout_prob:
+    num_classes: 
+    use_qknorm: true 
+    use_swiglu: true
+    use_rope: true
+    use_rmsnorm: true
+    wo_shift: false
+    use_pos_embed: true
+  ckpt: 
+mvrm:
+  lq_latent_cond: addition    # [addition, concat]
+  train:
+    # DPT Head input feats = [19, 27, 33, 39]
+    extract_feat_layers: [17]
+    concat_feat: False
+  val:
+    restore_feat_layers: [17]
+    concat_feat: False 
+transport:
+  params:
+    path_type: 'Linear'
+    prediction: 'velocity'
+    loss_weight: null
+    time_dist_type: 'logit-normal_0_1'
+sampler:
+  mode: ODE
+  params:
+    sampling_method: 'euler'
+    num_steps: 50
+    atol: 1.0e-6
+    rtol: 1.0e-3
+    reverse: false
+misc:
+  # latent_size: [1, 973, 1536] # [v, n+1, d]
+  latent_size: 
+  num_classes: 
+  time_dist_shift_dim: 1492992  # 1536*27*36
+  time_dist_shift_base: 4096
+
 # ==============================================================================
 # Model Configuration
 # ==============================================================================
@@ -17,8 +78,26 @@ model:
 # ==============================================================================
 workspace:
   # Working directory for outputs (model results, metrics, etc.)
-  # work_dir: ../result_val/DA3/full_datasets
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/eval_full_tmp
+
+  # MVRM X
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/clean/wo_mvrm/eval_full_100
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/clean/wo_mvrm/eval_full_50
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/clean/wo_mvrm/eval_full_10
+
+
+
+  
+  # MVRM O
+
+  # cam_blur_50
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/cam_blur_50/w_mvrm/eval_full_100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/cam_blur_50/w_mvrm/eval_full_10
+
+  # cam_blur_100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/cam_blur_100/w_mvrm/eval_full_100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/cam_blur_100/w_mvrm/eval_full_10
+
+
 
 # ==============================================================================
 # Evaluation Configuration
@@ -52,7 +131,9 @@ eval:
   # Maximum number of frames per scene (for sampling)
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
-  max_frames: 100
+  # max_frames: 100
+  max_frames: 50
+  # max_frames: 10
 
   # Only run evaluation (skip inference)
   eval_only: false
@@ -65,7 +146,7 @@ eval:
 # ==============================================================================
 inference:
   # Number of parallel workers for TSDF fusion
-  num_fusion_workers: 4
+  num_fusion_workers: 8
 
   # Enable debug mode with verbose output
   # debug: false

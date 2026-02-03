@@ -30,7 +30,7 @@ stage_2:
     depth: [28, 2]
     num_heads: [16, 16]
     mlp_ratio: 4.0
-    class_dropout_prob: 0.1
+    class_dropout_prob: 
     num_classes: 
     use_qknorm: true 
     use_swiglu: true
@@ -38,7 +38,7 @@ stage_2:
     use_rmsnorm: true
     wo_shift: false
     use_pos_embed: true
-  ckpt: 
+  ckpt: result_train/stage2/260129/hypersim/TRAIN__fp32__hypersim__stage1-da3__stage2-DiTwDDTHeadMVRM__bs-64-accum-16__lr-2e-04__msg-lq-kernel50-fly__global17__re/checkpoints/ep-0040000.pt
   # ckpt: result_train/stage2/260131/hypersim/TRAIN__fp32__hypersim__stage1-da3__stage2-DiTwDDTHeadMVRM__bs-64-accum-16__lr-2e-04__msg-lq-kernel50-fly__global17__re/checkpoints/ep-0080000.pt
   # ckpt: result_train/stage2/260126/hypersim/TRAIN__fp32__hypersim__stage1-da3__stage2-DiTwDDTHeadMVRM__bs-2-accum-1__lr-2e-04__msg-lq-kernel50-fly__global17_ddp/checkpoints/ep-0060000.pt
 
@@ -70,7 +70,8 @@ guidance:
 
 
 misc:
-  latent_size: [1, 973, 1536] # [v, n+1, d]
+  # latent_size: [1, 973, 1536] # [v, n+1, d]
+  latent_size: 
   num_classes: 
   time_dist_shift_dim: 1492992  # 1536*27*36
   time_dist_shift_base: 4096
@@ -117,7 +118,7 @@ log:
       key: e32eed0c2509bf898b850b0065ab62345005fb73
       entity: jinlovespho
       project: eccv26_mv_restoration
-      msg: "lq-kernel50__global17__no-abs-pos__no-learn-cls_TMP"
+      msg: "lq-kernel50__global17__no-abs-pos__no-learn-cls_TMPTMPTMP"
 
 
 data:
@@ -167,9 +168,7 @@ data:
 
 
 mvrm:
-
   lq_latent_cond: addition    # [addition, concat]
-
   train:
     # DPT Head input feats = [19, 27, 33, 39]
     extract_feat_layers: [17]
