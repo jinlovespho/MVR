@@ -36,5 +36,5 @@ for KERNEL_SIZE in [50, 500]:
             blurred.save(f'{deg_scene_save_path}/{img_id}.jpg')
             
 
-print('CAM BLUR FINISH: hiroom')
+print('CAM BLUR FINISH: 7scenes')
         

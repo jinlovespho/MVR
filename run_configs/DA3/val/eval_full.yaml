@@ -18,7 +18,7 @@ model:
 workspace:
   # Working directory for outputs (model results, metrics, etc.)
   # work_dir: ../result_val/DA3/full_datasets
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/TMP
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/eval_full_tmp
 
 # ==============================================================================
 # Evaluation Configuration
@@ -68,6 +68,7 @@ inference:
   num_fusion_workers: 4
 
   # Enable debug mode with verbose output
+  # debug: false
   debug: true
 
 # ==============================================================================
@@ -96,4 +97,3 @@ presets:
     datasets: [eth3d]
     modes: [pose, recon_unposed]
     scenes: [courtyard]
-

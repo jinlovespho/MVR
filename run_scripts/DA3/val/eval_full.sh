@@ -1,17 +1,12 @@
-cd Depth-Anything-3
-MODEL=depth-anything/DA3-GIANT-1.1
 
-
-CUDA_VISIBLE_DEVICES=4 python -m depth_anything_3.bench.evaluator \
-    model.path=$MODEL \
-    eval.datasets=[eth3d,7scenes] \
-    eval.modes=[pose,recon_unposed,recon_posed] \
-    inference.debug=true
-
-
-# # Full evaluation (inference + evaluation + print results)
 # CUDA_VISIBLE_DEVICES=4 python -m depth_anything_3.bench.evaluator \
-#     model.path=$MODEL 
+#     model.path=$MODEL \
+#     eval.datasets=[eth3d,7scenes] \
+#     eval.modes=[pose,recon_unposed,recon_posed] \
+#     inference.debug=true \
+
+# Full evaluation (inference + evaluation + print results)
+CUDA_VISIBLE_DEVICES=4 python -m depth_anything_3.bench.evaluator --config run_configs/DA3/val/eval_full.yaml
 
 
 # # Skip inference, only evaluate existing predictions

@@ -174,7 +174,6 @@ class Evaluator:
             [('eth3d', 'courtyard'), ('eth3d', 'electro'), ('eth3d', 'kicker'), ('eth3d', 'pipes'), ('eth3d', 'relief'), ('eth3d', 'delivery_area'), ('eth3d', 'facade'), ('eth3d', 'office'), ('eth3d', 'playground'), ('eth3d', 'relief_2')]
         '''
 
-        breakpoint()
         # Distribute tasks across GPUs
         if self.total_gpus > 1: # f
             tasks = [t for i, t in enumerate(all_tasks) if i % self.total_gpus == self.gpu_id]
@@ -184,6 +183,7 @@ class Evaluator:
             print(f"[INFO] Total inference tasks: {len(tasks)}")
 
         for data, scene in tqdm(tasks, desc=f"Inference (GPU {self.gpu_id})"):
+            
             dataset = self.datasets[data]
             scene_data = dataset.get_data(scene)
             scene_data = self._sample_frames(scene_data, scene)
@@ -546,30 +546,40 @@ class Evaluator:
 
 if __name__ == "__main__":
     import sys
+    import argparse
     from omegaconf import OmegaConf
     from depth_anything_3.cfg import load_config
 
-    # Get default config path (relative to this file)
-    _default_config = os.path.join(
-        os.path.dirname(__file__), "configs", "eval_bench.yaml"
-    )
 
-    # Check for help flag first (we need to handle this before OmegaConf)
-    if "--help" in sys.argv or "-h" in sys.argv:
-        pass  # Will handle after config loading
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, required=True)
+    args = parser.parse_args()
+    config_path = args.config
+
+    # # Get default config path (relative to this file)
+    # _default_config = os.path.join(
+    #     os.path.dirname(__file__), "configs", "eval_bench.yaml"
+    # )
+
+
+    # # Check for help flag first (we need to handle this before OmegaConf)
+    # if "--help" in sys.argv or "-h" in sys.argv:
+    #     pass  # Will handle after config loading
 
     # Set up argv for OmegaConf processing
     argv = sys.argv[1:]
 
-    # Check if user provides custom config
-    config_path = _default_config
-    if "--config" in argv:
-        config_idx = argv.index("--config")
-        if config_idx + 1 < len(argv):
-            config_path = argv[config_idx + 1]
-            # Remove --config and its value
-            argv = argv[:config_idx] + argv[config_idx + 2:]
-
+    # # Check if user provides custom config
+    # config_path = _default_config
+    # breakpoint()
+    # if "--config" in argv:
+    #     config_idx = argv.index("--config")
+    #     if config_idx + 1 < len(argv):
+    #         config_path = argv[config_idx + 1]
+    #         # Remove --config and its value
+    #         argv = argv[:config_idx] + argv[config_idx + 2:]
+    
+    
     # Print help if requested
     if "--help" in sys.argv or "-h" in sys.argv:
         print("""
@@ -652,6 +662,7 @@ Examples:
     print_only = config.eval.print_only
     debug = config.inference.debug
     num_fusion_workers = config.inference.num_fusion_workers
+    
 
     # GPU settings: parse from CLI dotlist args (gpu_id=X total_gpus=Y)
     # These are passed by the main process when spawning workers
@@ -699,66 +710,67 @@ Examples:
         # Auto multi-GPU: if multiple GPUs and not a worker process
         is_worker = os.environ.get("_DA3_WORKER") == "1"
 
-        if len(gpu_list) > 1 and not is_worker: # f
-            # Launch worker processes
-            import subprocess
+        # if len(gpu_list) > 1 and not is_worker: # f
+        #     # Launch worker processes
+        #     import subprocess
 
-            num_gpus = len(gpu_list)
-            print(f"[INFO] Detected {num_gpus} GPUs: {gpu_list}")
-            print(f"[INFO] Launching {num_gpus} workers...")
+        #     num_gpus = len(gpu_list)
+        #     print(f"[INFO] Detected {num_gpus} GPUs: {gpu_list}")
+        #     print(f"[INFO] Launching {num_gpus} workers...")
 
-            # Build base command
-            base_cmd = [sys.executable, "-m", "depth_anything_3.bench.evaluator"]
-            # Pass config via dotlist instead of CLI args
-            if config_path != _default_config:
-                base_cmd += ["--config", config_path]
-            base_cmd += [f"model.path={model_path}"]
-            base_cmd += [f"workspace.work_dir={work_dir}"]
-            base_cmd += [f"eval.datasets=[{','.join(datasets)}]"]
-            base_cmd += [f"eval.modes=[{','.join(modes)}]"]
-            if scenes:
-                base_cmd += [f"eval.scenes=[{','.join(scenes)}]"]
-            base_cmd += [f"eval.max_frames={max_frames}"]
-            base_cmd += [f"eval.ref_view_strategy={ref_view_strategy}"]
-            base_cmd += [f"inference.debug={str(debug).lower()}"]
-            base_cmd += [f"inference.num_fusion_workers={num_fusion_workers}"]
+        #     # Build base command
+        #     base_cmd = [sys.executable, "-m", "depth_anything_3.bench.evaluator"]
+        #     # Pass config via dotlist instead of CLI args
+        #     if config_path != _default_config:
+        #         base_cmd += ["--config", config_path]
+        #     base_cmd += [f"model.path={model_path}"]
+        #     base_cmd += [f"workspace.work_dir={work_dir}"]
+        #     base_cmd += [f"eval.datasets=[{','.join(datasets)}]"]
+        #     base_cmd += [f"eval.modes=[{','.join(modes)}]"]
+        #     if scenes:
+        #         base_cmd += [f"eval.scenes=[{','.join(scenes)}]"]
+        #     base_cmd += [f"eval.max_frames={max_frames}"]
+        #     base_cmd += [f"eval.ref_view_strategy={ref_view_strategy}"]
+        #     base_cmd += [f"inference.debug={str(debug).lower()}"]
+        #     base_cmd += [f"inference.num_fusion_workers={num_fusion_workers}"]
 
-            # Launch workers
-            processes = []
-            for idx, gpu_id in enumerate(gpu_list):
-                env = os.environ.copy()
-                env["CUDA_VISIBLE_DEVICES"] = gpu_id
-                env["_DA3_WORKER"] = "1"  # Mark as worker process
+        #     # Launch workers
+        #     processes = []
+        #     for idx, gpu_id in enumerate(gpu_list):
+        #         env = os.environ.copy()
+        #         env["CUDA_VISIBLE_DEVICES"] = gpu_id
+        #         env["_DA3_WORKER"] = "1"  # Mark as worker process
 
-                cmd = base_cmd.copy()
-                # GPU-specific worker config
-                cmd += [f"gpu_id={idx}", f"total_gpus={num_gpus}"]
+        #         cmd = base_cmd.copy()
+        #         # GPU-specific worker config
+        #         cmd += [f"gpu_id={idx}", f"total_gpus={num_gpus}"]
 
-                print(f"[INFO] Starting worker {idx} on GPU {gpu_id}")
-                p = subprocess.Popen(cmd, env=env)
-                processes.append(p)
+        #         print(f"[INFO] Starting worker {idx} on GPU {gpu_id}")
+        #         p = subprocess.Popen(cmd, env=env)
+        #         processes.append(p)
 
-            # Wait for all workers
-            for p in processes:
-                p.wait()
+        #     # Wait for all workers
+        #     for p in processes:
+        #         p.wait()
 
-            print(f"[INFO] All {num_gpus} workers completed")
+        #     print(f"[INFO] All {num_gpus} workers completed")
 
-            # Run evaluation after all inference is done
+        #     # Run evaluation after all inference is done
+        #     metrics = evaluator.eval()
+        #     evaluator.print_metrics(metrics)
+        # else:   # t
+            
+        # Single GPU or worker process
+        from depth_anything_3.api import DepthAnything3
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        api = DepthAnything3.from_pretrained(model_path)
+        api = api.to(device)
+
+        evaluator.infer(api, model_path=model_path)
+
+        # Only run eval if single GPU mode (workers don't eval)
+        if not is_worker:
             metrics = evaluator.eval()
             evaluator.print_metrics(metrics)
-        else:   # t
-            # Single GPU or worker process
-            from depth_anything_3.api import DepthAnything3
-
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            api = DepthAnything3.from_pretrained(model_path)
-            api = api.to(device)
-
-            evaluator.infer(api, model_path=model_path)
-
-            # Only run eval if single GPU mode (workers don't eval)
-            if not is_worker:
-                metrics = evaluator.eval()
-                evaluator.print_metrics(metrics)
 
