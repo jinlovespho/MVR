@@ -222,7 +222,9 @@ def main():
         logger.info(optim_msg)
         print(sched_msg if sched_msg else "No LR scheduler.")
         logger.info(f"Training for {num_epochs} epochs, batch size {micro_batch_size} per GPU. grad accum {full_cfg.training.grad_accum_steps} per GPU")
-        logger.info(f"Dataset contains {len(train_loader.dataset)} samples, {steps_per_epoch} steps per epoch.")
+        logger.info(f"Dataset contains total {len(train_loader.dataset)} training samples, {steps_per_epoch} steps per epoch.")
+        for train_ds in train_loader.dataset.datasets:
+            logger.info(f'  - {train_ds.ds_name}: {len(train_ds)}')
         logger.info(f"Running with world size {world_size}, starting from epoch {start_epoch} to {num_epochs}.")
 
 

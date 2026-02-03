@@ -8,17 +8,19 @@ from torchvision.utils import save_image
 from tqdm import tqdm
 
 
-hq_root_path = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/clean/eth3d'
+hq_root_path = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/clean/7scenes/7Scenes'
 scenes = glob.glob(f'{hq_root_path}/*')
+scenes = [scene for scene in scenes if 'meshes' not in scene]
 
 
 BLUR_INTENSITY=0.1
-for KERNEL_SIZE in [50, 100, 300, 500]:
+# for KERNEL_SIZE in [100, 300]:
+for KERNEL_SIZE in [50, 500]:
 
     print('Applying kernel: ', KERNEL_SIZE)
     for scene in tqdm(scenes):
         
-        images = glob.glob(f'{scene}/images/dslr_images/*.JPG')
+        images = glob.glob(f'{scene}/*/*color*')
         
         deg_scene_save_path = '/'.join(images[0].split('/')[:-1])
         deg_scene_save_path = deg_scene_save_path.replace('clean', f'cam_blur_{KERNEL_SIZE}')

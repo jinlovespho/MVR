@@ -2,9 +2,9 @@ cd Depth-Anything-3
 MODEL=depth-anything/DA3-GIANT-1.1
 
 
-CUDA_VISIBLE_DEVICES=6 python -m depth_anything_3.bench.evaluator \
+CUDA_VISIBLE_DEVICES=4 python -m depth_anything_3.bench.evaluator \
     model.path=$MODEL \
-    eval.datasets=[eth3d] \
+    eval.datasets=[eth3d,7scenes] \
     eval.modes=[pose,recon_unposed,recon_posed] \
     inference.debug=true
 

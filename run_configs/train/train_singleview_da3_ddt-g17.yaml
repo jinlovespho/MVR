@@ -89,10 +89,10 @@ training:
   log_interval: 1
 
 
-  ckpt_step_interval: 20000   # 20k
+  ckpt_step_interval: 10000   # 10k
 
-  sample: False
-  sample_every: 2000  # 2k
+  sample: True
+  sample_every: 1000  # 1k
   
 
   clip_grad: 1.0
@@ -110,14 +110,14 @@ training:
 
 
 log:
-  result_root_dir: result_train/single_view/260202
+  result_root_dir: result_train/single_view/260203
   tracker:
     name: wandb
     wandb:
       key: e32eed0c2509bf898b850b0065ab62345005fb73
       entity: jinlovespho
       project: eccv26_mv_restoration
-      msg: "lq-kernel50__global17__no-abs-pos__no-learn-cls"
+      msg: "lq-kernel50__global17__no-abs-pos__no-learn-cls_TMP"
 
 
 data:

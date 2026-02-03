@@ -17,6 +17,7 @@ from motionblur.motionblur import Kernel
 class PhoHypersim(Dataset):
     def __init__(self, data_cfg, mode='train'):
         
+        self.ds_name = 'hypersim'
         self.data_cfg = data_cfg 
         self.mode = mode 
         
@@ -81,7 +82,7 @@ class PhoHypersim(Dataset):
         elif mode == 'test':
             self.data['hq_img'] = sorted([path for path in test_hq_paths if os.path.exists(path)])
             self.data['gt_depth'] = sorted([path for path in test_depth_paths if os.path.exists(path)])
-        
+
         
         # keep_volumes = ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010']
         # if data_cfg.hq_root_path is not None:

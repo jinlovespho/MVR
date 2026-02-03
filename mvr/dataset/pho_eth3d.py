@@ -17,6 +17,7 @@ from motionblur.motionblur import Kernel
 class PhoETH3D(Dataset):
     def __init__(self, data_cfg, mode='train'):
         
+        self.ds_name = 'eth3d'
         self.data_cfg = data_cfg 
         self.mode = mode 
         

@@ -18,7 +18,7 @@ model:
 workspace:
   # Working directory for outputs (model results, metrics, etc.)
   # work_dir: ../result_val/DA3/full_datasets
-  work_dir: ../result_val/DA3/eth3d
+  work_dir: ../result_val/DA3/TMP
 
 # ==============================================================================
 # Evaluation Configuration

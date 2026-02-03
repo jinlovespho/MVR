@@ -12,6 +12,7 @@ from motionblur.motionblur import Kernel
 class PhoTartanAir(Dataset):
     def __init__(self, data_cfg, mode='train'):
         
+        self.ds_name = 'tartanair'
         self.data_cfg = data_cfg 
         self.mode = mode 
         
