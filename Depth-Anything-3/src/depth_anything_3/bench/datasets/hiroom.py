@@ -40,8 +40,10 @@ from depth_anything_3.bench.utils import (
     sample_points_from_mesh,
 )
 from depth_anything_3.utils.constants import (
+    DA3_CLEAN_ROOT_PATH,
+    DA3_DEG_ROOT_PATH,
     HIROOM_DOWN_SAMPLE,
-    HIROOM_EVAL_DATA_ROOT,
+    # HIROOM_EVAL_DATA_ROOT,
     HIROOM_EVAL_THRESHOLD,
     HIROOM_GT_ROOT_PATH,
     HIROOM_MAX_DEPTH,
@@ -84,8 +86,13 @@ class HiRoomDataset(Dataset):
         fused_pcd/
         └── {scene_name}.ply     # Ground truth fused point cloud
     """
+    
+    # pho
+    da3_clean_root_path = DA3_CLEAN_ROOT_PATH
+    da3_deg_root_path = DA3_DEG_ROOT_PATH
+    
 
-    data_root = HIROOM_EVAL_DATA_ROOT
+    # data_root = HIROOM_EVAL_DATA_ROOT
     gt_root_path = HIROOM_GT_ROOT_PATH
     SCENES = _load_scene_list()
 
@@ -96,7 +103,8 @@ class HiRoomDataset(Dataset):
     sdf_trunc = HIROOM_SDF_TRUNC
     eval_threshold = HIROOM_EVAL_THRESHOLD
     down_sample = HIROOM_DOWN_SAMPLE
-
+    
+    
     def __init__(self):
         super().__init__()
         self._scene_cache = {}
@@ -119,11 +127,12 @@ class HiRoomDataset(Dataset):
                 - intrinsics: np.ndarray [N, 3, 3] - camera intrinsics
                 - aux: Dict with gt_pcd_path, gt_depth_files, aliasing_mask_files
         """
+        
         if scene in self._scene_cache:
             return self._scene_cache[scene]
 
-        scene_dir = os.path.join(self.data_root, scene)
-        image_dir = os.path.join(scene_dir, "image")
+        scene_dir = os.path.join(self.da3_clean_root_path, 'hiroom', 'data', scene)
+        image_dir = os.path.join(self.da3_deg_root_path, 'hiroom', 'data', scene, "image")
 
         # Get scene name for GT point cloud
         scene_name = "-".join(scene.split("/")[-3:])
@@ -148,6 +157,7 @@ class HiRoomDataset(Dataset):
         })
 
         for img_name in image_names:
+            
             img_path = os.path.join(image_dir, img_name)
             frame_name = img_name.split(".")[0]
 

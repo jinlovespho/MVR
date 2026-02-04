@@ -14,8 +14,7 @@ scenes = [scene for scene in scenes if 'meshes' not in scene]
 
 
 BLUR_INTENSITY=0.1
-# for KERNEL_SIZE in [100, 300]:
-for KERNEL_SIZE in [50, 500]:
+for KERNEL_SIZE in [50, 100, 300, 500]:
 
     print('Applying kernel: ', KERNEL_SIZE)
     for scene in tqdm(scenes):
@@ -28,7 +27,8 @@ for KERNEL_SIZE in [50, 500]:
         
         for image in images:
             
-            img_id = image.split('/')[-1].split('.')[0]
+            img_id = image.split('/')[-1].split('.')
+            img_id = '.'.join(img_id[:-1])
             
             # init kernel
             kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)

@@ -39,8 +39,10 @@ from tqdm import tqdm
 from depth_anything_3.bench.dataset import Dataset
 from depth_anything_3.bench.registries import MONO_REGISTRY, MV_REGISTRY
 from depth_anything_3.utils.constants import (
+    DA3_CLEAN_ROOT_PATH,
+    DA3_DEG_ROOT_PATH,
     DTU_DIST_THRESH,
-    DTU_EVAL_DATA_ROOT,
+    # DTU_EVAL_DATA_ROOT,
     DTU_MAX_POINTS,
     DTU_NUM_CONSIST,
     DTU_SCENES,
@@ -63,7 +65,12 @@ class DTU(Dataset):
     https://drive.google.com/file/d/1rX0EXlUL4prRxrRu2DgLJv2j7-tpUD4D/view
     """
 
-    data_root = DTU_EVAL_DATA_ROOT
+
+    # pho
+    da3_clean_root_path = DA3_CLEAN_ROOT_PATH
+    da3_deg_root_path = DA3_DEG_ROOT_PATH
+    
+    # data_root = DTU_EVAL_DATA_ROOT
     SCENES = DTU_SCENES
 
     # Evaluation/triangulation hyperparameters from constants
@@ -104,10 +111,11 @@ class DTU(Dataset):
                 - intrinsics: np.ndarray [N, 3, 3]
                 - aux.mask_files: List[str] - paths to depth masks
         """
-        rgb_folder = os.path.join(self.data_root, "Rectified", scene)
-        camera_folder = os.path.join(self.data_root, "Cameras")
+        
+        rgb_folder = os.path.join(self.da3_deg_root_path, 'dtu', "Rectified", scene)
+        camera_folder = os.path.join(self.da3_clean_root_path, 'dtu', "Cameras")
 
-        files = sorted(glob.glob(os.path.join(rgb_folder, "*.png")))
+        files = sorted(glob.glob(os.path.join(rgb_folder, "*")))
         # Reorder: place index 33 first (reference view convention)
         files = [files[33]] + files[:33] + files[34:]
 

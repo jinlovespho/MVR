@@ -9,7 +9,7 @@
 # ==============================================================================
 # MVRM Configuration
 # ==============================================================================
-APPLY_MVRM: true
+APPLY_MVRM: false
 
 
 # ==============================================================================
@@ -36,8 +36,6 @@ denoiser:
     wo_shift: false
     use_pos_embed: true
   ckpt: 
-
-
 mvrm:
   lq_latent_cond: addition    # [addition, concat]
   train:
@@ -47,16 +45,12 @@ mvrm:
   val:
     restore_feat_layers: [17]
     concat_feat: False 
-    
-
 transport:
   params:
     path_type: 'Linear'
     prediction: 'velocity'
     loss_weight: null
     time_dist_type: 'logit-normal_0_1'
-
-
 sampler:
   mode: ODE
   params:
@@ -65,16 +59,12 @@ sampler:
     atol: 1.0e-6
     rtol: 1.0e-3
     reverse: false
-
-
 misc:
   # latent_size: [1, 973, 1536] # [v, n+1, d]
   latent_size: 
   num_classes: 
   time_dist_shift_dim: 1492992  # 1536*27*36
   time_dist_shift_base: 4096
-
-
 
 # ==============================================================================
 # Model Configuration
@@ -88,8 +78,30 @@ model:
 # ==============================================================================
 workspace:
   # Working directory for outputs (model results, metrics, etc.)
-  # work_dir: ../result_val/DA3/full_datasets
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_TMPTMP
+
+  # MVRM X (clean)
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/clean/wo_mvrm/eval_full_view100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/clean/wo_mvrm/eval_full_view50
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/clean/wo_mvrm/eval_full_view10
+
+  # MVRM X (cam_blur_100)
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_TMPTMPTMP
+
+
+
+
+  
+  # MVRM O
+
+  # cam_blur_50
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/cam_blur_50/w_mvrm/eval_full_100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/cam_blur_50/w_mvrm/eval_full_10
+
+  # cam_blur_100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/cam_blur_100/w_mvrm/eval_full_100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/cam_blur_100/w_mvrm/eval_full_10
+
+
 
 # ==============================================================================
 # Evaluation Configuration
@@ -99,8 +111,8 @@ eval:
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
     # - eth3d
-    - 7scenes
-    # - scannetpp
+    # - 7scenes
+    - scannetpp
     # - hiroom
     # - dtu
     # - dtu64
@@ -123,7 +135,9 @@ eval:
   # Maximum number of frames per scene (for sampling)
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
+  # max_frames: 100
   max_frames: 50
+  # max_frames: 10
 
   # Only run evaluation (skip inference)
   eval_only: false
@@ -136,7 +150,7 @@ eval:
 # ==============================================================================
 inference:
   # Number of parallel workers for TSDF fusion
-  num_fusion_workers: 4
+  num_fusion_workers: 8
 
   # Enable debug mode with verbose output
   # debug: false

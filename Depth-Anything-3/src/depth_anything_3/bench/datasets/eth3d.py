@@ -46,8 +46,10 @@ from depth_anything_3.bench.utils import (
     sample_points_from_mesh,
 )
 from depth_anything_3.utils.constants import (
+    DA3_CLEAN_ROOT_PATH,
+    DA3_DEG_ROOT_PATH,
     ETH3D_DOWN_SAMPLE,
-    ETH3D_EVAL_DATA_ROOT,
+    # ETH3D_EVAL_DATA_ROOT,
     ETH3D_EVAL_THRESHOLD,
     ETH3D_FILTER_KEYS,
     ETH3D_MAX_DEPTH,
@@ -80,8 +82,14 @@ class ETH3D(Dataset):
         │   ├── combined_mesh.ply          # Ground truth mesh
         │   └── ground_truth_depth/        # GT depth maps (optional)
     """
+    
+    
+    # pho
+    da3_clean_root_path = DA3_CLEAN_ROOT_PATH
+    da3_deg_root_path = DA3_DEG_ROOT_PATH
+    
 
-    data_root = ETH3D_EVAL_DATA_ROOT
+    # data_root = ETH3D_EVAL_DATA_ROOT
     SCENES = ETH3D_SCENES
 
     # Evaluation hyperparameters from constants
@@ -193,7 +201,8 @@ class ETH3D(Dataset):
         if scene in self._scene_cache:
             return self._scene_cache[scene]
 
-        scene_dir = os.path.join(self.data_root, scene)
+        # scene_dir = os.path.join(self.data_root, scene)
+        scene_dir = os.path.join(self.da3_clean_root_path, 'eth3d', scene)
 
         # Parse camera files
         cameras_file = os.path.join(scene_dir, "dslr_calibration_jpg", "cameras.txt")
@@ -223,7 +232,14 @@ class ETH3D(Dataset):
                 filtered_count += 1
                 continue
 
-            image_path = os.path.join(scene_dir, "images", image_name)
+            # image_path = os.path.join(scene_dir, "images", image_name)
+            
+            # pho - check ext
+            ext = glob.glob(os.path.join(self.da3_deg_root_path, 'eth3d', scene, "images", "dslr_images", "*"))[0]
+            _, ext = os.path.splitext(ext)
+            if not image_name.endswith(ext):
+                image_name = image_name.rsplit('.', 1)[0] + ext
+            image_path = os.path.join(self.da3_deg_root_path, 'eth3d', scene, "images", image_name)
             if not os.path.exists(image_path):
                 continue
 

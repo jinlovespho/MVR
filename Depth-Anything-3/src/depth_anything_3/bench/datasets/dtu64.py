@@ -31,8 +31,10 @@ from addict import Dict
 from depth_anything_3.bench.dataset import Dataset
 from depth_anything_3.bench.registries import MONO_REGISTRY, MV_REGISTRY
 from depth_anything_3.utils.constants import (
-    DTU64_CAMERA_ROOT,
-    DTU64_EVAL_DATA_ROOT,
+    DA3_CLEAN_ROOT_PATH,
+    DA3_DEG_ROOT_PATH,
+    # DTU64_CAMERA_ROOT,
+    # DTU64_EVAL_DATA_ROOT,
     DTU64_SCENES,
 )
 
@@ -62,8 +64,13 @@ class DTU64(Dataset):
         - recon_posed: 3D reconstruction (no GT depth available)
     """
 
-    data_root = DTU64_EVAL_DATA_ROOT
-    camera_root = DTU64_CAMERA_ROOT
+
+    # pho
+    da3_clean_root_path = DA3_CLEAN_ROOT_PATH
+    da3_deg_root_path = DA3_DEG_ROOT_PATH
+    
+    # data_root = DTU64_EVAL_DATA_ROOT
+    # camera_root = DTU64_CAMERA_ROOT
     SCENES = DTU64_SCENES
 
     def __init__(self):
@@ -113,10 +120,10 @@ class DTU64(Dataset):
         if scene in self._scene_cache:
             return self._scene_cache[scene]
 
-        rgb_folder = os.path.join(self.data_root, scene, "image")
+        rgb_folder = os.path.join(self.da3_deg_root_path, 'dtu64', scene, "image")
 
         # Get all PNG files sorted
-        files = sorted(glob.glob(os.path.join(rgb_folder, "*.png")))
+        files = sorted(glob.glob(os.path.join(rgb_folder, "*")))
 
         # Reorder: place index 33 first (reference view convention)
         if len(files) > 33:
@@ -136,7 +143,7 @@ class DTU64(Dataset):
             cam_idx = int(file_idx)
 
             # Camera file path
-            cam_file = os.path.join(self.camera_root, f"{cam_idx:0>8}_cam.txt")
+            cam_file = os.path.join(self.da3_clean_root_path, 'dtu64', 'Cameras', f"{cam_idx:0>8}_cam.txt")
 
             if not os.path.exists(cam_file):
                 print(f"[DTU-64] Warning: Camera file not found: {cam_file}")

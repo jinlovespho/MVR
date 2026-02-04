@@ -189,6 +189,7 @@ class Evaluator:
         need_posed = {"recon_posed", "view_syn"} & self.modes
         export_format = "mini_npz-glb" if self.debug else "mini_npz"    # mini_npz
 
+
         # Collect all tasks
         all_tasks = []
         for data in self.datas:
@@ -215,6 +216,7 @@ class Evaluator:
             self.denoiser = self.denoiser.to(device)
         
 
+        breakpoint()
         for data, scene in tqdm(tasks, desc=f"Inference (GPU {self.gpu_id})"):
             
             dataset = self.datasets[data]

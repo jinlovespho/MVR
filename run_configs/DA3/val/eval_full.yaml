@@ -79,10 +79,14 @@ model:
 workspace:
   # Working directory for outputs (model results, metrics, etc.)
 
-  # MVRM X
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/clean/wo_mvrm/eval_full_100
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/clean/wo_mvrm/eval_full_50
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/clean/wo_mvrm/eval_full_10
+  # MVRM X (clean)
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/clean/wo_mvrm/eval_full_view100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/clean/wo_mvrm/eval_full_view50
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/clean/wo_mvrm/eval_full_view10
+
+  # MVRM X (cam_blur_100)
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/cam_blur_100/wo_mvrm/eval_full_view100
+
 
 
 
@@ -131,8 +135,8 @@ eval:
   # Maximum number of frames per scene (for sampling)
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
-  # max_frames: 100
-  max_frames: 50
+  max_frames: 100
+  # max_frames: 50
   # max_frames: 10
 
   # Only run evaluation (skip inference)
