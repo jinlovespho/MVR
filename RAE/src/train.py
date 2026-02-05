@@ -428,6 +428,8 @@ def main():
                     val_hq_views = val_batch['hq_views'].to(device)     # b v 3 h w=504
                     val_lq_views = val_batch['lq_views'].to(device)     # b v 3 h w=504
                     
+                    print('val:' ,val_hq_views.shape)
+                    
                     # from torchvision.utils import save_image 
                     # save_image(val_hq_views.squeeze(), 'tmp_hq.jpg')
                     # save_image(val_lq_views.squeeze(), 'tmp_lq.jpg')

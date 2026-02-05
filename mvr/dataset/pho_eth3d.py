@@ -52,24 +52,7 @@ class PhoETH3D(Dataset):
         self.view_sel = data_cfg.view_selection
         self.input_processor = InputProcessor()
         
-    
-    def get_nearby_ids(
-        self,
-        anchor,
-        num_frames,
-        expand_ratio=2.0,
-    ):
-        expand_range = int(num_frames * expand_ratio)
-        low = max(0, anchor - expand_range)
-        high = min(len(self.data['hq_img']), anchor + expand_range + 1)
-        candidates = np.arange(low, high)
-        sampled = np.random.choice(
-            candidates,
-            size=num_frames - 1,
-            replace = (len(candidates) < num_frames - 1),
-        )
-        return np.concatenate([[anchor], sampled])
-    
+
 
     def convert_imgpath(self, img_path: str) -> np.ndarray:
         """
@@ -171,15 +154,31 @@ class PhoETH3D(Dataset):
         return depth
 
 
+    def get_nearby_ids_random(
+        self,
+        anchor,
+        num_frames,
+        expand_ratio=2.0,
+    ):
+        expand_range = int(num_frames * expand_ratio)
+        low = max(0, anchor - expand_range)
+        high = min(len(self.data['hq_img']), anchor + expand_range + 1)
+        candidates = np.arange(low, high)
+        sampled = np.random.choice(
+            candidates,
+            size=num_frames - 1,
+            replace = (len(candidates) < num_frames - 1),
+        )
+        return np.concatenate([[anchor], sampled])
+
+
     def __getitem__(self, items):
         
         idx, num_input_view = items
 
         # view selection strategy        
         if self.view_sel.strategy == 'near_random':
-            frame_ids = self.get_nearby_ids(anchor=idx, num_frames=num_input_view, expand_ratio=self.view_sel.expand_ratio)
-        elif self.view_sel_strategy == 'near_random':
-            frame_ids = self.get_nearby_ids(anchor=idx, num_frames=num_input_view)
+            frame_ids = self.get_nearby_ids_random(anchor=idx, num_frames=num_input_view, expand_ratio=self.view_sel.expand_ratio)
         
         outputs={}
         outputs['frame_ids'] = frame_ids

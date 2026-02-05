@@ -228,7 +228,7 @@ class PhoTartanAir(Dataset):
                 view_id = view.split('/')[-1].split('.')[0]
                 lq_view_id.append(f'tartanair_{scene_id}_{view_id}')
                 img_pil = self.convert_imgpath(view)
-                KERNEL_SIZE=50
+                KERNEL_SIZE = self.data_cfg.lq_kernel_size
                 BLUR_INTENSITY=0.1
                 kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
                 blurred = kernel.applyTo(img_pil, keep_image_dim=True)

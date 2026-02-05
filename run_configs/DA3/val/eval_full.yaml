@@ -88,6 +88,18 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/clean/eval_full_view10
 
 
+  ## MVRM X (cam_blur_500)
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_500/eval_full_view100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_500/eval_full_view50
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_500/eval_full_view10
+
+
+  ## MVRM X (cam_blur_300)
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_300/eval_full_view100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_300/eval_full_view50
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_300/eval_full_view10
+
+
   ## MVRM X (cam_blur_100)
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_100/eval_full_view100
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_100/eval_full_view50
@@ -95,9 +107,11 @@ workspace:
 
 
   ## MVRM X (cam_blur_50)
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_50/eval_full_view100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_50/eval_full_view100
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_50/eval_full_view50
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_50/eval_full_view10
+
+
 
 
 

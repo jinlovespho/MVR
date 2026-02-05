@@ -428,7 +428,7 @@ class PhoHypersim(Dataset):
                 img_pil = self.convert_hdf5_img(hq_view)
                 
                 
-                KERNEL_SIZE=50
+                KERNEL_SIZE = self.data_cfg.lq_kernel_size
                 BLUR_INTENSITY=0.1
                 kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
                 blurred = kernel.applyTo(img_pil, keep_image_dim=True)
