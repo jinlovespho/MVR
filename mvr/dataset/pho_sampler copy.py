@@ -7,18 +7,13 @@ from torch.utils.data import DistributedSampler, Sampler
 
 
 class PhoBatchSampler(Sampler):
-    def __init__(
-        self,
-        sampler,
-        batch_size,
-        max_num_input_view,
-        epoch=0,
-        seed=42,
-    ):
+    def __init__(self, sampler, batch_size, epoch=0, seed=42,):
+        
         self.sampler = sampler
-        self.batch_size = batch_size
-        self.max_num_input_view = max_num_input_view
+        self.batch_size = batch_size 
         self.rng = random.Random()
+
+        # Set the epoch for the sampler
         self.set_epoch(epoch + seed)
 
     def set_epoch(self, epoch):
@@ -27,25 +22,25 @@ class PhoBatchSampler(Sampler):
         self.rng.seed(epoch * 100)
 
     def __iter__(self):
+
+        breakpoint()
+        # self.sampler.update_parameters(image_num=image_num, aspect_ratio=aspect_ratio)
         sampler_iter = iter(self.sampler)
+        
+        batch = []
 
-        while True:
-            try:
-                # sample num_input_view ONCE per batch
-                num_input_view = self.rng.randint(1, self.max_num_input_view)
-                print('sampler', num_input_view)
-                batch = []
-                for _ in range(self.batch_size):
-                    idx = next(sampler_iter)
-                    batch.append((idx, num_input_view))
+        for item in sampler_iter:
+            batch.append(item)
+            if len(batch) == self.batch_size:
                 yield batch
+                batch = []
 
-            except StopIteration:
-                break
+        if len(batch) > 0:
+            yield batch
+            
 
     def __len__(self):
-        return len(self.sampler) // self.batch_size
-
+        return len(self.sampler) // self.batch_size 
 
 
 class PhoSampler(DistributedSampler):

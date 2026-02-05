@@ -49,7 +49,7 @@ class PhoETH3D(Dataset):
         self.data['gt_depth'] = depth_paths 
         
 
-        self.view_sel_strategy = data_cfg.view_sel_strategy 
+        self.view_sel = data_cfg.view_selection
         self.input_processor = InputProcessor()
         
     
@@ -172,8 +172,14 @@ class PhoETH3D(Dataset):
 
 
     def __getitem__(self, items):
+        
         idx, num_input_view = items
-        frame_ids = self.get_nearby_ids(anchor=idx, num_frames=num_input_view)
+
+        # view selection strategy        
+        if self.view_sel.strategy == 'near_random':
+            frame_ids = self.get_nearby_ids(anchor=idx, num_frames=num_input_view, expand_ratio=self.view_sel.expand_ratio)
+        elif self.view_sel_strategy == 'near_random':
+            frame_ids = self.get_nearby_ids(anchor=idx, num_frames=num_input_view)
         
         outputs={}
         outputs['frame_ids'] = frame_ids

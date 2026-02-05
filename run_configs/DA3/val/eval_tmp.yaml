@@ -85,9 +85,10 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/clean/wo_mvrm/eval_full_view10
 
   # MVRM X (cam_blur_100)
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_TMPTMPTMP
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_100/eval_full_view100
 
 
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_100/eval_full_view100
 
 
   
@@ -110,9 +111,9 @@ eval:
   # Datasets to evaluate
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
-    # - eth3d
+    - eth3d
     # - 7scenes
-    - scannetpp
+    # - scannetpp
     # - hiroom
     # - dtu
     # - dtu64
@@ -120,9 +121,9 @@ eval:
   # Evaluation modes
   # Options: pose, recon_unposed, recon_posed, view_syn
   modes:
-    - pose
+    # - pose
     - recon_unposed
-    - recon_posed
+    # - recon_posed
 
   # Reference view selection strategy for inference
   # Options: first, saddle_balanced, auto, mid
@@ -140,7 +141,7 @@ eval:
   # max_frames: 10
 
   # Only run evaluation (skip inference)
-  eval_only: false
+  eval_only: true
 
   # Only print saved metrics (skip inference and evaluation)
   print_only: false

@@ -69,6 +69,7 @@ class DTU(Dataset):
     # pho
     da3_clean_root_path = DA3_CLEAN_ROOT_PATH
     da3_deg_root_path = DA3_DEG_ROOT_PATH
+    data_root = os.path.join(DA3_CLEAN_ROOT_PATH, 'dtu')
     
     # data_root = DTU_EVAL_DATA_ROOT
     SCENES = DTU_SCENES

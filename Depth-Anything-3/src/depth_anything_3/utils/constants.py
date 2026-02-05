@@ -23,8 +23,11 @@ THRESH_FOR_REF_SELECTION = 3
 # CLEAN, DEG PATH
 # =============================================================================
 DA3_CLEAN_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/clean' 
+
+
 # DA3_DEG_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/cam_blur_100'
-DA3_DEG_ROOT_PATH = DA3_CLEAN_ROOT_PATH
+DA3_DEG_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/cam_blur_50'
+# DA3_DEG_ROOT_PATH = DA3_CLEAN_ROOT_PATH
 
 
 # =============================================================================

@@ -244,6 +244,7 @@ def main():
         # train loop
         for train_step, batch in enumerate(train_loader):
 
+            breakpoint()
                     
             # load batch data
             train_frame_id = batch['frame_ids']               # b v

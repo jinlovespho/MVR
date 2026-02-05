@@ -79,28 +79,46 @@ model:
 workspace:
   # Working directory for outputs (model results, metrics, etc.)
 
-  # MVRM X (clean)
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/clean/wo_mvrm/eval_full_view100
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/clean/wo_mvrm/eval_full_view50
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/clean/wo_mvrm/eval_full_view10
-
-  # MVRM X (cam_blur_100)
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/cam_blur_100/wo_mvrm/eval_full_view100
+  # ------------------------------------------------------------------------------------------------------------------------
 
 
+  ## MVRM X (clean)
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/clean/eval_full_view100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/clean/eval_full_view50
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/clean/eval_full_view10
 
 
-  
-  # MVRM O
+  ## MVRM X (cam_blur_100)
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_100/eval_full_view100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_100/eval_full_view50
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_100/eval_full_view10
 
-  # cam_blur_50
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/cam_blur_50/w_mvrm/eval_full_100
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/cam_blur_50/w_mvrm/eval_full_10
 
-  # cam_blur_100
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/cam_blur_100/w_mvrm/eval_full_100
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/cam_blur_100/w_mvrm/eval_full_10
+  ## MVRM X (cam_blur_50)
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_50/eval_full_view100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_50/eval_full_view50
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_50/eval_full_view10
 
+
+
+
+  # ------------------------------------------------------------------------------------------------------------------------
+
+
+  ## MVRM O (cam_blur_100)
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/cam_blur_100/eval_full_view100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/cam_blur_100/eval_full_view50
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/cam_blur_100/eval_full_view10
+
+
+  ## MVRM O (cam_blur_50)
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/cam_blur_50/eval_full_view100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/cam_blur_50/eval_full_view50
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/cam_blur_50/eval_full_view10
+
+
+
+  # ------------------------------------------------------------------------------------------------------------------------
 
 
 # ==============================================================================
@@ -150,7 +168,7 @@ eval:
 # ==============================================================================
 inference:
   # Number of parallel workers for TSDF fusion
-  num_fusion_workers: 8
+  num_fusion_workers: 4
 
   # Enable debug mode with verbose output
   # debug: false

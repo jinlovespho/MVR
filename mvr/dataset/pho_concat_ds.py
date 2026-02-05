@@ -15,10 +15,11 @@ class PhoConcatDataset(Dataset):
         self.datasets = datasets
         self.cumulative_sizes = self._compute_cumulative_sizes()
         
-        if mode == 'train':
-            self.num_input_view = cfg.data.train.num_input_view 
-        elif mode == 'val':
-            self.num_input_view = cfg.data.val.num_input_view 
+        # if mode == 'train':
+        #     self.num_input_view = cfg.data.train.num_input_view 
+        # elif mode == 'val':
+        #     self.num_input_view = cfg.data.val.num_input_view 
+
 
     def _compute_cumulative_sizes(self):
         sizes = []
@@ -43,19 +44,32 @@ class PhoConcatDataset(Dataset):
 
     def __getitem__(self, items):
         """
-        items = (global_idx, image_num, aspect_ratio)
+        items = (global_idx, num_input_view)
         """
-        
-        # global_idx, image_num, aspect_ratio = items
-        global_idx = items 
-        # print('concat dataset (global): ', global_idx, image_num, aspect_ratio)
+        global_idx, num_input_view = items
 
         dataset_id, local_idx = self._get_dataset_index(global_idx)
-        # print('concat dataset (local): ', dataset_id, local_idx)
+        return self.datasets[dataset_id][(local_idx, num_input_view)]
 
-        # breakpoint()
-        # return self.datasets[dataset_id][(local_idx, image_num, aspect_ratio)]
-        return self.datasets[dataset_id][(local_idx, self.num_input_view)]
+
+    # def __getitem__(self, items):
+    #     """
+    #     items = (global_idx, image_num, aspect_ratio)
+    #     """
+        
+    #     breakpoint()
+    #     # global_idx, image_num, aspect_ratio = items
+    #     global_idx = items 
+    #     # print('concat dataset (global): ', global_idx, image_num, aspect_ratio)
+
+    #     dataset_id, local_idx = self._get_dataset_index(global_idx)
+    #     # print('concat dataset (local): ', dataset_id, local_idx)
+
+    #     # breakpoint()
+    #     # return self.datasets[dataset_id][(local_idx, image_num, aspect_ratio)]
+    #     return self.datasets[dataset_id][(local_idx, self.num_input_view)]
+    
+
 
 
 IMAGENET_NORMALIZE = T.Normalize(

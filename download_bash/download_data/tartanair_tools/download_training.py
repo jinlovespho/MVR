@@ -270,7 +270,7 @@ if __name__ == '__main__':
         exit()
 
     # read all the zip file urls
-    with open('download_bash/data/tartanair_tools/download_training_zipfiles.txt') as f:
+    with open('download_bash/download_data/tartanair_tools/download_training_zipfiles.txt') as f:
         lines = f.readlines()
     zipsizelist = [ll.strip().split() for ll in lines if ll.strip().split()[0].endswith('.zip')]
 

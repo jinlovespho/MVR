@@ -84,26 +84,9 @@ class PhoHypersim(Dataset):
             self.data['gt_depth'] = sorted([path for path in test_depth_paths if os.path.exists(path)])
 
           
-        self.view_sel_strategy = data_cfg.view_sel_strategy 
+        self.view_sel = data_cfg.view_selection 
         self.input_processor = InputProcessor()
         
-    
-    def get_nearby_ids(
-        self,
-        anchor,
-        num_frames,
-        expand_ratio=2.0,
-    ):
-        expand_range = int(num_frames * expand_ratio)
-        low = max(0, anchor - expand_range)
-        high = min(len(self.data['hq_img']), anchor + expand_range + 1)
-        candidates = np.arange(low, high)
-        sampled = np.random.choice(
-            candidates,
-            size=num_frames - 1,
-            replace = (len(candidates) < num_frames - 1),
-        )
-        return np.concatenate([[anchor], sampled])
     
 
     def convert_imgpath(self, img_path: str) -> np.ndarray:
@@ -234,12 +217,39 @@ class PhoHypersim(Dataset):
         gt_depth = dist / plane_norm * FOCAL
         gt_depth = np.nan_to_num(gt_depth, nan=0.0, posinf=0.0, neginf=0.0)
         return gt_depth.astype(np.float32)
-        
+
+
+    def get_nearby_ids(
+        self,
+        anchor,
+        num_frames,
+        expand_ratio=2.0,
+    ):
+        expand_range = int(num_frames * expand_ratio)
+        low = max(0, anchor - expand_range)
+        high = min(len(self.data['hq_img']), anchor + expand_range + 1)
+        candidates = np.arange(low, high)
+        sampled = np.random.choice(
+            candidates,
+            size=num_frames - 1,
+            replace = (len(candidates) < num_frames - 1),
+        )
+        return np.concatenate([[anchor], sampled])
+    
 
 
     def __getitem__(self, items):
+        
         idx, num_input_view = items
-        frame_ids = self.get_nearby_ids(anchor=idx, num_frames=num_input_view)
+        # print(f'hypersim - {num_input_view}')
+
+        # view selection strategy        
+        if self.view_sel.strategy == 'near_random':
+            frame_ids = self.get_nearby_ids(anchor=idx, num_frames=num_input_view, expand_ratio=self.view_sel.expand_ratio)
+        elif self.view_sel_strategy == 'near_random':
+            frame_ids = self.get_nearby_ids(anchor=idx, num_frames=num_input_view)
+        
+        
         
         outputs={}
         outputs['frame_ids'] = frame_ids

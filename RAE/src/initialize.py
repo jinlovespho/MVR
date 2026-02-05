@@ -170,7 +170,7 @@ def load_train_data(
             datasets.append(tartanair_ds)
         train_ds = PhoConcatDataset(datasets, cfg, mode='train')
         train_sampler = PhoSampler(train_ds, shuffle=cfg.training.shuffle)
-        train_batchsampler = PhoBatchSampler(sampler=train_sampler, batch_size=batch_size)
+        train_batchsampler = PhoBatchSampler(sampler=train_sampler, batch_size=batch_size, max_num_input_view=cfg.data.train.max_num_input_view)
         train_loader = DataLoader(train_ds, batch_sampler=train_batchsampler, num_workers=cfg.training.num_workers, pin_memory=True, drop_last=False, collate_fn=multiview_collate_fn)
     return train_loader, train_sampler
 
@@ -198,7 +198,7 @@ def load_val_data(
         
     val_ds = PhoConcatDataset(datasets, cfg, mode='val')
     val_sampler = PhoSampler(val_ds, shuffle=False)
-    val_batchsampler = PhoBatchSampler(sampler=val_sampler, batch_size=batch_size)
+    val_batchsampler = PhoBatchSampler(sampler=val_sampler, batch_size=batch_size, max_num_input_view=cfg.data.val.max_num_input_view)
     val_loader = DataLoader(val_ds, batch_sampler=val_batchsampler, num_workers=cfg.training.num_workers, pin_memory=True, drop_last=False, collate_fn=multiview_collate_fn)
     return val_loader, val_sampler
 

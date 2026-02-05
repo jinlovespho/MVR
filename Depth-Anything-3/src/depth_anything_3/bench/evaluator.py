@@ -216,7 +216,6 @@ class Evaluator:
             self.denoiser = self.denoiser.to(device)
         
 
-        breakpoint()
         for data, scene in tqdm(tasks, desc=f"Inference (GPU {self.gpu_id})"):
             
             dataset = self.datasets[data]
