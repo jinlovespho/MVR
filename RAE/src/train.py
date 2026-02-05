@@ -244,7 +244,6 @@ def main():
         # train loop
         for train_step, batch in enumerate(train_loader):
 
-            breakpoint()
                     
             # load batch data
             train_frame_id = batch['frame_ids']               # b v
@@ -252,8 +251,6 @@ def main():
             train_gt_depth = batch['gt_depths'].to(device)    # b v 1 378 504
             train_hq_views = batch['hq_views'].to(device)     # b v 3 378 504
             train_lq_views = batch['lq_views'].to(device)     # b v 3 378 504
-            
-            
             print(train_hq_views.shape)
 
             # apply imagenet normalization

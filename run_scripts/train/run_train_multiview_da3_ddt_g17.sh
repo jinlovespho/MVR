@@ -1,7 +1,7 @@
 
 SERVER=20
 NUM_GPUS=1
-CUDA=0
+CUDA=6
 
 export SERVER=${SERVER}
 export CUDA=${CUDA}

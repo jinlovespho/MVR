@@ -19,7 +19,7 @@ stage_1:
 
 
 stage_2:
-  model: DiTwDDTHeadMVRM_Multiview
+  model: mvrm
   target: stage2.models.DDT_MVRM_multiview.DiTwDDTHeadMVRM_Multiview
   params:
     # input_size: [27, 36]  # feat_H, feat_W
@@ -131,13 +131,15 @@ data:
       ann_path: /mnt/dataset1/MV_Restoration/hypersim/metadata_images_split_scene_v1.csv
       hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data
       view_selection:
-        strategy: near_random 
+        # [random, near_random, near_camera]
+        strategy: near_camera
         expand_ratio: 2
     
     tartanair:
       ann_path: 
       hq_root_path: /mnt/dataset1/MV_Restoration/tartanair/data
       view_selection:
+        # [random, near_random]
         strategy: near_random 
         expand_ratio: 2
         

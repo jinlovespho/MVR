@@ -21,39 +21,40 @@ class PhoHypersim(Dataset):
         self.ds_name = 'hypersim'
         self.data_cfg = data_cfg 
         self.mode = mode 
+        
         self.data = {}
-
+        
         
         # train/val/test annotations
         with open(data_cfg.ann_path) as f:
             anns = list(csv.DictReader(f))  # len: 82,900
-        train_anns = [ann for ann in anns if ann['split_partition_name']=='train']      # 59,543        
-        train_scenes = set([ann['scene_name'] for ann in anns if ann['split_partition_name'] == 'train'])
+        train_anns = [ann for ann in anns if ann['split_partition_name']=='train']      # 59,543
+        val_anns = [ann for ann in anns if ann['split_partition_name']=='val']          # 7,386
+        test_anns = [ann for ann in anns if ann['split_partition_name']=='test']        # 7,690
         
-
+        train_scenes = [ann['scene_name'] for ann in anns if ann['split_partition_name'] == 'train']
+        train_scenes = list(set(train_scenes))
+        
+        
         # camera annotations (for view_sel)
         cam_ori_paths = sorted(glob.glob(f'{data_cfg.hq_root_path}/*/_detail/cam_*/camera_keyframe_orientations.hdf5')) # camera rotation
-        cam_pos_paths = sorted(glob.glob(f'{data_cfg.hq_root_path}/*/_detail/cam_*/camera_keyframe_positions.hdf5'))    # camera translation
         cam_ori_paths = sorted([path for path in cam_ori_paths if path.split('/')[-4] in train_scenes])
-        cam_pos_paths = sorted([path for path in cam_pos_paths if path.split('/')[-4] in train_scenes])
-        assert len(cam_ori_paths) == len(cam_pos_paths)
-
-
-        def cam_key(p):
-            return (p.split('/')[-4], p.split('/')[-2])  # (scene_id, cam_xx)
-        ori_map = {cam_key(p): p for p in cam_ori_paths}
-        pos_map = {cam_key(p): p for p in cam_pos_paths}
         
+        cam_pos_paths = sorted(glob.glob(f'{data_cfg.hq_root_path}/*/_detail/cam_*/camera_keyframe_positions.hdf5'))    # camera translation
+        cam_pos_paths = sorted([path for path in cam_pos_paths if path.split('/')[-4] in train_scenes])
+        
+        assert len(cam_ori_paths) == len(cam_pos_paths)
 
         self.camera_rankings = {}
         self.camera_num_frames = {}
-        common_keys = ori_map.keys() & pos_map.keys()
-        for scene_id, camera_id in sorted(common_keys):
+
+
+        for cam_ori_path, cam_pos_path in zip(cam_ori_paths, cam_pos_paths):
             # ----------------------------
             # parse identifiers
             # ----------------------------
-            cam_ori_path = ori_map[(scene_id, camera_id)]
-            cam_pos_path = pos_map[(scene_id, camera_id)]
+            scene_id  = cam_ori_path.split('/')[-4]   # e.g. ai_001_002
+            camera_id = cam_ori_path.split('/')[-2]   # e.g. cam_00
 
             cache_key = (scene_id, camera_id)
             if cache_key in self.camera_rankings:
@@ -96,17 +97,60 @@ class PhoHypersim(Dataset):
             self.camera_num_frames[cache_key] = N        
 
 
+
         # HQ 
         train_hq_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_final_hdf5/frame.{int(ann['frame_id']):04}.color.hdf5" for ann in train_anns])
+        val_hq_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_final_hdf5/frame.{int(ann['frame_id']):04}.color.hdf5" for ann in val_anns])
+        test_hq_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_final_hdf5/frame.{int(ann['frame_id']):04}.color.hdf5" for ann in test_anns])
 
 
         # depth 
         train_depth_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_geometry_hdf5/frame.{int(ann['frame_id']):04}.depth_meters.hdf5" for ann in train_anns])
-
+        val_depth_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_geometry_hdf5/frame.{int(ann['frame_id']):04}.depth_meters.hdf5" for ann in val_anns])
+        test_depth_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_geometry_hdf5/frame.{int(ann['frame_id']):04}.depth_meters.hdf5" for ann in test_anns])
+        
 
         if mode == 'train':
             self.data['hq_img'] = sorted([path for path in train_hq_paths if os.path.exists(path)])
             self.data['gt_depth'] = sorted([path for path in train_depth_paths if os.path.exists(path)])
+        elif mode == 'val':
+            # self.data['hq_img'] = sorted([path for path in val_hq_paths if os.path.exists(path)])[:data_cfg.num_eval_img]
+            # self.data['gt_depth'] = sorted([path for path in val_depth_paths if os.path.exists(path)])[:data_cfg.num_eval_img]
+
+            hq_imgs = sorted([p for p in val_hq_paths if os.path.exists(p)])
+            gt_depths = sorted([p for p in val_depth_paths if os.path.exists(p)])
+            assert len(hq_imgs) == len(gt_depths), "HQ and GT depth count mismatch"
+            idx = list(range(len(hq_imgs)))
+            random.seed(97)
+            random.shuffle(idx)
+            idx = idx[:data_cfg.num_eval_img]
+            self.data['hq_img'] = [hq_imgs[i] for i in idx]
+            self.data['gt_depth'] = [gt_depths[i] for i in idx]
+            
+            
+            # fix validation lq images
+            self.lq_ids = []
+            self.lq_imgs = []
+            for hq_view in self.data['hq_img']:
+                volume = hq_view.split('/')[-4].split('_')[-2]
+                scene = hq_view.split('/')[-4].split('_')[-1]
+                camera = hq_view.split('/')[-2].split('_')[-3]
+                view_id = hq_view.split('/')[-1].split('.')[-3]
+                self.lq_ids.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
+                img_pil = self.convert_hdf5_img(hq_view)
+                KERNEL_SIZE=50
+                BLUR_INTENSITY=0.1
+                kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
+                blurred = kernel.applyTo(img_pil, keep_image_dim=True)
+                blurred = np.array(blurred)
+                self.lq_imgs.append(self.resize(blurred))
+            
+        elif mode == 'test':
+            self.data['hq_img'] = sorted([path for path in test_hq_paths if os.path.exists(path)])
+            self.data['gt_depth'] = sorted([path for path in test_depth_paths if os.path.exists(path)])
+
+
+
 
 
         # ----------------------------------------
@@ -127,6 +171,7 @@ class PhoHypersim(Dataset):
 
             self.camera_to_global_idx[key][frame_id] = global_idx
             self.global_to_camera_idx[global_idx] = (scene_id, camera_id, frame_id)
+
 
 
 
@@ -265,20 +310,6 @@ class PhoHypersim(Dataset):
         return gt_depth.astype(np.float32)
 
 
-    def get_random_ids(self, anchor, num_frames):
-        """
-        Global random sampling baseline.
-        """
-        if num_frames == 1:
-            return np.array([anchor], dtype=np.int64)
-        N = len(self.data['hq_img'])
-        candidates = np.arange(N)
-        candidates = np.delete(candidates, anchor)
-        K = num_frames - 1
-        sampled = np.random.choice(candidates, size=K,replace=(len(candidates) < K),)
-        return np.concatenate([[anchor], sampled]).astype(np.int64)
-
-
     def get_nearby_ids_random(
         self,
         anchor,
@@ -289,37 +320,36 @@ class PhoHypersim(Dataset):
         low = max(0, anchor - expand_range)
         high = min(len(self.data['hq_img']), anchor + expand_range + 1)
         candidates = np.arange(low, high)
-        sampled = np.random.choice(candidates,size=num_frames - 1,replace = (len(candidates) < num_frames - 1),)
+        sampled = np.random.choice(
+            candidates,
+            size=num_frames - 1,
+            replace = (len(candidates) < num_frames - 1),
+        )
         return np.concatenate([[anchor], sampled])
 
 
+
     def get_nearby_ids_camera(self, anchor, num_frames, expand_ratio=2.0):
-        if num_frames == 1:
-            return np.array([anchor], dtype=np.int64)
+
         # ----------------------------
         # map global idx -> camera frame
         # ----------------------------
         scene_id, camera_id, cam_frame_idx = self.global_to_camera_idx[anchor]
-        tmp_camera_id = f"cam_{camera_id.split('_')[-3]}"
-        # get ranking
-        ranking = self.camera_rankings[(scene_id, tmp_camera_id)]
+
+        ranking = self.camera_rankings[(scene_id, camera_id)]
         cam_neighbors = ranking[cam_frame_idx]
+
         # skip itself
         cam_neighbors = cam_neighbors[1:]
-        # only keep frames that exist in dataset
-        valid_frames = self.camera_to_global_idx[(scene_id, camera_id)]
-        cam_neighbors = [i for i in cam_neighbors if i in valid_frames]
+
         # optionally expand candidate pool
         max_candidates = int(num_frames * expand_ratio)
         cam_neighbors = cam_neighbors[:max_candidates]
+
         # pick K-1 neighbors
         K = num_frames - 1
-        
-        # no randomness and only sample the closest views
-        # selected_cam_idxs = cam_neighbors[:K]
-        
-        # add randomness when sampling from neighboring views 
-        selected_cam_idxs = np.random.choice(cam_neighbors, size=K, replace=len(cam_neighbors) < K)
+        selected_cam_idxs = cam_neighbors[:K]
+
         # ----------------------------
         # map camera frame idx -> global idx
         # ----------------------------
@@ -327,7 +357,9 @@ class PhoHypersim(Dataset):
         for cam_i in selected_cam_idxs:
             global_i = self.camera_to_global_idx[(scene_id, camera_id)][cam_i]
             global_indices.append(global_i)
+
         return np.array(global_indices, dtype=np.int64)
+
 
 
 
@@ -337,10 +369,9 @@ class PhoHypersim(Dataset):
         # print(f'hypersim - {num_input_view}')
         
 
+        breakpoint()
         # view selection strategy        
-        if self.view_sel.strategy == 'random':
-            frame_ids = self.get_random_ids(anchor=idx, num_frames=num_input_view)
-        elif self.view_sel.strategy == 'near_random':
+        if self.view_sel.strategy == 'near_random':
             frame_ids = self.get_nearby_ids_random(anchor=idx, num_frames=num_input_view, expand_ratio=self.view_sel.expand_ratio)
         elif self.view_sel.strategy == 'near_camera':
             frame_ids = self.get_nearby_ids_camera(anchor=idx, num_frames=num_input_view, expand_ratio=self.view_sel.expand_ratio)

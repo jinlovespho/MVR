@@ -33,7 +33,7 @@ class PhoBatchSampler(Sampler):
             try:
                 # sample num_input_view ONCE per batch
                 num_input_view = self.rng.randint(1, self.max_num_input_view)
-                print('sampler', num_input_view)
+                # print('sampler', num_input_view)
                 batch = []
                 for _ in range(self.batch_size):
                     idx = next(sampler_iter)

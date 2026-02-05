@@ -146,7 +146,21 @@ class PhoTartanAir(Dataset):
         return depthvis
 
 
-    def get_nearby_ids(
+    def get_random_ids(self, anchor, num_frames):
+        """
+        Global random sampling baseline (TartanAir).
+        """
+        if num_frames == 1:
+            return np.array([anchor], dtype=np.int64)
+        N = len(self.data['hq_img'])
+        candidates = np.arange(N)
+        candidates = np.delete(candidates, anchor)
+        K = num_frames - 1
+        sampled = np.random.choice(candidates, size=K, replace=(len(candidates) < K),)
+        return np.concatenate([[anchor], sampled]).astype(np.int64)
+    
+    
+    def get_nearby_ids_random(
         self,
         anchor,
         num_frames,
@@ -162,19 +176,20 @@ class PhoTartanAir(Dataset):
             replace = (len(candidates) < num_frames - 1),
         )
         return np.concatenate([[anchor], sampled])
-    
+
+
 
     def __getitem__(self, items):
         
         idx, num_input_view = items
         # print(f'tartanair - {num_input_view}')
 
-        # view selection strategy        
-        if self.view_sel.strategy == 'near_random':
-            frame_ids = self.get_nearby_ids(anchor=idx, num_frames=num_input_view, expand_ratio=self.view_sel.expand_ratio)
-        elif self.view_sel_strategy == 'near_random':
-            frame_ids = self.get_nearby_ids(anchor=idx, num_frames=num_input_view)
 
+        # view selection strategy        
+        if self.view_sel.strategy == 'random':
+            frame_ids = self.get_random_ids(anchor=idx, num_frames=num_input_view)
+        elif self.view_sel.strategy == 'near_random':
+            frame_ids = self.get_nearby_ids_random(anchor=idx, num_frames=num_input_view, expand_ratio=self.view_sel.expand_ratio)
         
         
         outputs={}
