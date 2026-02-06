@@ -288,6 +288,9 @@ def main():
             lq_latent = lq_mvrm_out['extract_feat']      # b v 973 3072
             assert lq_latent.shape == hq_latent.shape 
             
+            
+            breakpoint()
+            
 
             # save_image(batch['hq_views'].view(-1,3,h,w), 'img_hq.jpg')
             # save_image(batch['lq_views'].view(-1,3,h,w), 'img_lq.jpg')

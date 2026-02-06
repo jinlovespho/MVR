@@ -131,11 +131,15 @@ class PhoTartanAir(Dataset):
 
             
     def load_depth(self, depth_path):
-        depth = np.load(depth_path)
-        # depth[np.isinf(depth)] = np.nan
-        # depth[depth > 1000] = np.nan
-        return depth
-    
+        try:
+            depth = np.load(depth_path)
+            # depth[np.isinf(depth)] = 0
+            # depth[depth > 1000] = 0
+            return depth
+        except Exception as e:
+            print(f"Failed to load {depth_path}: {e}")
+            return None
+        
 
 
     def depth2vis(self, depth, maxthresh = 50):
@@ -248,14 +252,14 @@ class PhoTartanAir(Dataset):
         if 'gt_depth' in self.data.keys():
             views = sorted([self.data['gt_depth'][i] for i in frame_ids])
             for view in views:
+                depth_data = self.load_depth(view)
+                if depth_data is None:
+                    depth_data = np.zeros((480, 640), dtype=np.float32)  # placeholder
                 scene_id = view.split('/')[-5]
                 view_id = view.split('/')[-1].split('.')[0]
                 depth_view_id.append(f'tartanair_{scene_id}_{view_id}')
-                depth = self.resize_depth(self.load_depth(view))
-                depth_view_list.append(depth)
-                # depth_vis_view_list.append(self.depth2vis(depth))
-            outputs['gt_depth_ids'] = depth_view_id
-            outputs['gt_depths'] = depth_view_list
+                depth_view_list.append(self.resize_depth(depth_data))
+
             
             
 
