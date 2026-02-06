@@ -276,7 +276,12 @@ def main():
             lq_latent = lq_mvrm_out['extract_feat']      # b v 973 3072
             assert lq_latent.shape == hq_latent.shape 
             
-
+            
+            if train_b==1 and len(train_hq_pred_depth_np.shape)<4 and len(train_lq_pred_depth_np.shape)<4:
+                train_hq_pred_depth_np = np.expand_dims(train_hq_pred_depth_np, axis=0)
+                train_lq_pred_depth_np = np.expand_dims(train_lq_pred_depth_np, axis=0)
+                
+            
             # ------------------------------------------------
             # VISUALIZE TRAIN (only first batch)
             # ------------------------------------------------
