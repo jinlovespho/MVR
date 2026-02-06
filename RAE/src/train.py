@@ -56,25 +56,16 @@ from motionblur.motionblur import Kernel
 # torch.backends.cuda.enable_math_sdp(True)
 
 
-
-def tensor_stats(x: torch.Tensor):
-    x_detached = x.detach()
-    finite = torch.isfinite(x_detached)
-    return {
-        "min": x_detached[finite].min().item() if finite.any() else float("nan"),
-        "max": x_detached[finite].max().item() if finite.any() else float("nan"),
-        "mean": x_detached[finite].mean().item() if finite.any() else float("nan"),
-        "std": x_detached[finite].std().item() if finite.any() else float("nan"),
-        "norm": x_detached.norm().item(),
-        "nan_frac": (~torch.isfinite(x_detached)).float().mean().item(),
-        "dtype": str(x_detached.dtype),
-    }
+IMAGENET_MEAN = np.array([0.485, 0.456, 0.406])
+IMAGENET_STD  = np.array([0.229, 0.224, 0.225])
 
 
-def has_nan_or_inf(x: torch.Tensor):
-    return not torch.isfinite(x).all()
-
-
+def tensor_to_uint8_image(img):  # img: (3, H, W), torch tensor
+    img = img.permute(1, 2, 0).cpu().numpy()   # (H, W, 3)
+    img = img * IMAGENET_STD + IMAGENET_MEAN
+    img = np.clip(img, 0, 1)
+    img = (img * 255).astype(np.uint8)
+    return img
 
 
 def parse_args() -> argparse.Namespace:
@@ -82,7 +73,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", type=str, required=True, help="YAML config containing stage_1 and stage_2 sections.")
     args = parser.parse_args()
     return args
-
 
 
 def main():
@@ -126,7 +116,7 @@ def main():
         batch_size = int(training_cfg.get("batch_size", 16))
         global_batch_size = batch_size * world_size * grad_accum_steps
     log_interval = int(training_cfg.get("log_interval", 100))
-    sample_every = int(training_cfg.get("sample_every", 2500)) 
+    # sample_every = int(training_cfg.get("sample_every", 2500)) 
     # checkpoint_interval = int(training_cfg.get("checkpoint_interval", 4)) # ckpt interval is epoch based
     ckpt_step_interval = int(training_cfg.get('ckpt_step_interval', 25000))
     cfg_scale_override = training_cfg.get("cfg_scale", None)
@@ -185,7 +175,6 @@ def main():
     running_loss = 0.0
 
     
-    
     # maybe_resume_ckpt_path = find_resume_checkpoint(experiment_dir)
     maybe_resume_ckpt_path = full_cfg.stage_2.ckpt
     if maybe_resume_ckpt_path is not None:
@@ -227,7 +216,6 @@ def main():
         logger.info(f"Running with world size {world_size}, starting from epoch {start_epoch} to {num_epochs}.")
 
 
-
     IMAGENET_NORMALIZE = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225],)
 
     dist.barrier() 
@@ -254,9 +242,9 @@ def main():
             print(train_hq_views.shape)
 
             # apply imagenet normalization
-            b, v, c, h, w = train_hq_views.shape 
-            train_hq_views = IMAGENET_NORMALIZE(train_hq_views.view(b*v, c, h, w)).view(b, v, c, h, w)
-            train_lq_views = IMAGENET_NORMALIZE(train_lq_views.view(b*v, c, h, w)).view(b, v, c, h, w)
+            train_b, train_v, train_c, train_h, train_w = train_hq_views.shape 
+            train_hq_views = IMAGENET_NORMALIZE(train_hq_views.view(train_b*train_v, train_c, train_h, train_w)).view(train_b, train_v, train_c, train_h, train_w)
+            train_lq_views = IMAGENET_NORMALIZE(train_lq_views.view(train_b*train_v, train_c, train_h, train_w)).view(train_b, train_v, train_c, train_h, train_w)
 
 
             # hq forward pass
@@ -271,7 +259,6 @@ def main():
             train_hq_pred_depth_np = hq_encoder_out.depth                  # b v 378 504
             train_hq_pred_depth = torch.from_numpy(train_hq_pred_depth_np).to(device) 
             hq_latent = hq_mvrm_out['extract_feat']
-        
         
 
             # lq view forward pass
@@ -288,22 +275,44 @@ def main():
             lq_latent = lq_mvrm_out['extract_feat']      # b v 973 3072
             assert lq_latent.shape == hq_latent.shape 
             
-            
-            breakpoint()
-            
 
-            # save_image(batch['hq_views'].view(-1,3,h,w), 'img_hq.jpg')
-            # save_image(batch['lq_views'].view(-1,3,h,w), 'img_lq.jpg')
-            # save_image(train_hq_pred_depth.view(-1,1,h,w), 'img_depth_hq.jpg')
-            # save_image(train_lq_pred_depth.view(-1,1,h,w), 'img_depth_lq.jpg')
-            
+            # ------------------------------------------------
+            # VISUALIZE TRAIN (only first batch)
+            # ------------------------------------------------
+            if rank == 0 and training_cfg.vis.train_depth_every > 0 and global_train_step % training_cfg.vis.train_depth_every == 0:
+                vis_train_hq_rgb = []
+                vis_train_lq_rgb = []
+                vis_train_hq_depth = []
+                vis_train_lq_depth = []
+                for view_idx in range(train_v):
+                    # RGB (unnormalized!)
+                    vis_train_hq_rgb.append(tensor_to_uint8_image(train_hq_views[0, view_idx]))
+                    vis_train_lq_rgb.append(tensor_to_uint8_image(train_lq_views[0, view_idx]))
+                    # Depths
+                    vis_train_hq_depth.append(depth_to_colormap(train_hq_pred_depth_np[0, view_idx]))
+                    vis_train_lq_depth.append(depth_to_colormap(train_lq_pred_depth_np[0, view_idx]))
+                # concatenate views along width
+                vis_train_hq_rgb    = np.concatenate(vis_train_hq_rgb, axis=1)
+                vis_train_lq_rgb    = np.concatenate(vis_train_lq_rgb, axis=1)
+                vis_train_hq_depth  = np.concatenate(vis_train_hq_depth, axis=1)
+                vis_train_lq_depth  = np.concatenate(vis_train_lq_depth, axis=1)
+                # stack rows (modalities)
+                vis_train_top = np.concatenate([vis_train_hq_rgb, vis_train_lq_rgb], axis=1)
+                vis_train_bot = np.concatenate([vis_train_hq_depth, vis_train_lq_depth], axis=1)
+                vis_train_all = np.concatenate([vis_train_top[:,:,::-1], vis_train_bot], axis=0)
+                # save
+                vis_train_depth_save_dir = f"{experiment_dir}/vis_train_depth"
+                os.makedirs(vis_train_depth_save_dir, exist_ok=True)
+                vis_id = "-".join(train_hq_id[0])
+                cv2.imwrite(f"{vis_train_depth_save_dir}/step{global_train_step:07}_{vis_id}.jpg",vis_train_all)
+
 
             # compute loss (per microbatch)
             transport_output = transport.training_losses_mvrm(
                 model=models['ddp_denoiser'],
                 x1=hq_latent,
                 xcond=lq_latent,
-                model_img_size=(h,w),
+                model_img_size=(train_h, train_w),
                 cfg=full_cfg
             )
             
@@ -416,14 +425,13 @@ def main():
             
             
 
-            if rank==0 and full_cfg.training.sample and global_train_step % sample_every == 0:
-                
-                logger.info(f'Num Validation Samples: {len(val_loader.dataset)}')
+            if rank==0 and (training_cfg.vis.val_depth_every > 0)and (global_train_step % training_cfg.vis.val_depth_every) == 0:
                 
                 # val loop
                 for val_step, val_batch in enumerate(val_loader):
-                                    
                     
+                    logger.info(f'Validating Samples: {val_step+1}/{len(val_loader.dataset)}')    
+                                    
                     # load val batch 
                     val_frame_id = val_batch['frame_ids']               # b v
                     val_hq_id = val_batch['hq_ids']                     # len(hq_id) = b, len(hq_id[i]) = v
@@ -455,7 +463,7 @@ def main():
                                                             mode='train'
                                                             )
                     val_lq_encoder_out = processors['encoder_output_processor'](val_lq_encoder_out)
-                    val_lq_pred_depth_np = val_lq_encoder_out.depth                  # b v 378 504
+                    val_lq_pred_depth_np = val_lq_encoder_out.depth     # num_view h w
                     val_lq_pred_depth = torch.from_numpy(val_lq_pred_depth_np).to(device) 
                     val_lq_latent = val_lq_mvrm_out['extract_feat']      # b v 973 3072
 
@@ -496,40 +504,33 @@ def main():
                                                                     mode='val'
                                                                     )
                     val_encoder_out = processors['encoder_output_processor'](val_encoder_out)
-                    val_pred_depth_np = val_encoder_out.depth                            # b v 378 504
+                    val_pred_depth_np = val_encoder_out.depth   # num_view h w
                     val_pred_depth = torch.from_numpy(val_pred_depth_np).to(device)
                     
 
-                    # VIS DEPTH 
-                    # gt_depth_np: b v 378 504
-                    # model_input: b v 3 378 504 
-                    # train_lq_pred_depth_np: b*v 378 504
-                    # val_pred_depth_np: b*v 378 504
-                    
-                    
-                    np_model_input = val_lq_views[0,0]   # # 378 504 3  
-                    np_model_input = (np_model_input - np_model_input.min()) / (np_model_input.max() - np_model_input.min()) * 255.0
-                    np_model_input = np_model_input.permute(1,2,0).detach().cpu().numpy()[:,:,::-1]     
-                    np_gt_depth = val_gt_depth[0,0,0].detach().cpu().numpy()    # 378 504
-                    np_lq_depth = val_lq_pred_depth_np[0]                 # 378 504
-                    np_restored_depth = val_pred_depth_np[0]                     # 378 504
-
-                    vis_gt_depth = depth_to_colormap(np_gt_depth)               # 378 504 3
-                    vis_lq_depth = depth_to_colormap(np_lq_depth)         # 378 504 3
-                    vis_restored_depth = depth_to_colormap(np_restored_depth)             # 378 504 3
-                    
-                    vis_err_lq_depth = depth_error_to_colormap_thresholded(np_gt_depth, np_lq_depth, thr=0.1)
-                    vis_err_restored_depth = depth_error_to_colormap_thresholded(np_gt_depth, np_restored_depth, thr=0.1)
-                    
-                    vis_depth_cat = np.concatenate(
-                        [np_model_input, vis_lq_depth, vis_restored_depth, vis_gt_depth, vis_err_lq_depth, vis_err_restored_depth, ],
-                        axis=1
-                    )
-
+                    # ------------------------------------------
+                    # VISUALIZE VALIDATION DEPTH
+                    # ------------------------------------------
+                    vis_val_lq_rgb = []
+                    vis_val_lq_depth = []
+                    vis_res_depths = []
+                    num_views = val_v  # or val_pred_depth_np.shape[0]
+                    for v in range(num_views):
+                        # RGB (unnormalized)
+                        vis_val_lq_rgb.append(tensor_to_uint8_image(val_lq_views[0, v]))
+                        # Depths
+                        vis_val_lq_depth.append(depth_to_colormap(val_lq_pred_depth_np[v]))
+                        vis_res_depths.append(depth_to_colormap(val_pred_depth_np[v]))
+                    # concatenate along width (views)
+                    vis_val_lq_rgb       = np.concatenate(vis_val_lq_rgb, axis=1)        # (h, v*w, 3)
+                    vis_val_lq_depth  = np.concatenate(vis_val_lq_depth, axis=1)
+                    vis_res_depths = np.concatenate(vis_res_depths, axis=1)
+                    # stack rows
+                    vis_val_all = np.concatenate([vis_val_lq_rgb[:,:,::-1], vis_val_lq_depth, vis_res_depths],axis=0)
                     # Output path
-                    vis_depth_save_dir = f'{experiment_dir}/vis_depth'
-                    os.makedirs(vis_depth_save_dir, exist_ok=True)
-                    cv2.imwrite(f'{vis_depth_save_dir}/{val_hq_id[0][0]}_step{global_train_step:07}.jpg', vis_depth_cat)               
+                    vis_val_depth_save_dir = f'{experiment_dir}/vis_val_depth'
+                    os.makedirs(vis_val_depth_save_dir, exist_ok=True)
+                    cv2.imwrite(f'{vis_val_depth_save_dir}/{val_hq_id[0][0]}_step{global_train_step:07}.jpg', vis_val_all)               
                     # dist.barrier()
                 logger.info("Validation done.")
                 models['ddp_denoiser'].train()

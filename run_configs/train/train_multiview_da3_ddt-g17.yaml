@@ -90,9 +90,10 @@ training:
 
   ckpt_step_interval: 5000   # 5k
 
-  sample: true
-  sample_every: 500 
-  
+  vis:
+    train_depth_every: 5
+    val_depth_every: 5
+   
 
   clip_grad: 1.0
   optimizer:
@@ -106,6 +107,8 @@ training:
     base_lr: 2e-4
     final_lr: 2e-5
     warmup_from_zero: false
+  
+
 
 
 log:
@@ -130,7 +133,7 @@ log:
 
 
 
-      msg: "TMPTMP"
+      msg: "TMPTMPTMPTMP"
 
 data:
   train:
@@ -164,11 +167,11 @@ data:
 
   val:
     image_size: 512 
-    max_num_input_view: 4
+    max_num_input_view: 1
     list: [eth3d]
     
     eth3d:
-      num_eval_img: 30
+      num_eval_img: 5
       ann_path:
       hq_root_path: /mnt/dataset1/MV_Restoration/eth3d/eth3d_jisang_train/rgb
       lq_root_path: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/eth3d/deg_blur/kernel800_intensity01

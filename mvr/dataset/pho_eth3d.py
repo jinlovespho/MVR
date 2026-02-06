@@ -32,9 +32,9 @@ class PhoETH3D(Dataset):
             
             
         # load data paths 
-        lq_paths = sorted(glob.glob(f'{lq_root_path}/image/*/*.png'))[:data_cfg.num_eval_img]
-        hq_paths = sorted(glob.glob(f'{hq_root_path}/*/images/dslr_images/*.JPG'))[:data_cfg.num_eval_img]
-        depth_paths = sorted(glob.glob(f'{gt_depth_root_path}/*/*/*/*/*.JPG'))[:data_cfg.num_eval_img]
+        lq_paths = (glob.glob(f'{lq_root_path}/image/*/*.png'))[:data_cfg.num_eval_img]
+        hq_paths = (glob.glob(f'{hq_root_path}/*/images/dslr_images/*.JPG'))[:data_cfg.num_eval_img]
+        depth_paths = (glob.glob(f'{gt_depth_root_path}/*/*/*/*/*.JPG'))[:data_cfg.num_eval_img]
         
         
         # safety check

@@ -61,45 +61,61 @@ class PhoTartanAir(Dataset):
 
         return img_rgb
     
-    
-    def resize(self, img: np.ndarray):
-        """
-        Resize image using:
-        1) longest-side resize to process_res
-        2) make divisible by patch_size via small resize
-        Args:
-            img: np.ndarray [H, W, 3], uint8
-        Returns:
-            resized_img: np.ndarray [H', W', 3], uint8
-        """
+    def resize(self, img):
         process_res = 504
         patch_size = 14
-        # -------------------------
-        # 1. resize longest side
-        # -------------------------
+
         h, w = img.shape[:2]
-        longest = max(h, w)
-        if longest != process_res:
-            scale = process_res / float(longest)
-            new_w = max(1, int(round(w * scale)))
-            new_h = max(1, int(round(h * scale)))
-            interpolation = (cv2.INTER_CUBIC if scale > 1.0 else cv2.INTER_AREA)
-            img = cv2.resize(img, (new_w, new_h), interpolation=interpolation)
-        # -------------------------
-        # 2. make divisible by patch_size (resize version)
-        # -------------------------
-        h, w = img.shape[:2]
-        def nearest_multiple(x, p):
-            down = (x // p) * p
-            up = down + p
-            return up if abs(up - x) <= abs(x - down) else down
-        new_w = max(1, nearest_multiple(w, patch_size))
-        new_h = max(1, nearest_multiple(h, patch_size))
-        if new_w != w or new_h != h:
-            upscale = (new_w > w) or (new_h > h)
-            interpolation = (cv2.INTER_CUBIC if upscale else cv2.INTER_AREA)
-            img = cv2.resize(img, (new_w, new_h), interpolation=interpolation)
-        return img
+        scale = process_res / max(h, w)
+
+        new_h = int(round(h * scale))
+        new_w = int(round(w * scale))
+
+        # snap ONCE to patch size
+        new_h = (new_h // patch_size) * patch_size
+        new_w = (new_w // patch_size) * patch_size
+
+        interp = cv2.INTER_AREA if scale < 1 else cv2.INTER_CUBIC
+        return cv2.resize(img, (new_w, new_h), interpolation=interp)
+    
+    # def resize(self, img: np.ndarray):
+    #     """
+    #     Resize image using:
+    #     1) longest-side resize to process_res
+    #     2) make divisible by patch_size via small resize
+    #     Args:
+    #         img: np.ndarray [H, W, 3], uint8
+    #     Returns:
+    #         resized_img: np.ndarray [H', W', 3], uint8
+    #     """
+    #     process_res = 504
+    #     patch_size = 14
+    #     # -------------------------
+    #     # 1. resize longest side
+    #     # -------------------------
+    #     h, w = img.shape[:2]
+    #     longest = max(h, w)
+    #     if longest != process_res:
+    #         scale = process_res / float(longest)
+    #         new_w = max(1, int(round(w * scale)))
+    #         new_h = max(1, int(round(h * scale)))
+    #         interpolation = (cv2.INTER_CUBIC if scale > 1.0 else cv2.INTER_AREA)
+    #         img = cv2.resize(img, (new_w, new_h), interpolation=interpolation)
+    #     # -------------------------
+    #     # 2. make divisible by patch_size (resize version)
+    #     # -------------------------
+    #     h, w = img.shape[:2]
+    #     def nearest_multiple(x, p):
+    #         down = (x // p) * p
+    #         up = down + p
+    #         return up if abs(up - x) <= abs(x - down) else down
+    #     new_w = max(1, nearest_multiple(w, patch_size))
+    #     new_h = max(1, nearest_multiple(h, patch_size))
+    #     if new_w != w or new_h != h:
+    #         upscale = (new_w > w) or (new_h > h)
+    #         interpolation = (cv2.INTER_CUBIC if upscale else cv2.INTER_AREA)
+    #         img = cv2.resize(img, (new_w, new_h), interpolation=interpolation)
+    #     return img
 
     def resize_depth(self, depth: np.ndarray):
         process_res = 504
@@ -252,15 +268,15 @@ class PhoTartanAir(Dataset):
         if 'gt_depth' in self.data.keys():
             views = sorted([self.data['gt_depth'][i] for i in frame_ids])
             for view in views:
-                depth_data = self.load_depth(view)
-                if depth_data is None:
-                    depth_data = np.zeros((480, 640), dtype=np.float32)  # placeholder
                 scene_id = view.split('/')[-5]
                 view_id = view.split('/')[-1].split('.')[0]
                 depth_view_id.append(f'tartanair_{scene_id}_{view_id}')
+                depth_data = self.load_depth(view)
+                if depth_data is None:
+                    depth_data = np.zeros((480, 640), dtype=np.float32)  # placeholder
                 depth_view_list.append(self.resize_depth(depth_data))
-
-            
+            outputs['gt_depth_ids'] = depth_view_id
+            outputs['gt_depths'] = depth_view_list
             
 
         return outputs

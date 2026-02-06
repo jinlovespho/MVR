@@ -73,38 +73,6 @@ def depth_to_colormap(depth, invalid_color=(0, 0, 0), resize=None):
     return color
 
 
-def depth_error_to_colormap(gt, pred, invalid_color=(0, 0, 0), resize=None):
-    """
-    gt, pred: (H, W) numpy arrays
-    resize: (h, w) or None
-    """
-    valid = np.isfinite(gt) & np.isfinite(pred) & (gt > 0) & (pred > 0)
-    if valid.sum() == 0:
-        h, w = gt.shape
-        vis = np.zeros((h, w, 3), dtype=np.uint8)
-        if resize is not None:
-            vis = cv2.resize(vis, (resize[1], resize[0]), interpolation=cv2.INTER_NEAREST)
-        return vis
-
-    error = np.zeros_like(gt, dtype=np.float32)
-    error[valid] = np.abs(pred[valid] - gt[valid]) / gt[valid]
-    error[valid] = np.log10(error[valid] + 1e-4)
-
-    vmin, vmax = np.percentile(error[valid], [2, 98])
-    error = np.clip(error, vmin, vmax)
-    error = (error - vmin) / (vmax - vmin + 1e-8)
-    error = (error * 255).astype(np.uint8)
-
-    vis = cv2.applyColorMap(error, cv2.COLORMAP_TURBO)
-    vis[~valid] = invalid_color
-
-    if resize is not None:
-        h, w = resize
-        vis = cv2.resize(vis, (w, h), interpolation=cv2.INTER_LINEAR)
-
-    return vis
-
-
 def depth_error_to_colormap_thresholded(
     gt,
     pred,
