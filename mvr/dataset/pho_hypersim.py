@@ -49,9 +49,7 @@ class PhoHypersim(Dataset):
         self.camera_num_frames = {}
         common_keys = ori_map.keys() & pos_map.keys()
         for scene_id, camera_id in sorted(common_keys):
-            # ----------------------------
             # parse identifiers
-            # ----------------------------
             cam_ori_path = ori_map[(scene_id, camera_id)]
             cam_pos_path = pos_map[(scene_id, camera_id)]
 
@@ -59,9 +57,7 @@ class PhoHypersim(Dataset):
             if cache_key in self.camera_rankings:
                 continue  # already computed
 
-            # ----------------------------
             # load camera data
-            # ----------------------------
             with h5py.File(cam_ori_path, 'r') as f_ori:
                 ext_r = f_ori['dataset'][:]   # (N,3,3)
 
@@ -71,17 +67,13 @@ class PhoHypersim(Dataset):
             assert ext_r.shape[0] == ext_t.shape[0]
             N = ext_r.shape[0]
 
-            # ----------------------------
             # build extrinsics
-            # ----------------------------
             extrinsics = np.zeros((N, 4, 4), dtype=np.float32)
             extrinsics[:, :3, :3] = ext_r
             extrinsics[:, :3, 3]  = ext_t
             extrinsics[:, 3, 3]   = 1.0
 
-            # ----------------------------
             # compute ranking
-            # ----------------------------
             ranking, _ = compute_ranking(
                 extrinsics,
                 lambda_t=1.0,
@@ -89,9 +81,7 @@ class PhoHypersim(Dataset):
                 batched=True
             )
 
-            # ----------------------------
             # cache
-            # ----------------------------
             self.camera_rankings[cache_key] = ranking
             self.camera_num_frames[cache_key] = N        
 
@@ -369,48 +359,6 @@ class PhoHypersim(Dataset):
             outputs['hq_views'] = hq_view_list
 
 
-        
-        # # ----------------------------------
-        # #       process hq latent 
-        # # ----------------------------------
-        # hq_latent_view_id=[]
-        # hq_latent_view_list=[]
-        # if 'hq_latent' in self.data.keys():
-        #     hq_latent_views = [self.data['hq_latent'][i] for i in frame_ids]
-        #     for hq_latent_view in hq_latent_views:
-        #         volume = hq_latent_view.split('/')[-3].split('_')[-2]
-        #         scene = hq_latent_view.split('/')[-3].split('_')[-1]
-        #         camera = hq_latent_view.split('/')[-2].split('_')[-1]
-        #         view_id = hq_latent_view.split('/')[-1].split('.')[-2]
-        #         hq_latent_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
-        #         hq_latent_view_list.append(torch.load(hq_latent_view))  # torch.Size([972, 3072])
-        #         outputs['hq_latent_ids'] = hq_latent_view_id
-        #         outputs['hq_latent_views'] = hq_latent_view_list
-            
-            
-            
-            
-        # # ----------------------
-        # #       process lq
-        # # ----------------------
-        # lq_view_id=[]
-        # lq_view_list=[]
-        # if 'lq_img' in self.data.keys():
-        #     lq_views = [self.data['lq_img'][i] for i in frame_ids]
-        #     for lq_view in lq_views:
-        #         volume = lq_view.split('/')[-4].split('_')[-2]
-        #         scene = lq_view.split('/')[-4].split('_')[-1]
-        #         camera = lq_view.split('/')[-3].split('_')[-3]
-        #         view_id = lq_view.split('/')[-1].split('.')[-2].split('_')[-2]
-        #         lq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
-        #         lq_view_list.append(self.resize(self.convert_imgpath(lq_view)))
-        #         outputs['lq_ids'] = lq_view_id 
-        #         outputs['lq_views'] = lq_view_list
-                
-
-
-
-
         # ----------------------------------
         #       get lq on the fly
         # ----------------------------------
@@ -460,21 +408,7 @@ class PhoHypersim(Dataset):
             outputs['gt_depths'] = depth_view_list
 
         return outputs
-        return {
-            "frame_ids": frame_ids,
-            
-            "hq_ids": hq_view_id,
-            "hq_views": hq_view_list,
-            
-            'hq_latent_ids': hq_latent_view_id,
-            'hq_latent_views': hq_latent_view_list,
-            
-            'lq_ids': lq_view_id,
-            'lq_views': lq_view_list,
-            
-            'gt_depth_ids': depth_view_id,
-            'gt_depths': depth_view_list,
-        }        
+       
 
     def __len__(self):
         return len(self.data['hq_img'])

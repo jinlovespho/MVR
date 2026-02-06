@@ -12,7 +12,7 @@ import cv2
 import torch
 import torch.distributed as dist
 import numpy as np
-
+from tqdm import tqdm 
 import argparse
 from pathlib import Path
 import math
@@ -31,6 +31,7 @@ from utils.optim_utils import build_optimizer, build_scheduler
 from utils.resume_utils import *
 from utils.wandb_utils import *
 from utils.dist_utils import *
+from utils.vis_utils import *
 
 
 from torchvision.utils import save_image 
@@ -318,26 +319,14 @@ def main():
             
             loss_raw = transport_output["loss"].mean()
             
-            
-            # NAN DEBUG LOSS
-            if rank == 0 and global_train_step % log_interval == 0:
-                wandb_utils.log(
-                    {
-                        "debug/loss_raw": loss_raw.item(),
-                        "debug/loss_isfinite": float(torch.isfinite(loss_raw)),
-                    },
-                    step=global_train_step,
-                )
-                            
     
-    
-            loss_scaled = loss_raw / grad_accum_steps
+            loss_effective = loss_raw / grad_accum_steps
             # print(f"global step: {global_train_step}, lq_id: {batch['lq_ids']} hq_id: {batch['hq_ids']}")
             
             
-            if rank == 0 and global_train_step % log_interval == 0:
+            if rank == 0 and global_train_step % log_interval == 0 and full_cfg.log.tracker.name == 'wandb':
                 wandb_utils.log(
-                    {"debug/loss_scaled": loss_scaled.item()},
+                    {"train/loss_effective": loss_effective.item()},
                     step=global_train_step,
                 )
                 
@@ -346,9 +335,9 @@ def main():
             # compute gradients
             if (global_train_step + 1) % grad_accum_steps != 0:
                 with models['ddp_denoiser'].no_sync():
-                    loss_scaled.backward()
+                    loss_effective.backward()
             else:
-                loss_scaled.backward()
+                loss_effective.backward()
 
 
             accum_loss += loss_raw.item()
@@ -357,13 +346,8 @@ def main():
 
             if (global_train_step + 1) % grad_accum_steps == 0:
                 loss_accum_avg = accum_loss / accum_count  # == mean over grad_accum_steps
-                if rank == 0:
-                    wandb_utils.log(
-                        {
-                            "train/loss_accum_avg": loss_accum_avg,
-                        },
-                        step=global_train_step,
-                    )
+                if rank == 0 and full_cfg.log.tracker.name == 'wandb':
+                    wandb_utils.log({"train/loss_accum_avg": loss_accum_avg,}, step=global_train_step,)
                 # reset accumulators
                 accum_loss = 0.0
                 accum_count = 0
@@ -377,7 +361,7 @@ def main():
                         models['ddp_denoiser'].parameters(), clip_grad
                     )
 
-                if rank == 0:
+                if rank == 0 and full_cfg.log.tracker.name == 'wandb':
                     total_norm = torch.norm(
                         torch.stack([
                             p.grad.norm()
@@ -385,10 +369,7 @@ def main():
                             if p.grad is not None
                         ])
                     )
-                    wandb_utils.log(
-                        {"train/grad_norm": total_norm.item()},
-                        step=global_train_step,
-                    )
+                    wandb_utils.log({"train/grad_norm": total_norm.item()}, step=global_train_step,)
 
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
@@ -419,16 +400,20 @@ def main():
                     f"[Epoch {epoch} | Step {global_train_step}] "
                     + ", ".join(f"{k}: {v:.4f}" for k, v in stats.items())
                 )
-                wandb_utils.log(stats, step=global_train_step)
+                if full_cfg.log.tracker.name == 'wandb':
+                    wandb_utils.log(stats, step=global_train_step)
                 running_loss = 0.0
                         
             
             
 
             if rank==0 and (training_cfg.vis.val_depth_every > 0)and (global_train_step % training_cfg.vis.val_depth_every) == 0:
-                
+                val_lq_metric_sum = None
+                val_res_metric_sum = None
+                val_lq_metric_count = 0
+                val_res_metric_count = 0
                 # val loop
-                for val_step, val_batch in enumerate(val_loader):
+                for val_step, val_batch in tqdm(enumerate(val_loader)):
                     
                     logger.info(f'Validating Samples: {val_step+1}/{len(val_loader.dataset)}')    
                                     
@@ -438,7 +423,6 @@ def main():
                     val_gt_depth = val_batch['gt_depths'].to(device)    # b v 1 h w=504
                     val_hq_views = val_batch['hq_views'].to(device)     # b v 3 h w=504
                     val_lq_views = val_batch['lq_views'].to(device)     # b v 3 h w=504
-                    
                     print('val:' ,val_hq_views.shape)
                     
                     # from torchvision.utils import save_image 
@@ -446,7 +430,6 @@ def main():
                     # save_image(val_lq_views.squeeze(), 'tmp_lq.jpg')
                     # save_image(val_gt_depth.squeeze(0,1), 'tmp_depth.jpg', normalize=True)
 
-                    
                     
                     # apply imagenet normalization
                     val_b, val_v, val_c, val_h, val_w = val_lq_views.shape 
@@ -506,35 +489,114 @@ def main():
                     val_encoder_out = processors['encoder_output_processor'](val_encoder_out)
                     val_pred_depth_np = val_encoder_out.depth   # num_view h w
                     val_pred_depth = torch.from_numpy(val_pred_depth_np).to(device)
-                    
 
+                                    
                     # ------------------------------------------
-                    # VISUALIZE VALIDATION DEPTH
+                    # VISUALIZE + METRICS (VALIDATION)
                     # ------------------------------------------
-                    vis_val_lq_rgb = []
-                    vis_val_lq_depth = []
+                    vis_lq_rgbs = []
+                    vis_lq_depths = []
                     vis_res_depths = []
-                    num_views = val_v  # or val_pred_depth_np.shape[0]
-                    for v in range(num_views):
+                    vis_lq_err_maps = []
+                    vis_res_err_maps = []
+                    # metric accumulators (per batch item)
+                    for v in range(val_v):
                         # RGB (unnormalized)
-                        vis_val_lq_rgb.append(tensor_to_uint8_image(val_lq_views[0, v]))
-                        # Depths
-                        vis_val_lq_depth.append(depth_to_colormap(val_lq_pred_depth_np[v]))
-                        vis_res_depths.append(depth_to_colormap(val_pred_depth_np[v]))
-                    # concatenate along width (views)
-                    vis_val_lq_rgb       = np.concatenate(vis_val_lq_rgb, axis=1)        # (h, v*w, 3)
-                    vis_val_lq_depth  = np.concatenate(vis_val_lq_depth, axis=1)
-                    vis_res_depths = np.concatenate(vis_res_depths, axis=1)
-                    # stack rows
-                    vis_val_all = np.concatenate([vis_val_lq_rgb[:,:,::-1], vis_val_lq_depth, vis_res_depths],axis=0)
-                    # Output path
-                    vis_val_depth_save_dir = f'{experiment_dir}/vis_val_depth'
+                        vis_lq_rgbs.append(tensor_to_uint8_image(val_lq_views[0, v]))
+                        # Depth predictions
+                        lq_depth_np  = val_lq_pred_depth_np[v]
+                        res_depth_np = val_pred_depth_np[v]
+                        gt_depth_np  = val_gt_depth[0, v, 0].cpu().numpy()
+                        vis_lq_depths.append(depth_to_colormap(lq_depth_np))
+                        vis_res_depths.append(depth_to_colormap(res_depth_np))
+                        # torch
+                        lq_depth_t  = torch.from_numpy(lq_depth_np).to(device)
+                        res_depth_t = torch.from_numpy(res_depth_np).to(device)
+                        gt_depth_t  = torch.from_numpy(gt_depth_np).to(device)
+                        lq_depth_align = align_scale_median(gt_depth_t, lq_depth_t)
+                        res_depth_align = align_scale_median(gt_depth_t, res_depth_t)
+                        # Metrics
+                        lq_metrics = compute_depth_metrics(gt_depth_t, lq_depth_align)  # (7,)
+                        res_metrics = compute_depth_metrics(gt_depth_t, res_depth_align)  # (7,)
+                        lq_metrics_np = np.array(lq_metrics, dtype=np.float64)
+                        res_metrics_np = np.array(res_metrics, dtype=np.float64)
+                        if val_lq_metric_sum is None:
+                            val_lq_metric_sum = lq_metrics_np.copy()
+                        else:
+                            val_lq_metric_sum += lq_metrics_np
+                        val_lq_metric_count += 1
+                        if val_res_metric_sum is None:
+                            val_res_metric_sum = res_metrics_np.copy()
+                        else:
+                            val_res_metric_sum += res_metrics_np
+                        val_res_metric_count += 1
+                        # Error map (numpy)
+                        lq_err_map = depth_error_to_colormap_thresholded(gt=gt_depth_np, pred=lq_depth_align.cpu().numpy(), thr=0.1)
+                        res_err_map = depth_error_to_colormap_thresholded(gt=gt_depth_np, pred=res_depth_align.cpu().numpy(), thr=0.1)
+                        vis_lq_err_maps.append(lq_err_map)
+                        vis_res_err_maps.append(res_err_map)
+                    # Concatenate views horizontally
+                    vis_lq_rgbs    = np.concatenate(vis_lq_rgbs, axis=1)
+                    vis_lq_depths  = np.concatenate(vis_lq_depths, axis=1)
+                    vis_res_depths    = np.concatenate(vis_res_depths, axis=1)
+                    vis_lq_err_maps   = np.concatenate(vis_lq_err_maps, axis=1)
+                    vis_res_err_maps  = np.concatenate(vis_res_err_maps, axis=1)
+                    # Stack rows vertically
+                    vis_val_all = np.concatenate(
+                        [
+                            vis_lq_rgbs[:, :, ::-1],  # RGB → BGR for OpenCV
+                            vis_lq_depths,
+                            vis_res_depths,
+                            vis_lq_err_maps,
+                            vis_res_err_maps,
+                        ],
+                        axis=0,
+                    )
+                    # Save visualization
+                    vis_val_depth_save_dir = f"{experiment_dir}/vis_val_depth"
                     os.makedirs(vis_val_depth_save_dir, exist_ok=True)
-                    cv2.imwrite(f'{vis_val_depth_save_dir}/{val_hq_id[0][0]}_step{global_train_step:07}.jpg', vis_val_all)               
-                    # dist.barrier()
+                    cv2.imwrite(f"{vis_val_depth_save_dir}/{val_hq_id[0][0]}_step{global_train_step:07}.jpg",vis_val_all,)
                 logger.info("Validation done.")
                 models['ddp_denoiser'].train()
+                lq_mean_metrics = val_lq_metric_sum / val_lq_metric_count
+                res_mean_metrics = val_res_metric_sum / val_res_metric_count
+                lq_abs_rel, lq_sq_rel, lq_rmse, lq_rmse_log, lq_d1, lq_d2, lq_d3 = lq_mean_metrics
+                res_abs_rel, res_sq_rel, res_rmse, res_rmse_log, res_d1, res_d2, res_d3 = res_mean_metrics
+                if full_cfg.log.tracker.name == 'wandb':
+                    wandb_utils.log(
+                        {
+                            "val_lq/AbsRel": lq_abs_rel,
+                            "val_lq/SqRel": lq_sq_rel,
+                            "val_lq/RMSE": lq_rmse,
+                            "val_lq/RMSElog": lq_rmse_log,
+                            "val_lq/d1": lq_d1,
+                            "val_lq/d2": lq_d2,
+                            "val_lq/d3": lq_d3,
 
+                            "val_res/AbsRel": res_abs_rel,
+                            "val_res/SqRel": res_sq_rel,
+                            "val_res/RMSE": res_rmse,
+                            "val_res/RMSElog": res_rmse_log,
+                            "val_res/d1": res_d1,
+                            "val_res/d2": res_d2,
+                            "val_res/d3": res_d3,
+                        },
+                        step=global_train_step,
+                    )
+                logger.info(
+                    f"[VAL @ step {global_train_step}] "
+                    f"[Before MVRM (LQ)] "
+                    f"AbsRel {lq_abs_rel:.3f} | SqRel {lq_sq_rel:.3f} | "
+                    f"RMSE {lq_rmse:.3f} | RMSElog {lq_rmse_log:.3f} | "
+                    f"δ1 {lq_d1:.3f} | δ2 {lq_d2:.3f} | δ3 {lq_d3:.3f}"
+                )
+                logger.info(
+                    f"[VAL @ step {global_train_step}] "
+                    f"[After MVRM (Res))] "
+                    f"AbsRel {res_abs_rel:.3f} | SqRel {res_sq_rel:.3f} | "
+                    f"RMSE {res_rmse:.3f} | RMSElog {res_rmse_log:.3f} | "
+                    f"δ1 {res_d1:.3f} | δ2 {res_d2:.3f} | δ3 {res_d3:.3f}"
+                )
 
             # ckpt saving
             # if rank==0 and optimizer_step > 0 and optimizer_step % ckpt_step_interval == 0:

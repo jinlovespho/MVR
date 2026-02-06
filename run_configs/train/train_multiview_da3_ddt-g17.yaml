@@ -88,7 +88,7 @@ training:
   log_interval: 1
 
 
-  ckpt_step_interval: 5000   # 5k
+  ckpt_step_interval: 10   # 5k
 
   vis:
     train_depth_every: 5
@@ -113,7 +113,7 @@ training:
 
 log:
   # result_root_dir: result_train/multi_view/260205
-  result_root_dir: result_train/multi_view/TMPTMP
+  result_root_dir: result_train/multi_view/TMPTMPTMPTMPTMP_FINAL
   tracker:
     name: wandb
     wandb:
@@ -133,7 +133,7 @@ log:
 
 
 
-      msg: "TMPTMPTMPTMP"
+      msg: "final"
 
 data:
   train:
@@ -169,17 +169,17 @@ data:
     image_size: 512 
     max_num_input_view: 1
     list: [eth3d]
-    
+
+
     eth3d:
-      num_eval_img: 5
+      num_eval_img: 3
+      eval_scene: [courtyard, delivery_area,  electro,  facade,  kicker,  office,  pipes,  playground,  relief,  relief_2,  terrains]
       ann_path:
-      hq_root_path: /mnt/dataset1/MV_Restoration/eth3d/eth3d_jisang_train/rgb
-      lq_root_path: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/eth3d/deg_blur/kernel800_intensity01
-      gt_depth_root_path: /mnt/dataset1/MV_Restoration/eth3d/eth3d_jisang_train/depth
+      hq_root_path: /mnt/dataset1/MV_Restoration/da3_benchmark_dataset/clean/eth3d
+      lq_root_path: /mnt/dataset1/MV_Restoration/da3_benchmark_dataset/cam_blur_300/eth3d
       view_selection:
         strategy: near_random
         expand_ratio: 2
-
 
 mvrm:
 
