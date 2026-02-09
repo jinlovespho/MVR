@@ -390,22 +390,22 @@ class PhoHypersim(Dataset):
             outputs['lq_views'] = [self.lq_imgs[i] for i in frame_ids]
 
         
-        # -------------------------
-        #       process depth
-        # -------------------------
-        depth_view_id=[]
-        depth_view_list=[]
-        if 'gt_depth' in self.data.keys():
-            depth_views = [self.data['gt_depth'][i] for i in frame_ids]
-            for depth_view in depth_views:
-                volume = depth_view.split('/')[-4].split('_')[-2]
-                scene = depth_view.split('/')[-4].split('_')[-1]
-                camera = depth_view.split('/')[-2].split('_')[-3]
-                view_id = depth_view.split('/')[-1].split('.')[-3]
-                depth_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
-                depth_view_list.append(self.resize_depth(self.convert_hdf5_depth(depth_view)))
-            outputs['gt_depth_ids'] = depth_view_id
-            outputs['gt_depths'] = depth_view_list
+        # # -------------------------
+        # #       process depth
+        # # -------------------------
+        # depth_view_id=[]
+        # depth_view_list=[]
+        # if 'gt_depth' in self.data.keys():
+        #     depth_views = [self.data['gt_depth'][i] for i in frame_ids]
+        #     for depth_view in depth_views:
+        #         volume = depth_view.split('/')[-4].split('_')[-2]
+        #         scene = depth_view.split('/')[-4].split('_')[-1]
+        #         camera = depth_view.split('/')[-2].split('_')[-3]
+        #         view_id = depth_view.split('/')[-1].split('.')[-3]
+        #         depth_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
+        #         depth_view_list.append(self.resize_depth(self.convert_hdf5_depth(depth_view)))
+        #     outputs['gt_depth_ids'] = depth_view_id
+        #     outputs['gt_depths'] = depth_view_list
 
         return outputs
        

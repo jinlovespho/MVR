@@ -35,38 +35,17 @@ from utils.vis_utils import *
 
 
 from torchvision.utils import save_image 
-from utils.vis_utils import depth_to_colormap, depth_error_to_colormap_thresholded
+from utils.vis_utils import depth_to_colormap, depth_error_to_colormap_thresholded, tensor_to_uint8_image
 import torchvision.transforms as T 
 
 from einops import rearrange
-
-
-# from RAE.src.initialize import (save_checkpoint, load_checkpoint,
-#                          load_train_data, load_val_data, 
-#                          load_model,
-#                          load_sampler,)
-
 from RAE.src import initialize
-
-
 from motionblur.motionblur import Kernel 
 
 
 # torch.backends.cuda.enable_flash_sdp(False)
 # torch.backends.cuda.enable_mem_efficient_sdp(False)
 # torch.backends.cuda.enable_math_sdp(True)
-
-
-IMAGENET_MEAN = np.array([0.485, 0.456, 0.406])
-IMAGENET_STD  = np.array([0.229, 0.224, 0.225])
-
-
-def tensor_to_uint8_image(img):  # img: (3, H, W), torch tensor
-    img = img.permute(1, 2, 0).cpu().numpy()   # (H, W, 3)
-    img = img * IMAGENET_STD + IMAGENET_MEAN
-    img = np.clip(img, 0, 1)
-    img = (img * 255).astype(np.uint8)
-    return img
 
 
 def parse_args() -> argparse.Namespace:
@@ -139,8 +118,8 @@ def main():
     loader_batches = len(train_loader)
     steps_per_epoch = math.ceil(loader_batches / grad_accum_steps)
     
-    
-    val_loader, val_sampler = initialize.load_val_data(full_cfg, 1, rank, world_size)
+    if len(full_cfg.data.val.list) != 0:
+        val_loader, val_sampler = initialize.load_val_data(full_cfg, 1, rank, world_size)
 
 
     # load optimizer
@@ -159,9 +138,6 @@ def main():
     # load sampler 
     eval_sampler = initialize.load_sampler(full_cfg, transport_sampler)
 
-    
-    # make noise latent 
-    # pure_noise = torch.randn(micro_batch_size, *full_cfg.misc.latent_size, device=device, dtype=torch.float32) # always use float for noise sampling
     
     val_noise_generator = torch.Generator(device=device)
     val_noise_generator.manual_seed(global_seed)  # any fixed seed you like
@@ -235,12 +211,12 @@ def main():
 
                     
             # load batch data
-            train_frame_id = batch['frame_ids']               # b v
+            # train_frame_id = batch['frame_ids']               # b v
             train_hq_id = batch['hq_ids']                     # len(hq_id) = b, len(hq_id[i]) = v
-            train_gt_depth = batch['gt_depths'].to(device)    # b v 1 378 504
+            # train_gt_depth = batch['gt_depths'].to(device)    # b v 1 378 504
             train_hq_views = batch['hq_views'].to(device)     # b v 3 378 504
             train_lq_views = batch['lq_views'].to(device)     # b v 3 378 504
-            print(train_hq_views.shape)
+            print('train sample: ', train_hq_views.shape)
 
             # apply imagenet normalization
             train_b, train_v, train_c, train_h, train_w = train_hq_views.shape 
@@ -408,10 +384,25 @@ def main():
                 if full_cfg.log.tracker.name == 'wandb':
                     wandb_utils.log(stats, step=global_train_step)
                 running_loss = 0.0
-                        
-            
+
+
+
+            # ckpt saving
+            if rank==0 and global_train_step > 0 and global_train_step % ckpt_step_interval == 0:
+                logger.info(f"Saving checkpoint at global_train_step {global_train_step}...")
+                ckpt_path = f"{checkpoint_dir}/ep-{global_train_step:07d}.pt" 
+                initialize.save_checkpoint(
+                    ckpt_path,
+                    global_train_step,
+                    epoch,
+                    models['ddp_denoiser'],
+                    models['ema_denoiser'],
+                    optimizer,
+                    scheduler,
+                )                        
             
 
+            # validation
             if rank==0 and (training_cfg.vis.val_depth_every > 0)and (global_train_step % training_cfg.vis.val_depth_every) == 0:
                 val_lq_metric_sum = None
                 val_res_metric_sum = None
@@ -428,7 +419,7 @@ def main():
                     val_gt_depth = val_batch['gt_depths'].to(device)    # b v 1 h w=504
                     val_hq_views = val_batch['hq_views'].to(device)     # b v 3 h w=504
                     val_lq_views = val_batch['lq_views'].to(device)     # b v 3 h w=504
-                    print('val:' ,val_hq_views.shape)
+                    print('val sample:' ,val_hq_views.shape)
                     
                     # from torchvision.utils import save_image 
                     # save_image(val_hq_views.squeeze(), 'tmp_hq.jpg')
@@ -601,21 +592,6 @@ def main():
                     f"AbsRel {res_abs_rel:.3f} | SqRel {res_sq_rel:.3f} | "
                     f"RMSE {res_rmse:.3f} | RMSElog {res_rmse_log:.3f} | "
                     f"δ1 {res_d1:.3f} | δ2 {res_d2:.3f} | δ3 {res_d3:.3f}"
-                )
-
-            # ckpt saving
-            # if rank==0 and optimizer_step > 0 and optimizer_step % ckpt_step_interval == 0:
-            if rank==0 and global_train_step > 0 and global_train_step % ckpt_step_interval == 0:
-                logger.info(f"Saving checkpoint at global_train_step {global_train_step}...")
-                ckpt_path = f"{checkpoint_dir}/ep-{global_train_step:07d}.pt" 
-                initialize.save_checkpoint(
-                    ckpt_path,
-                    global_train_step,
-                    epoch,
-                    models['ddp_denoiser'],
-                    models['ema_denoiser'],
-                    optimizer,
-                    scheduler,
                 )
             num_batches += 1
             global_train_step += 1

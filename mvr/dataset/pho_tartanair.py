@@ -259,42 +259,28 @@ class PhoTartanAir(Dataset):
 
 
 
-        # -------------------------
-        #       process depth
-        # -------------------------
-        depth_view_id=[]
-        depth_view_list=[]
-        # depth_vis_view_list=[]
-        if 'gt_depth' in self.data.keys():
-            views = sorted([self.data['gt_depth'][i] for i in frame_ids])
-            for view in views:
-                scene_id = view.split('/')[-5]
-                view_id = view.split('/')[-1].split('.')[0]
-                depth_view_id.append(f'tartanair_{scene_id}_{view_id}')
-                depth_data = self.load_depth(view)
-                if depth_data is None:
-                    depth_data = np.zeros((480, 640), dtype=np.float32)  # placeholder
-                depth_view_list.append(self.resize_depth(depth_data))
-            outputs['gt_depth_ids'] = depth_view_id
-            outputs['gt_depths'] = depth_view_list
+        # # -------------------------
+        # #       process depth
+        # # -------------------------
+        # depth_view_id=[]
+        # depth_view_list=[]
+        # # depth_vis_view_list=[]
+        # if 'gt_depth' in self.data.keys():
+        #     views = sorted([self.data['gt_depth'][i] for i in frame_ids])
+        #     for view in views:
+        #         scene_id = view.split('/')[-5]
+        #         view_id = view.split('/')[-1].split('.')[0]
+        #         depth_view_id.append(f'tartanair_{scene_id}_{view_id}')
+        #         depth_data = self.load_depth(view)
+        #         if depth_data is None:
+        #             depth_data = np.zeros((480, 640), dtype=np.float32)  # placeholder
+        #         depth_view_list.append(self.resize_depth(depth_data))
+        #     outputs['gt_depth_ids'] = depth_view_id
+        #     outputs['gt_depths'] = depth_view_list
             
 
         return outputs
-        return {
-            "frame_ids": frame_ids,
             
-            "hq_ids": hq_view_id,
-            "hq_views": hq_view_list,
-            
-            'hq_latent_ids': hq_latent_view_id,
-            'hq_latent_views': hq_latent_view_list,
-            
-            'lq_ids': lq_view_id,
-            'lq_views': lq_view_list,
-            
-            'gt_depth_ids': depth_view_id,
-            'gt_depths': depth_view_list,
-        }        
 
     def __len__(self):
         return len(self.data['hq_img'])

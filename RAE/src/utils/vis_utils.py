@@ -2,6 +2,19 @@ import cv2
 import torch 
 import numpy as np
 
+
+IMAGENET_MEAN = np.array([0.485, 0.456, 0.406])
+IMAGENET_STD  = np.array([0.229, 0.224, 0.225])
+
+
+def tensor_to_uint8_image(img):  # img: (3, H, W), torch tensor
+    img = img.permute(1, 2, 0).cpu().numpy()   # (H, W, 3)
+    img = img * IMAGENET_STD + IMAGENET_MEAN
+    img = np.clip(img, 0, 1)
+    img = (img * 255).astype(np.uint8)
+    return img
+
+
 def load_depth(depth_path, H, W):
     depth = np.fromfile(depth_path, dtype=np.float32)
     assert depth.size == H * W, f"Size mismatch: {depth_path}"
