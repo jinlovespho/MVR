@@ -87,24 +87,17 @@ pip install --no-build-isolation --config-settings editable_mode=compat git+http
 
 # 🔥 Training 
 
-
-
-### 1. Configure bash file
-First, modify the bash file to set gpu ddp training -> [here](run_scripts/RAE/train/JIHYE_stage2_da3_ddt_g17.sh)
-
-
-
-### 2. Configure yaml file
-Second, modify the yaml file to set up training_data_path, batch_size, saving_dir, etc -> [here](RAE/configs/stage2/training/hypersim/JIHYE_da3_ddt-g17.yaml)
-
-
-
-### 3. Run the following bash file
-Lastly, run the bash file for training
+### 1. Training bash script
 ```bash
-bash run_scripts/RAE/train/JIHYE_stage2_da3_ddt_g17.sh
+# CUDA=0,1,2,3
+bash run_scripts/train/JIHYE_run_train_multiview_da3_ddt_g17_lqkernel50.sh
+# CUDA=4,5,6,7
+bash run_scripts/train/JIHYE_run_train_multiview_da3_ddt_g17_lqkernel100.sh
 ```
 
+### 2. Training config yaml file
+- For [lqkernel50](run_configs/train/JIHYE_train_multiview_da3_ddt-g17_kernel50.yaml)
+- For [lqkernel100](run_configs/train/JIHYE_train_multiview_da3_ddt-g17_kernel100.yaml)
 
 
 
