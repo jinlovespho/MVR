@@ -202,7 +202,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             assert isinstance(image.image_files[0], str), "`image` must be image paths for COLMAP export."
 
 
-        if 'gt_image_files' in image.keys():
+        if 'gt_image_files' in image.keys() and cfg.MVRM_EVAL.eval_method == 'mvrm_up':
             gt_imgs_cpu, _, _ = self._preprocess_inputs(
                 image.gt_image_files, None, None, process_res, process_res_method
             )

@@ -70,7 +70,7 @@ guidance:
 
 
 misc:
-  latent_size: [1, 973, 1536] # [v, n+1, d]
+  latent_size: 
   num_classes: 
   time_dist_shift_dim: 1492992  # 1536*27*36
   time_dist_shift_base: 4096

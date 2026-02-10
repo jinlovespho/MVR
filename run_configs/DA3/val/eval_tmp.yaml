@@ -11,7 +11,7 @@
 # ==============================================================================
 MVRM_EVAL:
   # [wo_mvrm, w_mvrm, mvrm_up]
-  eval_method: mvrm_up
+  eval_method: w_mvrm
 
 
 # ==============================================================================
@@ -37,20 +37,21 @@ denoiser:
     use_rmsnorm: true
     wo_shift: false
     use_pos_embed: true
-  ckpt: result_train/multi_view/260206/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel-50__global-17/checkpoints/ep-0060000.pt
+  # ckpt: ep-0015000.pt
+  ckpt: ep-0020000.pt
 
 mvrm:
   lq_latent_cond: addition    # [addition, concat]
   train:
     # DPT Head input feats = [19, 27, 33, 39]
-    # extract_feat_layers: [17]
-    extract_feat_layers: [10]
+    extract_feat_layers: [17]
+    # extract_feat_layers: [10]
     # extract_feat_layers: [5]
     concat_feat: False
     break_and_return_feat: true
   val:
-    # restore_feat_layers: [17]
-    restore_feat_layers: [10]
+    restore_feat_layers: [17]
+    # restore_feat_layers: [10]
     # restore_feat_layers: [5]
     concat_feat: False 
     skip_and_input_feat: true
@@ -70,7 +71,6 @@ sampler:
     rtol: 1.0e-3
     reverse: false
 misc:
-  # latent_size: [1, 973, 1536] # [v, n+1, d]
   latent_size: 
   num_classes: 
   time_dist_shift_dim: 1492992  # 1536*27*36
@@ -104,14 +104,11 @@ workspace:
   # MVRM O
 
   # cam_blur_100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/nvidia_giant_15k/cam_blur_100/eval_full_100
 
-  
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/cam_blur_50/eval_full_100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/nvidia_giant_20k/cam_blur_100/eval_full_100
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/nvidia_giant_20k/cam_blur_300/eval_full_100
 
-
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/cam_blur_100/eval_full_100
-
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/cam_blur_300/eval_full_100
 
 
 
@@ -123,7 +120,7 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/mvrm_upper/f0/cam_blur_100/eval_full_100
 
 
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_TMP
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_TMP
 
 
 
