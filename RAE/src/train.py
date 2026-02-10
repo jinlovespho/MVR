@@ -252,7 +252,6 @@ def main():
             lq_latent = lq_mvrm_out['extract_feat']      # b v 973 3072
             assert lq_latent.shape == hq_latent.shape 
             
-            
             if train_b==1 and len(train_hq_pred_depth_np.shape)<4 and len(train_lq_pred_depth_np.shape)<4:
                 train_hq_pred_depth_np = np.expand_dims(train_hq_pred_depth_np, axis=0)
                 train_lq_pred_depth_np = np.expand_dims(train_lq_pred_depth_np, axis=0)
@@ -403,7 +402,7 @@ def main():
             
 
             # validation
-            if rank==0 and (training_cfg.vis.val_depth_every > 0)and (global_train_step % training_cfg.vis.val_depth_every) == 0:
+            if rank==0 and (len(full_cfg.data.val.list) != 0) and (training_cfg.vis.val_depth_every > 0)and (global_train_step % training_cfg.vis.val_depth_every) == 0:
                 val_lq_metric_sum = None
                 val_res_metric_sum = None
                 val_lq_metric_count = 0

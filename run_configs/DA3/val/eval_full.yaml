@@ -89,7 +89,7 @@ workspace:
 
 
   ## MVRM X (cam_blur_500)
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_500/eval_full_view100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_500/eval_full_view100
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_500/eval_full_view50
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_500/eval_full_view10
 

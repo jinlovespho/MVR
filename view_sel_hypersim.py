@@ -130,7 +130,7 @@ def compute_ranking(extrinsics, lambda_t=1.0, normalize=True, batched=True):
     return ranking, dists
 
 
-
+# ----------
 
 import h5py
 
@@ -154,7 +154,6 @@ extrinsics[:, :3, 3]  = ext_t      # translations
 extrinsics[:, 3, 3]   = 1.0
 
 
-
 ranking, dists = compute_ranking(
     extrinsics,
     lambda_t=1.0,
@@ -166,5 +165,3 @@ ranking, dists = compute_ranking(
 K = 2
 
 closest_two = ranking[:, 1:K+1]
-
-breakpoint()

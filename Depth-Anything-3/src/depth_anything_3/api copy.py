@@ -110,7 +110,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         ref_view_strategy: str = "saddle_balanced",
         mvrm_cfg=None,
         mvrm_result=None,
-        mode=None,
+        mode=None
     ) -> dict[str, torch.Tensor]:
         """
         Forward pass through the model.
@@ -199,23 +199,15 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             assert infer_gs, "must set `infer_gs=True` to perform gs-related export."
 
         if "colmap" in export_format:
-            assert isinstance(image.image_files[0], str), "`image` must be image paths for COLMAP export."
+            assert isinstance(image[0], str), "`image` must be image paths for COLMAP export."
 
-
-        if 'gt_image_files' in image.keys():
-            gt_imgs_cpu, _, _ = self._preprocess_inputs(
-                image.gt_image_files, None, None, process_res, process_res_method
-            )
-            gt_imgs, _, _ = self._prepare_model_inputs(gt_imgs_cpu, None, None)
-            
-            
         # Preprocess images
         imgs_cpu, extrinsics, intrinsics = self._preprocess_inputs(
-            image.image_files, extrinsics, intrinsics, process_res, process_res_method
+            image, extrinsics, intrinsics, process_res, process_res_method
         )
+
         # Prepare tensors for model
         imgs, ex_t, in_t = self._prepare_model_inputs(imgs_cpu, extrinsics, intrinsics)
-        
 
         # Normalize extrinsics
         ex_t_norm = self._normalize_extrinsics(ex_t.clone() if ex_t is not None else None)
@@ -223,12 +215,15 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         # Run model forward pass
         export_feat_layers = list(export_feat_layers) if export_feat_layers is not None else []
 
-        # image input info
+
         b, v, c, model_H, model_W = imgs.shape
 
 
         # Apply MVRM restoration
-        if cfg.MVRM_EVAL.eval_method == 'w_mvrm':             
+        if cfg.APPLY_MVRM: 
+            
+            
+            mvrm_in = {} 
             print('APPLYING MVRM O')
             _, lq_mvrm_out = self._run_model_forward(
                 imgs, ex_t_norm, in_t, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg=cfg.mvrm.train, mvrm_result=None, mode='train'
@@ -251,35 +246,18 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                     restored_samples = eval_sampler(xt, denoiser.forward, **model_kwargs)[-1]     # b v n d
             mvrm_result={}
             mvrm_result['restored_latent'] = restored_samples
-            # restored forward pass
             raw_output, _ = self._run_model_forward(
                 imgs, ex_t_norm, in_t, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg=cfg.mvrm.val, mvrm_result=mvrm_result, mode='val'
             )
-            
-        
-        elif cfg.MVRM_EVAL.eval_method == 'mvrm_up':  
-            print('APPLYING MVRM UPPERBOUND')
-            # breakpoint()
-            _, hq_mvrm_out = self._run_model_forward(
-                gt_imgs, ex_t_norm, in_t, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg=cfg.mvrm.train, mvrm_result=None, mode='train'
-            )
-            hq_latent = hq_mvrm_out['extract_feat']      # b v 973 3072
-            
-            # breakpoint()
-            mvrm_result={}
-            mvrm_result['restored_latent'] = hq_latent
-            raw_output, _ = self._run_model_forward(
-                imgs, ex_t_norm, in_t, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg=cfg.mvrm.val, mvrm_result=mvrm_result, mode='val'
-            )
-            # breakpoint()
 
-        elif cfg.MVRM_EVAL.eval_method == 'wo_mvrm':             
+        else:
             print('APPLYING MVRM X')
             # imgs: b v 3 h w 
             raw_output, _ = self._run_model_forward(
                 imgs, ex_t_norm, in_t, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg=None, mvrm_result=None, mode=None
             )
-               
+        
+        
         
         # Convert raw output to prediction
         prediction = self._convert_to_prediction(raw_output)
@@ -449,7 +427,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         ref_view_strategy: str = "saddle_balanced",
         mvrm_cfg=None,
         mvrm_result=None,
-        mode=None,
+        mode=None
     ) -> dict[str, torch.Tensor]:
         """Run model forward pass."""
         device = imgs.device

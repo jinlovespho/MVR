@@ -130,7 +130,7 @@ class Evaluator:
         self._printer = MetricsPrinter()
         
         
-        if full_cfg.APPLY_MVRM:
+        if full_cfg.MVRM_EVAL.eval_method == 'w_mvrm':
             time_dist_shift = math.sqrt(full_cfg.misc.time_dist_shift_dim / full_cfg.misc.time_dist_shift_base)
             # load Transport 
             transport = create_transport(**full_cfg.transport.params, time_dist_shift=time_dist_shift,)
@@ -140,6 +140,10 @@ class Evaluator:
             # load denoiser 
             self.denoiser: Stage2ModelProtocol = instantiate_from_config(full_cfg.denoiser)  
             self.denoiser = self.denoiser.eval()
+
+            # if torch.__version__ >= "2.0":
+            #     self.denoiser = torch.compile(self.denoiser)
+                
         else:
             self.eval_sampler = None 
             self.denoiser = None 
@@ -203,6 +207,7 @@ class Evaluator:
             [('eth3d', 'courtyard'), ('eth3d', 'electro'), ('eth3d', 'kicker'), ('eth3d', 'pipes'), ('eth3d', 'relief'), ('eth3d', 'delivery_area'), ('eth3d', 'facade'), ('eth3d', 'office'), ('eth3d', 'playground'), ('eth3d', 'relief_2')]
         '''
 
+
         # Distribute tasks across GPUs
         if self.total_gpus > 1: # f
             tasks = [t for i, t in enumerate(all_tasks) if i % self.total_gpus == self.gpu_id]
@@ -212,7 +217,7 @@ class Evaluator:
             print(f"[INFO] Total inference tasks: {len(tasks)}")
         
         
-        if self.full_cfg.APPLY_MVRM:
+        if self.full_cfg.MVRM_EVAL.eval_method == 'w_mvrm':
             self.denoiser = self.denoiser.to(device)
         
 
@@ -221,12 +226,24 @@ class Evaluator:
             dataset = self.datasets[data]
             scene_data = dataset.get_data(scene)
             scene_data = self._sample_frames(scene_data, scene)
+            
+            
+            # import shutil
+            # for img_path in scene_data.image_files:
+            #     # new_path = img_path.replace("/cam_blur_50/", "/filtered_cam_blur_50/")
+            #     new_path = img_path.replace("/cam_blur_100/", "/filtered_cam_blur_100/")
+            #     # new_path = img_path.replace("/cam_blur_300/", "/filtered_cam_blur_300/")
+            #     new_dir = os.path.dirname(new_path)
+            #     os.makedirs(new_dir, exist_ok=True)
+            #     # Copy image
+            #     shutil.copy2(img_path, new_path)  # copy2 preserves metadata
+
 
             if need_unposed:    # t
                 export_dir = self._export_dir(data, scene, posed=False)
                 # breakpoint()
                 api.inference(
-                    scene_data.image_files,
+                    scene_data,
                     export_dir=export_dir,
                     export_format=export_format,
                     ref_view_strategy=self.ref_view_strategy,
@@ -240,7 +257,7 @@ class Evaluator:
             if need_posed:
                 export_dir = self._export_dir(data, scene, posed=True)
                 api.inference(
-                    scene_data.image_files,
+                    scene_data,
                     scene_data.extrinsics,      # provide extrinsics
                     scene_data.intrinsics,      # provide intrinsics
                     export_dir=export_dir,
@@ -252,6 +269,7 @@ class Evaluator:
                     cfg=self.full_cfg
                 )
                 self._save_gt_meta(export_dir, scene_data)
+
 
             
     def eval(self) -> TDict[str, dict]:
@@ -508,6 +526,7 @@ class Evaluator:
 
         # Create new scene_data with sampled frames
         sampled = Dict()
+        sampled.gt_image_files = [scene_data.gt_image_files[i] for i in sampled_indices]
         sampled.image_files = [scene_data.image_files[i] for i in sampled_indices]
         sampled.extrinsics = scene_data.extrinsics[sampled_indices]
         sampled.intrinsics = scene_data.intrinsics[sampled_indices]
@@ -809,6 +828,11 @@ Examples:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         api = DepthAnything3.from_pretrained(model_path)
         api = api.to(device)
+
+
+        if torch.__version__ >= "2.0":
+            api = torch.compile(api)
+        
         
         # generator
         noise_generator = torch.Generator(device=device)

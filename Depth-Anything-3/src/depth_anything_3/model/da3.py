@@ -96,7 +96,8 @@ class DepthAnything3Net(nn.Module):
                     gs_head["output_dim"] == gs_out_dim
                 ), f"gs_head output_dim should set to {gs_out_dim}, got {gs_head['output_dim']}"
                 self.gs_head = create_object(_wrap_cfg(gs_head))
-
+    
+    
     def forward(
         self,
         x: torch.Tensor,
@@ -125,7 +126,6 @@ class DepthAnything3Net(nn.Module):
         Returns:
             Dictionary containing predictions and auxiliary features
         """
-        # breakpoint()
         # Extract features using backbone
         if extrinsics is not None:  # f
             with torch.autocast(device_type=x.device.type, enabled=False):
@@ -133,10 +133,18 @@ class DepthAnything3Net(nn.Module):
         else:   # t
             cam_token = None
 
+
         # dinov2 backbone
         feats, aux_feats, mvrm_output = self.backbone(
             x, cam_token=cam_token, export_feat_layers=export_feat_layers, ref_view_strategy=ref_view_strategy, mvrm_cfg=mvrm_cfg, mvrm_result=mvrm_result, mode=mode
         )
+        
+        # MVRM 
+        if mode == 'train':
+            if mvrm_cfg.break_and_return_feat:
+                return None, mvrm_output
+        
+        
         '''
             feats: zip(outputs, camera_tokens)
             where, 

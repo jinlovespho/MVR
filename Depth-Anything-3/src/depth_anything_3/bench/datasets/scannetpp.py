@@ -132,6 +132,7 @@ class ScanNetPP(Dataset):
         input_path = os.path.join(self.da3_clean_root_path, 'scannetpp', scene, "merge_dslr_iphone")
         deg_path = os.path.join(self.da3_deg_root_path, 'scannetpp', scene, "merge_dslr_iphone")
         colmap_path = os.path.join(input_path, "colmap/sparse_render_rgb")
+        gt_image_path = os.path.join(input_path, "images") 
         image_path = os.path.join(deg_path, "images")
         depth_path_dir = os.path.join(input_path, "render_depth")
 
@@ -149,6 +150,7 @@ class ScanNetPP(Dataset):
         )
 
         out = Dict({
+            "gt_image_files": [],
             "image_files": [],
             "extrinsics": [],
             "intrinsics": [],
@@ -165,9 +167,13 @@ class ScanNetPP(Dataset):
         for name in names:
             
             image = images[name2id[name]]
+            gt_img_path = os.path.join(gt_image_path, name)
             img_path = os.path.join(image_path, name)
 
             if not os.path.exists(img_path):
+                continue
+
+            if not os.path.exists(gt_img_path):
                 continue
 
             # Build extrinsics (world-to-camera)
@@ -199,6 +205,7 @@ class ScanNetPP(Dataset):
             frame_name = os.path.basename(name)[:-4]  # Remove .jpg
             depth_file = os.path.join(depth_path_dir, f"{frame_name}.png")
 
+            out.gt_image_files.append(gt_img_path)
             out.image_files.append(img_path)
             out.extrinsics.append(ext)
             out.intrinsics.append(ixt)

@@ -214,6 +214,7 @@ class ETH3D(Dataset):
         gt_mesh_path = os.path.join(scene_dir, "combined_mesh.ply")
 
         out = Dict({
+            "gt_image_files": [],
             "image_files": [],
             "extrinsics": [],
             "intrinsics": [],
@@ -226,7 +227,10 @@ class ETH3D(Dataset):
 
         # Process each image (preserve original order from images.txt)
         filtered_count = 0
-        for image_name, pose_info in pose_dict.items():
+        for image_name, pose_info in pose_dict.items():            
+
+            orig_image_name = image_name 
+            
             # Filter problematic views
             if self._should_filter_image(scene, image_name):
                 filtered_count += 1
@@ -242,6 +246,13 @@ class ETH3D(Dataset):
             image_path = os.path.join(self.da3_deg_root_path, 'eth3d', scene, "images", image_name)
             if not os.path.exists(image_path):
                 continue
+
+            
+            gt_image_path = os.path.join(self.da3_clean_root_path, 'eth3d', scene, "images", orig_image_name)
+            if not os.path.exists(gt_image_path):
+                continue
+            
+            
 
             cam_info = camera_dict.get(pose_info["camera_id"])
             if cam_info is None:
@@ -261,6 +272,7 @@ class ETH3D(Dataset):
             ext[:3, :3] = rot
             ext[:3, 3] = pose_info["trans"] # (4,4)
 
+            out.gt_image_files.append(gt_image_path)
             out.image_files.append(image_path)
             out.extrinsics.append(ext)
             out.intrinsics.append(ixt)
