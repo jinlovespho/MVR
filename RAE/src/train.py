@@ -209,7 +209,7 @@ def main():
         # train loop
         for train_step, batch in enumerate(train_loader):
 
-                    
+
             # load batch data
             # train_frame_id = batch['frame_ids']               # b v
             train_hq_id = batch['hq_ids']                     # len(hq_id) = b, len(hq_id[i]) = v
