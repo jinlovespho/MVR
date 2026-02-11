@@ -242,9 +242,9 @@ def load_model(cfg, rank, device):
     
     ddp_denoiser = DDP(
         denoiser,
-        device_ids=[device.index],
+        device_ids=[rank],
         broadcast_buffers=False,
-        find_unused_parameters=True,
+        find_unused_parameters=False,
     )
 
 

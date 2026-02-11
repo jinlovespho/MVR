@@ -79,9 +79,9 @@ misc:
 training:
   global_seed: 42
   precision: fp32
-  epochs: 10
+  epochs: 6
  
-  global_batch_size: 1
+  global_batch_size: 16
   grad_accum_steps: 1
   # ema_decay: 0.9995
   ema_decay: 0.9999
@@ -90,11 +90,11 @@ training:
   log_interval: 1
 
 
-  ckpt_step_interval: 10000   # 10k
+  ckpt_step_interval: 2000   # 2k
 
   vis:
-    train_depth_every: 1   # 2k
-    val_depth_every: 2000
+    train_depth_every: 1000   # 1k
+    val_depth_every: 1000
 
 
   clip_grad: 1.0
@@ -103,9 +103,9 @@ training:
     betas: [0.9, 0.95]
     weight_decay: 0.0
   scheduler:
-    type: linear
-    warmup_epochs: 5
-    decay_end_epoch: 10
+    type: cosine
+    warmup_epochs: 3
+    decay_end_epoch: 6
     base_lr: 2e-4
     final_lr: 2e-5
     warmup_from_zero: false
@@ -114,33 +114,20 @@ training:
 
 
 log:
-  # result_root_dir: result_train/multi_view/260206
-  result_root_dir: result_train/multi_view/TMPTMP
+  result_root_dir: result_train/multi_view/260211
+  # result_root_dir: result_train/multi_view/TMPTMP
   tracker:
-    name: wandba
+    name: wandb
     wandb:
       key: e32eed0c2509bf898b850b0065ab62345005fb73
       entity: jinlovespho
       project: eccv26_mv_restoration
       
-
-      # 260203
-      # msg: "lq-kernel50__global17__no-abs-pos__no-learn-cls__init-svrm-ckpt"
-
-
-      # 260205
-      # msg: "lqkernel-50__global-17__viewsel-rand-rand"
-      # msg: "lqkernel-50__global-17__viewsel-nrand-nrand"
-      # msg: "lqkernel-50__global-17__viewsel-ncam-nrand"
       
-      
-      
-      # 260206
-      # msg: "lqkernel-50__global-17"
-      # msg: "lqkernel-100__global-17"
+      # 260211
+      msg: "lqkernel50__ema09999__expand2"
 
 
-      msg: "tmp"
 
 data:
   train:
@@ -152,7 +139,7 @@ data:
     
     hypersim:
       ann_path: metadata_images_split_scene_v1.csv
-      hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data
+      hq_root_path: /data/MV_Restoration_tmp/hypersim/data
       lq_kernel_size: 50
       view_selection:
         # [random, near_random, near_camera]
@@ -163,7 +150,7 @@ data:
     
     tartanair:
       ann_path: 
-      hq_root_path: /mnt/dataset1/MV_Restoration/tartanair/data
+      hq_root_path: /data/MV_Restoration_tmp/tartanair/data
       lq_kernel_size: 50
       view_selection:
         # [random, near_random]
@@ -176,6 +163,7 @@ data:
   val:
     image_size: 512 
     max_num_input_view: 1
+    # list: [eth3d]
     list: []
 
     eth3d:
@@ -184,8 +172,8 @@ data:
       eval_scene: [courtyard,  electro,  facade,  kicker,  office,  playground]
       # eval_scene: [courtyard, delivery_area,  electro,  facade,  kicker,  office,  pipes,  playground,  relief,  relief_2,  terrains]
       ann_path:
-      hq_root_path: /mnt/dataset1/MV_Restoration/da3_benchmark_dataset/clean/eth3d
-      lq_root_path: /mnt/dataset1/MV_Restoration/da3_benchmark_dataset/cam_blur_300/eth3d
+      hq_root_path: /data/MV_Restoration_tmp/da3_benchmark_dataset_s20/clean/eth3d
+      lq_root_path: /data/MV_Restoration_tmp/da3_benchmark_dataset_s20/cam_blur_300/eth3d
       view_selection:
         strategy: near_random
         expand_ratio: 2

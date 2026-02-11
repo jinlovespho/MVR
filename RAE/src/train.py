@@ -289,7 +289,7 @@ def main():
 
             # compute loss (per microbatch)
             transport_output = transport.training_losses_mvrm(
-                model=models['ddp_denoiser'],
+                model=models['ddp_denoiser'].module,
                 x1=hq_latent,
                 xcond=lq_latent,
                 model_img_size=(train_h, train_w),
