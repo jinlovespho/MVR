@@ -208,7 +208,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             )
             gt_imgs, _, _ = self._prepare_model_inputs(gt_imgs_cpu, None, None)
             
-            
+        
         # Preprocess images
         imgs_cpu, extrinsics, intrinsics = self._preprocess_inputs(
             image.image_files, extrinsics, intrinsics, process_res, process_res_method

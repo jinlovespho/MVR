@@ -104,10 +104,13 @@ workspace:
   # MVRM O
 
   # cam_blur_100
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/nvidia_giant_15k/cam_blur_100/eval_full_100
 
+
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/nvidia_giant_20k/cam_blur_100/eval_full_1
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/nvidia_giant_20k/cam_blur_100/eval_full_100
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/nvidia_giant_20k/cam_blur_300/eval_full_100
+
+
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/nvidia_giant_20k/cam_blur_300/eval_full_100
 
 
 
@@ -157,10 +160,11 @@ eval:
   # Maximum number of frames per scene (for sampling)
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
-  max_frames: 100
+  # max_frames: 100
   # max_frames: 50
   # max_frames: 10
-  # max_frames: 5
+  max_frames: 3
+  # max_frames: 1
 
   # Only run evaluation (skip inference)
   eval_only: false

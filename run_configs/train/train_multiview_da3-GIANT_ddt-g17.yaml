@@ -92,7 +92,7 @@ training:
   ckpt_step_interval: 10000   # 10k
 
   vis:
-    train_depth_every: 2000   # 2k
+    train_depth_every: 1   # 2k
     val_depth_every: 2000
 
 
@@ -116,7 +116,7 @@ log:
   # result_root_dir: result_train/multi_view/260206
   result_root_dir: result_train/multi_view/TMPTMP
   tracker:
-    name: wandb
+    name: wandba
     wandb:
       key: e32eed0c2509bf898b850b0065ab62345005fb73
       entity: jinlovespho
@@ -145,6 +145,7 @@ data:
   train:
     image_size: 512 
     max_num_input_view: 8
+    # max_num_input_view: 1
     # list: [hypersim,]
     list: [hypersim, tartanair,]
     

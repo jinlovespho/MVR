@@ -26,8 +26,8 @@ DA3_CLEAN_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/clean
 
 
 # DA3_DEG_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/cam_blur_500'
-DA3_DEG_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/cam_blur_300'
-# DA3_DEG_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/cam_blur_100'
+# DA3_DEG_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/cam_blur_300'
+DA3_DEG_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/cam_blur_100'
 # DA3_DEG_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/cam_blur_50'
 # DA3_DEG_ROOT_PATH = DA3_CLEAN_ROOT_PATH
 
