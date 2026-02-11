@@ -57,8 +57,8 @@ def parse_args() -> argparse.Namespace:
 
 def main():
     
-    # NAN DEBUG
-    torch.autograd.set_detect_anomaly(True)
+    # # NAN DEBUG
+    # torch.autograd.set_detect_anomaly(True)
     
     
     # set up ddp setting
@@ -118,7 +118,7 @@ def main():
     loader_batches = len(train_loader)
     steps_per_epoch = math.ceil(loader_batches / grad_accum_steps)
     
-    if len(full_cfg.data.val.list) != 0:
+    if rank==0 and len(full_cfg.data.val.list) != 0:
         val_loader, val_sampler = initialize.load_val_data(full_cfg, 1, rank, world_size)
 
 
@@ -141,8 +141,6 @@ def main():
     
     val_noise_generator = torch.Generator(device=device)
     val_noise_generator.manual_seed(global_seed)  # any fixed seed you like
-
-    ema_model_fn = models['ema_denoiser'].forward
 
     
     ### Resuming and checkpointing
@@ -216,7 +214,7 @@ def main():
             # train_gt_depth = batch['gt_depths'].to(device)    # b v 1 378 504
             train_hq_views = batch['hq_views'].to(device)     # b v 3 378 504
             train_lq_views = batch['lq_views'].to(device)     # b v 3 378 504
-            print('train sample: ', train_hq_views.shape)
+
 
             # apply imagenet normalization
             train_b, train_v, train_c, train_h, train_w = train_hq_views.shape 
@@ -261,6 +259,7 @@ def main():
             # VISUALIZE TRAIN (only first batch)
             # ------------------------------------------------
             if rank == 0 and training_cfg.vis.train_depth_every > 0 and global_train_step % training_cfg.vis.train_depth_every == 0:
+                logger.info(f"Train sample shape: {train_hq_views.shape}")
                 vis_train_hq_rgb = []
                 vis_train_lq_rgb = []
                 vis_train_hq_depth = []
@@ -408,7 +407,7 @@ def main():
                 val_lq_metric_count = 0
                 val_res_metric_count = 0
                 # val loop
-                for val_step, val_batch in tqdm(enumerate(val_loader)):
+                for val_step, val_batch in enumerate(tqdm(val_loader)):
                     
                     logger.info(f'Validating Samples: {val_step+1}/{len(val_loader.dataset)}')    
                                     
@@ -418,13 +417,8 @@ def main():
                     val_gt_depth = val_batch['gt_depths'].to(device)    # b v 1 h w=504
                     val_hq_views = val_batch['hq_views'].to(device)     # b v 3 h w=504
                     val_lq_views = val_batch['lq_views'].to(device)     # b v 3 h w=504
-                    print('val sample:' ,val_hq_views.shape)
+                    logger.info(f"Val sample shape: {val_hq_views.shape}")
                     
-                    # from torchvision.utils import save_image 
-                    # save_image(val_hq_views.squeeze(), 'tmp_hq.jpg')
-                    # save_image(val_lq_views.squeeze(), 'tmp_lq.jpg')
-                    # save_image(val_gt_depth.squeeze(0,1), 'tmp_depth.jpg', normalize=True)
-
                     
                     # apply imagenet normalization
                     val_b, val_v, val_c, val_h, val_w = val_lq_views.shape 
@@ -463,10 +457,10 @@ def main():
                     }
                     
                     
-                    models['ddp_denoiser'].eval()
+                    
                     torch.cuda.synchronize()
                     with torch.no_grad():
-                        restored_samples = eval_sampler(val_xt, ema_model_fn, **val_model_kwargs)[-1]     # b v n d
+                        restored_samples = eval_sampler(val_xt, models['ema_denoiser'].forward, **val_model_kwargs)[-1]     # b v n d
 
 
                     mvrm_result={}
@@ -552,7 +546,6 @@ def main():
                     os.makedirs(vis_val_depth_save_dir, exist_ok=True)
                     cv2.imwrite(f"{vis_val_depth_save_dir}/{val_hq_id[0][0]}_step{global_train_step:07}.jpg",vis_val_all,)
                 logger.info("Validation done.")
-                models['ddp_denoiser'].train()
                 lq_mean_metrics = val_lq_metric_sum / val_lq_metric_count
                 res_mean_metrics = val_res_metric_sum / val_res_metric_count
                 lq_abs_rel, lq_sq_rel, lq_rmse, lq_rmse_log, lq_d1, lq_d2, lq_d3 = lq_mean_metrics

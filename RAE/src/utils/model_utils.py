@@ -21,6 +21,7 @@ def instantiate_from_config(config) -> object:
         state_dict = torch.load(ckpt_path, map_location="cpu")
         # see if it's a ckpt from training by checking for "model"
         if "ema" in state_dict:
+            print('loaded EMA weights!')
             state_dict = state_dict["ema"]
         elif "model" in state_dict:
             raise NotImplementedError("Loading from 'model' key not implemented yet.")

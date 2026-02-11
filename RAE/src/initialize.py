@@ -247,8 +247,6 @@ def load_model(cfg, rank, device):
         find_unused_parameters=True,
     )
 
-    ddp_denoiser._set_static_graph()
-
 
     denoiser = ddp_denoiser.module
     ddp_denoiser.train()
@@ -256,13 +254,6 @@ def load_model(cfg, rank, device):
     models['ema_denoiser'] = ema_denoiser
     models['ddp_denoiser'] = ddp_denoiser
     
-    
-
-    # # no need to put RAE into DDP since it's frozen
-    # model_param_count = sum(p.numel() for p in denoiser.parameters())
-    # logger.info(f"Model Parameters: {model_param_count/1e6:.2f}M")
-
-
     
     return models, processors
 

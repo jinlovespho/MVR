@@ -37,8 +37,7 @@ denoiser:
     use_rmsnorm: true
     wo_shift: false
     use_pos_embed: true
-  # ckpt: ep-0015000.pt
-  ckpt: ep-0020000.pt
+  ckpt: NVIDIA_SERVER/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-mvrm__bs8-maxview8-accum1__lr-2e-04__msg-lqkernel-50__global-17__ddp/checkpoints/ep-0025000.pt
 
 mvrm:
   lq_latent_cond: addition    # [addition, concat]
@@ -106,7 +105,7 @@ workspace:
   # cam_blur_100
 
 
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/nvidia_giant_20k/cam_blur_100/eval_full_1
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/nvidia_giant_20k/cam_blur_100/eval_full_3
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/nvidia_giant_20k/cam_blur_100/eval_full_100
 
 
@@ -123,7 +122,7 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/mvrm_upper/f0/cam_blur_100/eval_full_100
 
 
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_TMP
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_TMP
 
 
 
