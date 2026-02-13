@@ -85,9 +85,9 @@ pip install --no-build-isolation --config-settings editable_mode=compat git+http
 
 
 
-# 🔥 Training 
+# 🔥 Training (PREVIOUS)
 
-### 1. Training bash script
+### 1. Training bash script ()
 ```bash
 # CUDA=0,1,2,3
 bash run_scripts/train/JIHYE_run_train_multiview_da3_ddt_g17_lqkernel50.sh
@@ -99,6 +99,25 @@ bash run_scripts/train/JIHYE_run_train_multiview_da3_ddt_g17_lqkernel100.sh
 - For [lqkernel50](run_configs/train/JIHYE_train_multiview_da3_ddt-g17_kernel50.yaml)
 - For [lqkernel100](run_configs/train/JIHYE_train_multiview_da3_ddt-g17_kernel100.yaml)
 
+
+# 🔥 Training (260213)
+
+### 1. Training bash script ()
+```bash
+# CUDA=0,1,2,3
+bash run_scripts/train/JIHYE2_run_train_multiview_da3-GIANT_ddt_g17_lqkernel50_maxview8.sh
+# CUDA=4,5,6,7
+bash run_scripts/train/JIHYE2_run_train_multiview_da3-GIANT_ddt_g17_lqkernel100_maxview8.sh
+# CUDA=8,9,10,11
+bash run_scripts/train/JIHYE2_run_train_multiview_da3-GIANT_ddt_g17_lqkernel200_maxview8.sh
+```
+
+### 2. Training config yaml file
+- For [lqkernel50](run_configs/train/JIHYE2_train_multiview_da3-GIANT_ddt-g17_lqkernel50_maxview8.yaml)
+- For [lqkernel100](run_configs/train/JIHYE2_train_multiview_da3-GIANT_ddt-g17_lqkernel100_maxview8.yaml)
+- For [lqkernel200](run_configs/train/JIHYE2_train_multiview_da3-GIANT_ddt-g17_lqkernel200_maxview8.yaml)
+
+---
 
 
 <!-- # 🚀 Inference Demo
