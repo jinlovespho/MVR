@@ -207,7 +207,6 @@ class Evaluator:
             [('eth3d', 'courtyard'), ('eth3d', 'electro'), ('eth3d', 'kicker'), ('eth3d', 'pipes'), ('eth3d', 'relief'), ('eth3d', 'delivery_area'), ('eth3d', 'facade'), ('eth3d', 'office'), ('eth3d', 'playground'), ('eth3d', 'relief_2')]
         '''
 
-
         # Distribute tasks across GPUs
         if self.total_gpus > 1: # f
             tasks = [t for i, t in enumerate(all_tasks) if i % self.total_gpus == self.gpu_id]
@@ -270,6 +269,7 @@ class Evaluator:
                 )
                 self._save_gt_meta(export_dir, scene_data)
 
+                # breakpoint()
 
             
     def eval(self) -> TDict[str, dict]:

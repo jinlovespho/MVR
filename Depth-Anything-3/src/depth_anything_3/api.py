@@ -279,6 +279,15 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             raw_output, _ = self._run_model_forward(
                 imgs, ex_t_norm, in_t, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg=None, mvrm_result=None, mode=None
             )
+        
+        elif cfg.MVRM_EVAL.eval_method == 'layer_analysis':       
+            print('LAYER ANALYSIS O')
+            raw_output, mvrm_out = self._run_model_forward(
+                imgs, ex_t_norm, in_t, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg=cfg.mvrm.train, mvrm_result=None, mode='train'
+            )
+            latent = mvrm_out['extract_feat']      # b v 973 3072
+
+            breakpoint()
                
         
         # Convert raw output to prediction

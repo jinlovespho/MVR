@@ -127,10 +127,11 @@ class DepthAnything3Net(nn.Module):
             Dictionary containing predictions and auxiliary features
         """
         # Extract features using backbone
-        if extrinsics is not None:  # f
+        if extrinsics is not None:  
             with torch.autocast(device_type=x.device.type, enabled=False):
                 cam_token = self.cam_enc(extrinsics, intrinsics, x.shape[-2:])
-        else:   # t
+                # breakpoint()
+        else:   
             cam_token = None
 
 

@@ -26,14 +26,21 @@ def save_checkpoint(
     optimizer: torch.optim.Optimizer,
     scheduler=None
 ):
+    # state = {
+    #     "step": step,
+    #     "epoch": epoch,
+    #     "model": model.module.state_dict(),
+    #     "ema": ema_denoiser.state_dict(),
+    #     "optimizer": optimizer.state_dict(),
+    #     "scheduler": scheduler.state_dict() if scheduler is not None else None,
+    # }
     state = {
         "step": step,
         "epoch": epoch,
         "model": model.module.state_dict(),
         "ema": ema_denoiser.state_dict(),
-        "optimizer": optimizer.state_dict(),
-        "scheduler": scheduler.state_dict() if scheduler is not None else None,
     }
+    breakpoint()
     os.makedirs(os.path.dirname(path), exist_ok=True)
     torch.save(state, path)
 
@@ -244,8 +251,10 @@ def load_model(cfg, rank, device):
         denoiser,
         device_ids=[rank],
         broadcast_buffers=False,
-        find_unused_parameters=False,
+        find_unused_parameters=True,
     )
+    
+    
 
 
     denoiser = ddp_denoiser.module

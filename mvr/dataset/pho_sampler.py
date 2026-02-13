@@ -49,63 +49,16 @@ class PhoBatchSampler(Sampler):
 
 
 
-# class PhoSampler(DistributedSampler):
-#     """
-#     Extends PyTorch's DistributedSampler to include dynamic aspect_ratio and image_num
-#     parameters, which can be passed into the dataset's __getitem__ method.
-#     """
-#     def __init__(self,
-#         dataset,
-#         num_replicas: Optional[int] = None,
-#         rank: Optional[int] = None,
-#         shuffle: bool = False,
-#         seed: int = 0,
-#         drop_last: bool = False,
-#     ):
-#         super().__init__(
-#             dataset,
-#             num_replicas=num_replicas,
-#             rank=rank,
-#             shuffle=shuffle,
-#             seed=seed,
-#             drop_last=drop_last
-#         )
-
-#         # self.image_num = None
-
-#     def __iter__(self):
-#         """
-#         Yields a sequence of (index, image_num, aspect_ratio).
-#         Relies on the parent class's logic for shuffling/distributing
-#         the indices across replicas, then attaches extra parameters.
-#         """
-#         indices_iter = super().__iter__()
-
-#         for idx in indices_iter:
-#             # yield (idx, self.image_num,)
-#             yield idx 
-
-        
-#     def update_parameters(self, image_num):
-#         """
-#         Updates dynamic parameters for each new epoch or iteration.
-
-#         Args:
-#             aspect_ratio: The aspect ratio to set.
-#             image_num: The number of images to set.
-#         """
-#         self.image_num = image_num
-
-
-
 class PhoSampler(DistributedSampler):
-
-    def __init__(
-        self,
+    """
+    Extends PyTorch's DistributedSampler to include dynamic aspect_ratio and image_num
+    parameters, which can be passed into the dataset's __getitem__ method.
+    """
+    def __init__(self,
         dataset,
         num_replicas: Optional[int] = None,
         rank: Optional[int] = None,
-        shuffle: bool = True,
+        shuffle: bool = False,
         seed: int = 0,
         drop_last: bool = False,
     ):
@@ -118,51 +71,98 @@ class PhoSampler(DistributedSampler):
             drop_last=drop_last
         )
 
-        self.dataset = dataset
-        self.num_datasets = len(dataset.datasets)
-
-        # compute per-dataset index ranges
-        self.dataset_ranges = []
-        start = 0
-        for ds in dataset.datasets:
-            end = start + len(ds)
-            self.dataset_ranges.append((start, end))
-            start = end
+        # self.image_num = None
 
     def __iter__(self):
+        """
+        Yields a sequence of (index, image_num, aspect_ratio).
+        Relies on the parent class's logic for shuffling/distributing
+        the indices across replicas, then attaches extra parameters.
+        """
+        indices_iter = super().__iter__()
 
-        g = torch.Generator()
-        g.manual_seed(self.seed + self.epoch)
+        for idx in indices_iter:
+            # yield (idx, self.image_num,)
+            yield idx 
 
-        # sample equal amount from each dataset
-        per_dataset_indices = []
+        
+    def update_parameters(self, image_num):
+        """
+        Updates dynamic parameters for each new epoch or iteration.
 
-        min_size = min(end - start for start, end in self.dataset_ranges)
+        Args:
+            aspect_ratio: The aspect ratio to set.
+            image_num: The number of images to set.
+        """
+        self.image_num = image_num
 
-        for start, end in self.dataset_ranges:
-            indices = torch.arange(start, end)
 
-            if self.shuffle:
-                indices = indices[torch.randperm(len(indices), generator=g)]
 
-            # take only min_size to balance
-            indices = indices[:min_size]
+# class PhoSampler(DistributedSampler):
 
-            per_dataset_indices.append(indices)
+#     def __init__(
+#         self,
+#         dataset,
+#         num_replicas: Optional[int] = None,
+#         rank: Optional[int] = None,
+#         shuffle: bool = True,
+#         seed: int = 0,
+#         drop_last: bool = False,
+#     ):
+#         super().__init__(
+#             dataset,
+#             num_replicas=num_replicas,
+#             rank=rank,
+#             shuffle=shuffle,
+#             seed=seed,
+#             drop_last=drop_last
+#         )
 
-        # concatenate balanced indices
-        indices = torch.cat(per_dataset_indices)
+#         self.dataset = dataset
+#         self.num_datasets = len(dataset.datasets)
 
-        # shuffle combined indices
-        if self.shuffle:
-            indices = indices[torch.randperm(len(indices), generator=g)]
+#         # compute per-dataset index ranges
+#         self.dataset_ranges = []
+#         start = 0
+#         for ds in dataset.datasets:
+#             end = start + len(ds)
+#             self.dataset_ranges.append((start, end))
+#             start = end
 
-        # split for DDP
-        total_size = len(indices)
-        indices = indices[self.rank:total_size:self.num_replicas]
+#     def __iter__(self):
 
-        return iter(indices.tolist())
+#         g = torch.Generator()
+#         g.manual_seed(self.seed + self.epoch)
 
-    def __len__(self):
-        min_size = min(end - start for start, end in self.dataset_ranges)
-        return (min_size * self.num_datasets) // self.num_replicas
+#         # sample equal amount from each dataset
+#         per_dataset_indices = []
+
+#         min_size = min(end - start for start, end in self.dataset_ranges)
+
+#         for start, end in self.dataset_ranges:
+#             indices = torch.arange(start, end)
+
+#             if self.shuffle:
+#                 indices = indices[torch.randperm(len(indices), generator=g)]
+
+#             # take only min_size to balance
+#             indices = indices[:min_size]
+
+#             per_dataset_indices.append(indices)
+
+#         # concatenate balanced indices
+#         indices = torch.cat(per_dataset_indices)
+
+#         # shuffle combined indices
+#         if self.shuffle:
+#             indices = indices[torch.randperm(len(indices), generator=g)]
+
+#         # split for DDP
+#         total_size = len(indices)
+#         indices = indices[self.rank:total_size:self.num_replicas]
+
+#         return iter(indices.tolist())
+
+#     def __len__(self):
+#         min_size = min(end - start for start, end in self.dataset_ranges)
+#         return (min_size * self.num_datasets) // self.num_replicas

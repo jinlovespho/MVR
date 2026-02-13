@@ -10,70 +10,67 @@
 # MVRM Configuration
 # ==============================================================================
 MVRM_EVAL:
-  # [wo_mvrm, w_mvrm, mvrm_up]
-  eval_method: w_mvrm
+  # [wo_mvrm, w_mvrm, mvrm_up, layer_analysis]
+  eval_method: layer_analysis
 
 
 # ==============================================================================
 # Denoiser Configuration
 # ==============================================================================
 denoiser:
-  model: DiTwDDTHeadMVRM_Multiview
-  target: RAE.src.stage2.models.DDT_MVRM_multiview.DiTwDDTHeadMVRM_Multiview
+  model: 
+  target: 
   params:
-    # input_size: [27, 36]  # feat_H, feat_W
     input_size: 
-    patch_size: 1
-    in_channels: 1536
-    hidden_size: [1536, 3072]
-    depth: [28, 2]
-    num_heads: [16, 16]
-    mlp_ratio: 4.0
+    patch_size: 
+    in_channels: 
+    hidden_size: 
+    depth: 
+    num_heads: 
+    mlp_ratio: 
     class_dropout_prob:
     num_classes: 
-    use_qknorm: true 
-    use_swiglu: true
-    use_rope: true
-    use_rmsnorm: true
-    wo_shift: false
-    use_pos_embed: true
-  ckpt: NVIDIA_SERVER/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-mvrm__bs8-maxview8-accum1__lr-2e-04__msg-lqkernel-50__global-17__ddp/checkpoints/ep-0025000.pt
+    use_qknorm: 
+    use_swiglu: 
+    use_rope: 
+    use_rmsnorm: 
+    wo_shift: 
+    use_pos_embed: 
+  ckpt: 
+
 
 mvrm:
-  lq_latent_cond: addition    # [addition, concat]
+  lq_latent_cond: 
   train:
     # DPT Head input feats = [19, 27, 33, 39]
     extract_feat_layers: [17]
-    # extract_feat_layers: [10]
-    # extract_feat_layers: [5]
-    concat_feat: False
-    break_and_return_feat: true
+    concat_feat:
+    break_and_return_feat: false
   val:
-    restore_feat_layers: [17]
-    # restore_feat_layers: [10]
-    # restore_feat_layers: [5]
-    concat_feat: False 
-    skip_and_input_feat: true
+    restore_feat_layers: []
+    concat_feat:  
+    skip_and_input_feat: 
+
 
 transport:
   params:
-    path_type: 'Linear'
-    prediction: 'velocity'
-    loss_weight: null
-    time_dist_type: 'logit-normal_0_1'
+    path_type: 
+    prediction: 
+    loss_weight: 
+    time_dist_type: 
 sampler:
-  mode: ODE
+  mode: 
   params:
-    sampling_method: 'euler'
-    num_steps: 50
-    atol: 1.0e-6
-    rtol: 1.0e-3
-    reverse: false
+    sampling_method: 
+    num_steps: 
+    atol:
+    rtol: 
+    reverse: 
 misc:
   latent_size: 
   num_classes: 
-  time_dist_shift_dim: 1492992  # 1536*27*36
-  time_dist_shift_base: 4096
+  time_dist_shift_dim: 
+  time_dist_shift_base: 
 
 # ==============================================================================
 # Model Configuration
@@ -87,48 +84,8 @@ model:
 # ==============================================================================
 workspace:
   # Working directory for outputs (model results, metrics, etc.)
-
-  # MVRM X (clean)
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/clean/wo_mvrm/eval_full_view100
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/clean/wo_mvrm/eval_full_view50
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/clean/wo_mvrm/eval_full_view10
-
-  # MVRM X (cam_blur_100)
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_100/eval_full_view100
-
-
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/wo_mvrm/cam_blur_100/eval_full_view100
-
-  
-  # MVRM O
-
-  # cam_blur_100
-
-
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/nvidia_giant_20k/cam_blur_100/eval_full_3
-  
-  
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/nvidia_giant_25k/cam_blur_100/eval_full_50
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/nvidia_giant_25k/cam_blur_100/eval_full_100
-  
-  
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/nvidia_giant_20k/cam_blur_100/eval_full_100
-
-
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/w_mvrm/nvidia_giant_20k/cam_blur_300/eval_full_100
-
-
-
-
-
-  # MVRM UPPER BOUND
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/mvrm_upper/g17/cam_blur_100/eval_full_100
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/mvrm_upper/f10/cam_blur_100/eval_full_100
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/mvrm_upper/f5/cam_blur_100/eval_full_100
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/mvrm_upper/f0/cam_blur_100/eval_full_100
-
-
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_TMP
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val/DA3/analysis/GIANT/
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_TMP
 
 
 
@@ -141,11 +98,11 @@ eval:
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
     - eth3d
-    - 7scenes
-    - scannetpp
-    - hiroom
-    - dtu
-    - dtu64
+    # - 7scenes
+    # - scannetpp
+    # - hiroom
+    # - dtu
+    # - dtu64
 
   # Evaluation modes
   # Options: pose, recon_unposed, recon_posed, view_syn

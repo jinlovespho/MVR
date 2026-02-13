@@ -301,6 +301,7 @@ class DinoVisionTransformer(nn.Module):
 
     def _get_intermediate_layers_not_chunked(self, x, n=1, export_feat_layers=[], **kwargs):
         
+        # breakpoint()
         B, S, _, H, W = x.shape     # b v 3 img_H, img_W = b v 3 378 504
         # patch embeds and then add cls token
         # (b v 3 h w) -> reshape: (bv 3 h w) -> patchembed(ps=14) -> (bv num_pH*num_pW d) = (bv n d) -> add cls_token: (bv n+1 d) -> reshape: b v n+1 d
@@ -354,7 +355,7 @@ class DinoVisionTransformer(nn.Module):
 
             if self.alt_start != -1 and i == self.alt_start:
                 # print(f'{i} add camera token')
-                if kwargs.get("cam_token", None) is not None:   # f
+                if kwargs.get("cam_token", None) is not None:  
                     logger.info("Using camera conditions provided by the user")
                     cam_token = kwargs.get("cam_token")
                 else:
