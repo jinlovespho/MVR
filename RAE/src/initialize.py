@@ -40,9 +40,10 @@ def save_checkpoint(
         "model": model.module.state_dict(),
         "ema": ema_denoiser.state_dict(),
     }
-    breakpoint()
     os.makedirs(os.path.dirname(path), exist_ok=True)
     torch.save(state, path)
+    
+    
 
 
 # def load_checkpoint(
@@ -249,20 +250,20 @@ def load_model(cfg, rank, device):
     
     ddp_denoiser = DDP(
         denoiser,
-        device_ids=[rank],
+        device_ids=[device.index],
         broadcast_buffers=False,
-        find_unused_parameters=True,
+        find_unused_parameters=False,
     )
     
     
+    ddp_denoiser._set_static_graph()
+    
 
-
-    denoiser = ddp_denoiser.module
     ddp_denoiser.train()
-    models['denoiser'] = denoiser
+    
     models['ema_denoiser'] = ema_denoiser
     models['ddp_denoiser'] = ddp_denoiser
-    
+    models['denoiser'] = ddp_denoiser.module
     
     return models, processors
 

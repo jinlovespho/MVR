@@ -40,8 +40,7 @@ stage_2:
     wo_shift: false
     use_pos_embed: true
   ckpt: 
-  # single view ckpt
-  # ckpt: result_train/single_view/260202/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__stage1-da3__stage2-DiTwDDTHeadMVRM__bs-8-accum-1__lr-2e-04__msg-lq-kernel50__global17__no-abs-pos__no-learn-cls/checkpoints/ep-0020000.pt
+  # ckpt: NVIDIA_SERVER/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-mvrm__bs8-maxview8-accum1__lr-2e-04__msg-lqkernel-50__global-17__ddp/checkpoints/ep-0025000.pt
 
 
 transport:
@@ -81,20 +80,20 @@ training:
   precision: fp32
   epochs: 10
  
-  global_batch_size: 1
+  global_batch_size: 2
   grad_accum_steps: 1
-  # ema_decay: 0.9995
-  ema_decay: 0.9999
+  ema_decay: 0.9995
+  # ema_decay: 0.9999
   num_workers: 4
   shuffle: True
   log_interval: 1
 
 
-  ckpt_step_interval: 10000   # 10k
+  ckpt_step_interval: 1000   # 10k
 
   vis:
-    train_depth_every: 1   # 2k
-    val_depth_every: 2000
+    train_depth_every: 10   # 2k
+    val_depth_every: 10
 
 
   clip_grad: 1.0
@@ -117,7 +116,7 @@ log:
   # result_root_dir: result_train/multi_view/260206
   result_root_dir: result_train/multi_view/TMPTMP
   tracker:
-    name: wandba
+    name: wandb
     wandb:
       key: e32eed0c2509bf898b850b0065ab62345005fb73
       entity: jinlovespho
@@ -140,12 +139,12 @@ log:
       # msg: "lqkernel-100__global-17"
 
 
-      msg: "tmp"
+      msg: "tmptmp"
 
 data:
   train:
     image_size: 512 
-    max_num_input_view: 8
+    max_num_input_view: 1
     # max_num_input_view: 1
     # list: [hypersim,]
     list: [hypersim, tartanair,]
@@ -176,10 +175,11 @@ data:
   val:
     image_size: 512 
     max_num_input_view: 1
-    list: []
+    # list: []
+    list: [eth3d]
 
     eth3d:
-      num_eval_img: 5
+      num_eval_img: 2
       # eval_scene: [courtyard]
       eval_scene: [courtyard,  electro,  facade,  kicker,  office,  playground]
       # eval_scene: [courtyard, delivery_area,  electro,  facade,  kicker,  office,  pipes,  playground,  relief,  relief_2,  terrains]

@@ -235,9 +235,8 @@ class ETH3D(Dataset):
             if self._should_filter_image(scene, image_name):
                 filtered_count += 1
                 continue
-
-            # image_path = os.path.join(scene_dir, "images", image_name)
             
+
             # pho - check ext
             ext = glob.glob(os.path.join(self.da3_deg_root_path, 'eth3d', scene, "images", "dslr_images", "*"))[0]
             _, ext = os.path.splitext(ext)

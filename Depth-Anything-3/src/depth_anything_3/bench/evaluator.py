@@ -25,6 +25,7 @@ Supports multiple datasets and evaluation modes:
 import json
 import os
 import random
+import shutil
 from typing import Dict as TDict, Iterable, List
 
 import numpy as np
@@ -227,15 +228,19 @@ class Evaluator:
             scene_data = self._sample_frames(scene_data, scene)
             
             
-            # import shutil
+            
+
             # for img_path in scene_data.image_files:
+            #     new_path = img_path.replace("/clean/", "/filtered_clean/")
             #     # new_path = img_path.replace("/cam_blur_50/", "/filtered_cam_blur_50/")
-            #     new_path = img_path.replace("/cam_blur_100/", "/filtered_cam_blur_100/")
+            #     # new_path = img_path.replace("/cam_blur_100/", "/filtered_cam_blur_100/")
             #     # new_path = img_path.replace("/cam_blur_300/", "/filtered_cam_blur_300/")
             #     new_dir = os.path.dirname(new_path)
             #     os.makedirs(new_dir, exist_ok=True)
             #     # Copy image
             #     shutil.copy2(img_path, new_path)  # copy2 preserves metadata
+
+
 
 
             if need_unposed:    # t

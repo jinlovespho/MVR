@@ -196,7 +196,6 @@ def main():
 
 
     IMAGENET_NORMALIZE = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225],)
-    
 
     dist.barrier() 
     for epoch in range(start_epoch, num_epochs):
@@ -205,6 +204,8 @@ def main():
         epoch_metrics = defaultdict(lambda: torch.zeros(1, device=device))
         num_batches = 0
         optimizer.zero_grad(set_to_none=True)
+        accum_loss = 0.0
+        accum_count = 0
 
 
         # train loop
@@ -235,7 +236,7 @@ def main():
                                                     )
             hq_encoder_out = processors['encoder_output_processor'](hq_encoder_out)
             train_hq_pred_depth_np = hq_encoder_out.depth                  # b v 378 504
-            # train_hq_pred_depth = torch.from_numpy(train_hq_pred_depth_np).to(device) 
+            train_hq_pred_depth = torch.from_numpy(train_hq_pred_depth_np).to(device) 
             hq_latent = hq_mvrm_out['extract_feat']
         
 
@@ -249,15 +250,46 @@ def main():
                                                     )
             lq_encoder_out = processors['encoder_output_processor'](lq_encoder_out)
             train_lq_pred_depth_np = lq_encoder_out.depth                  # b v 378 504
-            # train_lq_pred_depth = torch.from_numpy(train_lq_pred_depth_np).to(device) 
+            train_lq_pred_depth = torch.from_numpy(train_lq_pred_depth_np).to(device) 
             lq_latent = lq_mvrm_out['extract_feat']      # b v 973 3072
             assert lq_latent.shape == hq_latent.shape 
-
             
             if train_b==1 and len(train_hq_pred_depth_np.shape)<4 and len(train_lq_pred_depth_np.shape)<4:
                 train_hq_pred_depth_np = np.expand_dims(train_hq_pred_depth_np, axis=0)
-                train_lq_pred_depth_np = np.expand_dims(train_lq_pred_depth_np, axis=0)                
-   
+                train_lq_pred_depth_np = np.expand_dims(train_lq_pred_depth_np, axis=0)
+                
+            
+            # ------------------------------------------------
+            # VISUALIZE TRAIN (only first batch)
+            # ------------------------------------------------
+            if rank == 0 and training_cfg.vis.train_depth_every > 0 and global_train_step % training_cfg.vis.train_depth_every == 0:
+                logger.info(f"Train sample shape: {train_hq_views.shape}")
+                vis_train_hq_rgb = []
+                vis_train_lq_rgb = []
+                vis_train_hq_depth = []
+                vis_train_lq_depth = []
+                for view_idx in range(train_v):
+                    # RGB (unnormalized!)
+                    vis_train_hq_rgb.append(tensor_to_uint8_image(train_hq_views[0, view_idx]))
+                    vis_train_lq_rgb.append(tensor_to_uint8_image(train_lq_views[0, view_idx]))
+                    # Depths
+                    vis_train_hq_depth.append(depth_to_colormap(train_hq_pred_depth_np[0, view_idx]))
+                    vis_train_lq_depth.append(depth_to_colormap(train_lq_pred_depth_np[0, view_idx]))
+                # concatenate views along width
+                vis_train_hq_rgb    = np.concatenate(vis_train_hq_rgb, axis=1)
+                vis_train_lq_rgb    = np.concatenate(vis_train_lq_rgb, axis=1)
+                vis_train_hq_depth  = np.concatenate(vis_train_hq_depth, axis=1)
+                vis_train_lq_depth  = np.concatenate(vis_train_lq_depth, axis=1)
+                # stack rows (modalities)
+                vis_train_top = np.concatenate([vis_train_hq_rgb, vis_train_lq_rgb], axis=1)
+                vis_train_bot = np.concatenate([vis_train_hq_depth, vis_train_lq_depth], axis=1)
+                vis_train_all = np.concatenate([vis_train_top[:,:,::-1], vis_train_bot], axis=0)
+                # save
+                vis_train_depth_save_dir = f"{experiment_dir}/vis_train_depth"
+                os.makedirs(vis_train_depth_save_dir, exist_ok=True)
+                vis_id = "-".join(train_hq_id[0])
+                cv2.imwrite(f"{vis_train_depth_save_dir}/step{global_train_step:07}_{vis_id}.jpg",vis_train_all)
+
 
             # compute loss (per microbatch)
             transport_output = transport.training_losses_mvrm(
@@ -268,60 +300,95 @@ def main():
                 cfg=full_cfg
             )
             
+            loss_raw = transport_output["loss"].mean()
             
-            loss = transport_output["loss"].mean()
+    
+            loss_effective = loss_raw / grad_accum_steps
+            # print(f"global step: {global_train_step}, lq_id: {batch['lq_ids']} hq_id: {batch['hq_ids']}")
+            
+            
+            if rank == 0 and global_train_step % log_interval == 0 and full_cfg.log.tracker.name == 'wandb':
+                wandb_utils.log(
+                    {"train/loss_effective": loss_effective.item()},
+                    step=global_train_step,
+                )
+                
 
-            # ---------------------------
-            # Backward
-            # ---------------------------
-            loss.backward()
+            
+            # compute gradients
+            if (global_train_step + 1) % grad_accum_steps != 0:
+                with models['ddp_denoiser'].no_sync():
+                    loss_effective.backward()
+            else:
+                loss_effective.backward()
 
-            if clip_grad:
-                torch.nn.utils.clip_grad_norm_(
-                    models['ddp_denoiser'].parameters(),
-                    clip_grad
+
+            accum_loss += loss_raw.item()
+            accum_count += 1
+
+
+            if (global_train_step + 1) % grad_accum_steps == 0:
+                loss_accum_avg = accum_loss / accum_count  # == mean over grad_accum_steps
+                if rank == 0 and full_cfg.log.tracker.name == 'wandb':
+                    wandb_utils.log({"train/loss_accum_avg": loss_accum_avg,}, step=global_train_step,)
+                # reset accumulators
+                accum_loss = 0.0
+                accum_count = 0
+
+
+            
+            # optimizer update
+            if (global_train_step + 1) % grad_accum_steps == 0:
+                if clip_grad:
+                    torch.nn.utils.clip_grad_norm_(
+                        models['ddp_denoiser'].parameters(), clip_grad
+                    )
+
+                if rank == 0 and full_cfg.log.tracker.name == 'wandb':
+                    total_norm = torch.norm(
+                        torch.stack([
+                            p.grad.norm()
+                            for p in models['ddp_denoiser'].parameters()
+                            if p.grad is not None
+                        ])
+                    )
+                    wandb_utils.log({"train/grad_norm": total_norm.item()}, step=global_train_step,)
+
+                optimizer.step()
+                optimizer.zero_grad(set_to_none=True)
+
+                if scheduler is not None:
+                    scheduler.step()
+
+                update_ema(
+                    models['ema_denoiser'],
+                    models['ddp_denoiser'].module,
+                    decay=ema_decay,
                 )
 
-            optimizer.step()
-            optimizer.zero_grad(set_to_none=True)
+                optimizer_step += 1
+            
+                            
+            running_loss += loss_raw.item()
+            epoch_metrics['loss'] += loss_raw.detach()
 
-            if scheduler is not None:
-                scheduler.step()
 
-            update_ema(
-                models['ema_denoiser'],
-                models['ddp_denoiser'].module,
-                decay=ema_decay,
-            )
-
-            optimizer_step += 1
-
-            # ---------------------------
-            # Logging
-            # ---------------------------
-            running_loss += loss.item()
-            epoch_metrics['loss'] += loss.detach()
-
-            if rank == 0 and global_train_step % log_interval == 0:
-
+            if rank == 0 and log_interval > 0 and global_train_step % log_interval == 0:
                 avg_loss = running_loss / log_interval
-
                 stats = {
                     "train/loss_interval_avg": avg_loss,
                     "train/lr": optimizer.param_groups[0]["lr"],
                 }
-
                 logger.info(
                     f"[Epoch {epoch} | Step {global_train_step}] "
                     + ", ".join(f"{k}: {v:.4f}" for k, v in stats.items())
                 )
-
                 if full_cfg.log.tracker.name == 'wandb':
                     wandb_utils.log(stats, step=global_train_step)
-
                 running_loss = 0.0
 
-        
+
+
             # ckpt saving
             if rank==0 and global_train_step > 0 and global_train_step % ckpt_step_interval == 0:
                 logger.info(f"Saving checkpoint at global_train_step {global_train_step}...")
@@ -343,11 +410,10 @@ def main():
                 val_res_metric_sum = None
                 val_lq_metric_count = 0
                 val_res_metric_count = 0
-                models['ddp_denoiser'].eval()
                 # val loop
                 for val_step, val_batch in enumerate(tqdm(val_loader)):
                     
-                    logger.info(f'Validating Samples: {val_step+1}/{len(val_loader)}')    
+                    logger.info(f'Validating Samples: {val_step+1}/{len(val_loader.dataset)}')    
                                     
                     # load val batch 
                     val_frame_id = val_batch['frame_ids']               # b v
@@ -395,6 +461,8 @@ def main():
                     }
                     
                     
+                    
+                    torch.cuda.synchronize()
                     with torch.no_grad():
                         restored_samples = eval_sampler(val_xt, ema_model_fn, **val_model_kwargs)[-1]     # b v n d
 
@@ -521,7 +589,6 @@ def main():
                     f"RMSE {res_rmse:.3f} | RMSElog {res_rmse_log:.3f} | "
                     f"δ1 {res_d1:.3f} | δ2 {res_d2:.3f} | δ3 {res_d3:.3f}"
                 )
-                models['ddp_denoiser'].train()
             num_batches += 1
             global_train_step += 1
         
