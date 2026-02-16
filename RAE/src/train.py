@@ -414,7 +414,7 @@ def main():
                     val_encoder_out = processors['encoder_output_processor'](val_encoder_out)
                     val_pred_depth_np = val_encoder_out.depth   # num_view h w
                     val_pred_depth = torch.from_numpy(val_pred_depth_np).to(device)
-
+                    
                                     
                     # ------------------------------------------
                     # VISUALIZE + METRICS (VALIDATION)

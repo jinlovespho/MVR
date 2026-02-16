@@ -93,7 +93,7 @@ training:
 
   vis:
     train_depth_every: 10   # 2k
-    val_depth_every: 10
+    val_depth_every: 5
 
 
   clip_grad: 1.0
@@ -179,7 +179,7 @@ data:
     list: [eth3d]
 
     eth3d:
-      num_eval_img: 2
+      num_eval_img: 10
       # eval_scene: [courtyard]
       eval_scene: [courtyard,  electro,  facade,  kicker,  office,  playground]
       # eval_scene: [courtyard, delivery_area,  electro,  facade,  kicker,  office,  pipes,  playground,  relief,  relief_2,  terrains]
