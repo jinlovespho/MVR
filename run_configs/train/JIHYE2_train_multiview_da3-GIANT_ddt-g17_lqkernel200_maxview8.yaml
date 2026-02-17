@@ -112,7 +112,7 @@ training:
 
 log:
   # SET SAVING PATH
-  result_root_dir: result_train/multi_view/JIHYE2/lqkernel200_maxview8
+  result_root_dir: result_train/multi_view/JIHYE2_re/lqkernel200_maxview8
   tracker:
     name: 
     wandb:
