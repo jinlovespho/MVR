@@ -11,7 +11,7 @@
 # ==============================================================================
 MVRM_EVAL:
   # [wo_mvrm, w_mvrm, mvrm_up]
-  eval_method: w_mvrm
+  eval_method: wo_mvrm
 
 
 # ==============================================================================
@@ -21,7 +21,6 @@ denoiser:
   model: DiTwDDTHeadMVRM_Multiview
   target: RAE.src.stage2.models.DDT_MVRM_multiview.DiTwDDTHeadMVRM_Multiview
   params:
-    # input_size: [27, 36]  # feat_H, feat_W
     input_size: 
     patch_size: 1
     in_channels: 1536
@@ -37,37 +36,17 @@ denoiser:
     use_rmsnorm: true
     wo_shift: false
     use_pos_embed: true
-  # ckpt: NVIDIA_SERVER/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-mvrm__bs8-maxview8-accum1__lr-2e-04__msg-lqkernel-50__global-17__ddp/checkpoints/ep-0025000.pt
-  # ckpt: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/JIHYE_CKPT/lqkernel50_48k/ep-0048000.pt
-  # ckpt: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/JIHYE_CKPT/lqkernel100_48k/ep-0048000.pt
-
-
-  # NVIDIA2 (lqkernel100,200)
-  # ckpt: NVIDIA_SERVER_CKPT/NVIDIA2/lqkernel100/ep-0025000.pt
-
-
-  # JIHYE2 (lqkernel50,100,200-74k)
-  ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel50/kernel50_0074000.pt
-  # ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel100/kernel100_0074000.pt
-  # ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel200/kernel200_0074000.pt
-
-
-
-
+  ckpt: 
 
 mvrm:
   lq_latent_cond: addition    # [addition, concat]
   train:
     # DPT Head input feats = [19, 27, 33, 39]
     extract_feat_layers: [17]
-    # extract_feat_layers: [10]
-    # extract_feat_layers: [5]
     concat_feat: False
     break_and_return_feat: true
   val:
     restore_feat_layers: [17]
-    # restore_feat_layers: [10]
-    # restore_feat_layers: [5]
     concat_feat: False 
     skip_and_input_feat: true
 
@@ -104,42 +83,10 @@ model:
 workspace:
   # Working directory for outputs (model results, metrics, etc.)
 
-  # FINAL - WO_MVRM
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/wo_mvrm/clean/eval_full_100
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/wo_mvrm/filtered_clean/eval_full_100
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/wo_mvrm/filtered_cam_blur_50/eval_full_100
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/wo_mvrm/filtered_cam_blur_100/eval_full_100
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/wo_mvrm/filtered_cam_blur_300/eval_full_100
-  
-
-  # FINAL - W_MVRM - CAM_BLUR_50
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/w_mvrm/JIHYE_lqkernel100_48k/filtered_cam_blur_50/eval_full_100
-
-
-  # FINAL - W_MVRM - CAM_BLUR_100
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/w_mvrm/JIHYE_lqkernel50_48k/filtered_cam_blur_100/eval_full_100
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/w_mvrm/JIHYE_lqkernel100_48k/filtered_cam_blur_100/eval_full_100
-
-
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL_FINAL/da3_giant/w_mvrm/JIHYE_lqkernel100_48k/filtered_cam_blur_100/eval_full_100
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL_FINAL/da3_giant/w_mvrm/JIHYE_lqkernel100_48k/filtered_cam_blur_50/eval_full_100
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL_FINAL/da3_giant/w_mvrm/JIHYE_lqkernel100_48k/filtered_cam_blur_300/eval_full_100
-
-
-
-  # W_MVRM - NVIDIA2 (lqkernel100)
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/w_mvrm/NVIDIA2_lqkernel100_25k/filtered_cam_blur_100/eval_full_10
-
-
-  # W_MVRM - NVIDIA2 (lqkernel200)
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/w_mvrm/NVIDIA2_lqkernel200_25k/filtered_cam_blur_100/eval_full_10
-
-
-  # W_MVRM - JIHYE2 (lqkernel50, 100, 200)
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/w_mvrm/JIHYE2_lqkernel50_74k/filtered_cam_blur_100/eval_full_50
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/w_mvrm/JIHYE2_lqkernel100_74k/filtered_cam_blur_100/eval_full_50
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/w_mvrm/JIHYE2_lqkernel200_74k/filtered_cam_blur_100/eval_full_50
-
+  # FINAL - dit4sr
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/restored_dit4sr/filtered_cam_blur_50/eval_full_100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/restored_dit4sr/filtered_cam_blur_100/eval_full_100
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/restored_dit4sr/filtered_cam_blur_300/eval_full_100
 
 
 
@@ -152,17 +99,17 @@ eval:
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
     - eth3d
-    - 7scenes
+    # - 7scenes
     - scannetpp
-    - hiroom
-    - dtu
-    - dtu64
+    # - hiroom
+    # - dtu
+    # - dtu64
 
   # Evaluation modes
   # Options: pose, recon_unposed, recon_posed, view_syn
   modes:
-    # - pose
-    # - recon_unposed
+    - pose
+    - recon_unposed
     - recon_posed
 
   # Reference view selection strategy for inference
@@ -176,14 +123,14 @@ eval:
   # Maximum number of frames per scene (for sampling)
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
-  # max_frames: 100
-  max_frames: 50
+  max_frames: 100
+  # max_frames: 50
   # max_frames: 10
   # max_frames: 3
   # max_frames: 1
 
   # Only run evaluation (skip inference)
-  eval_only: true
+  eval_only: false
 
   # Only print saved metrics (skip inference and evaluation)
   print_only: false

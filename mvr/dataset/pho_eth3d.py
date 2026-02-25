@@ -29,6 +29,9 @@ class PhoETH3D(Dataset):
         self.mode = mode 
         self.data = {}
         
+        self.process_res = data_cfg.get('process_res', 504)
+        self.patch_size = data_cfg.get('patch_size', 14)
+
         
         eval_scene = data_cfg.eval_scene
         lq_paths = glob.glob(f'{data_cfg.lq_root_path}/*/images/dslr_images/*')
@@ -104,8 +107,8 @@ class PhoETH3D(Dataset):
         Returns:
             resized_img: np.ndarray [H', W', 3], uint8
         """
-        process_res = 504
-        patch_size = 14
+        process_res = self.process_res
+        patch_size = self.patch_size
         # -------------------------
         # 1. resize longest side
         # -------------------------
@@ -134,8 +137,8 @@ class PhoETH3D(Dataset):
         return img
 
     def resize_depth(self, depth: np.ndarray):
-        process_res = 504
-        patch_size = 14
+        process_res = self.process_res
+        patch_size = self.patch_size
         h, w = depth.shape
         longest = max(h, w)
         if longest != process_res:

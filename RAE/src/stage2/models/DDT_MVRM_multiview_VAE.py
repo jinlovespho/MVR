@@ -211,7 +211,7 @@ class DDTFinalLayer(nn.Module):
         return x
 
 
-class DiTwDDTHeadMVRM_Multiview(nn.Module):
+class DiTwDDTHeadMVRM_Multiview_VAE(nn.Module):
     def __init__(
             self,
             input_size: int = 1,
@@ -262,13 +262,16 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
         self.s_patch_size = patch_size[0]
         self.x_patch_size = patch_size[1]
         
-        self.s_channel_per_token = in_channels * self.s_patch_size * self.s_patch_size   # 768
+        # self.s_channel_per_token = in_channels * self.s_patch_size * self.s_patch_size   # 768
+        self.s_channel_per_token = in_channels
+        
         # s_input_size = input_size           # 32
         s_patch_size = self.s_patch_size    # 1
         
         # x_input_size = input_size           # 32
         x_patch_size = self.x_patch_size    # 1
-        self.x_channel_per_token = in_channels * self.x_patch_size * self.x_patch_size   # 768
+        # self.x_channel_per_token = in_channels * self.x_patch_size * self.x_patch_size   # 768
+        self.x_channel_per_token = in_channels
 
         self.s_projector = nn.Linear(self.encoder_hidden_size, self.decoder_hidden_size) if self.encoder_hidden_size != self.decoder_hidden_size else nn.Identity()
         self.s_embedder = PatchEmbed(
@@ -297,7 +300,7 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
         # self.y_embedder = LabelEmbedder(num_classes, self.encoder_hidden_size, class_dropout_prob)
         # print(f"x_channel_per_token: {x_channel_per_token}, s_channel_per_token: {s_channel_per_token}")
         
-        self.final_layer = DDTFinalLayer(self.decoder_hidden_size, 1, self.x_channel_per_token, use_rmsnorm=use_rmsnorm)
+        self.final_layer = DDTFinalLayer(self.decoder_hidden_size, self.x_patch_size, self.x_channel_per_token, use_rmsnorm=use_rmsnorm)
         # Will use fixed sin-cos embedding:
         
         
@@ -360,8 +363,8 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
         # self.dec_clk_tkn = nn.Parameter(torch.zeros(1, 1, self.decoder_hidden_size))
 
         
-        self.s_cls_embedder = nn.Linear(self.in_channels, self.encoder_hidden_size)
-        self.x_cls_embedder = nn.Linear(self.in_channels, self.decoder_hidden_size)
+        # self.s_cls_embedder = nn.Linear(self.in_channels, self.encoder_hidden_size)
+        # self.x_cls_embedder = nn.Linear(self.in_channels, self.decoder_hidden_size)
         
         
         
@@ -377,14 +380,6 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
                         nn.init.constant_(module.bias, 0)
             self.apply(_basic_init)
 
-
-        # Initialize cls embedders (Linear layers)
-        nn.init.xavier_uniform_(self.s_cls_embedder.weight)
-        nn.init.constant_(self.s_cls_embedder.bias, 0)
-
-        nn.init.xavier_uniform_(self.x_cls_embedder.weight)
-        nn.init.constant_(self.x_cls_embedder.bias, 0)
-            
             
         # Initialize patch_embed like nn.Linear (instead of nn.Conv2d):
         w = self.x_embedder.proj.weight.data
@@ -396,24 +391,6 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
         nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
         nn.init.constant_(self.s_embedder.proj.bias, 0)
 
-        # Initialize label embedding table:
-        # nn.init.normal_(self.y_embedder.embedding_table.weight, std=0.02)
-        # if self.use_pos_embed:
-        #     # Initialize (and freeze) pos_embed by sin-cos embedding:
-        #     # pos_embed = get_2d_sincos_pos_embed(self.pos_embed.shape[-1], int(self.s_embedder.num_patches ** 0.5))
-        #     # self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
-
-        #     # PHO
-        #     # self.pos_embed: b 972+1 1536
-        #     # self.s_embedder.grid_size: (27, 36)
-        #     # pos_embed = get_2d_sincos_pos_embed(self.pos_embed.shape[-1], self.s_embedder.grid_size)
-        #     pos_embed = get_2d_sincos_pos_embed(self.pos_embed.shape[-1], 
-        #                                         self.s_embedder.grid_size, 
-        #                                         cls_token=True if self.num_cls_tkn > 0 else False, 
-        #                                         extra_tokens=self.num_cls_tkn)
-        #     self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
-        #     # breakpoint()
-            
 
         # Zero-out adaLN modulation layers in LightningDiT blocks:
         for block in self.blocks:
@@ -445,19 +422,30 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
         return imgs
 
 
+    # def _prepare_rope(self, B, S, num_pH, num_pW, device):
+    #     pos = None
+    #     pos_nodiff = None
+    #     if self.rope is not None:
+    #         pos = self.position_getter(B * S, num_pH, num_pW, device=device)   # b*v n 2 
+    #         pos = rearrange(pos, "(b s) n c -> b s n c", b=B)   # b v n 2 
+    #         pos_nodiff = torch.zeros_like(pos).to(pos.dtype)
+    #         pos = pos + 1   # to not account cls_tkn
+    #         pos_special = torch.zeros(B * S, 1, 2).to(device).to(pos.dtype)
+    #         pos_special = rearrange(pos_special, "(b s) n c -> b s n c", b=B)
+    #         pos = torch.cat([pos_special, pos], dim=2)
+    #         pos_nodiff = pos_nodiff + 1     # to not account cls_tkn
+    #         pos_nodiff = torch.cat([pos_special, pos_nodiff], dim=2)
+    #     return pos, pos_nodiff
+
+
+
     def _prepare_rope(self, B, S, num_pH, num_pW, device):
         pos = None
         pos_nodiff = None
         if self.rope is not None:
-            pos = self.position_getter(B * S, num_pH, num_pW, device=device)   # b*v n 2 
-            pos = rearrange(pos, "(b s) n c -> b s n c", b=B)   # b v n 2 
+            pos = self.position_getter(B * S, num_pH, num_pW, device=device)  # (b*s) n 2
+            pos = rearrange(pos, "(b s) n c -> b s n c", b=B)
             pos_nodiff = torch.zeros_like(pos).to(pos.dtype)
-            pos = pos + 1   # to not account cls_tkn
-            pos_special = torch.zeros(B * S, 1, 2).to(device).to(pos.dtype)
-            pos_special = rearrange(pos_special, "(b s) n c -> b s n c", b=B)
-            pos = torch.cat([pos_special, pos], dim=2)
-            pos_nodiff = pos_nodiff + 1     # to not account cls_tkn
-            pos_nodiff = torch.cat([pos_special, pos_nodiff], dim=2)
         return pos, pos_nodiff
 
 
@@ -533,57 +521,27 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
         return x
 
 
-    def forward(self, x, t, model_img_size):
+    def forward(self, x, t, model_img_size=None):
         
-        
-        # print('PRINT!!!', model_img_size)
-        model_H, model_W = model_img_size
-        pH = pW = 14 
-        num_pH = model_H//pH    
-        num_pW = model_W//pW    
-        
-        
-        cls_tkn = x[:,:,0:1]        # b v 1 d
-        patch_tkns = x[:,:,1:]      # b v n d
-        
-        
-        b, v, n, d = patch_tkns.shape
-        x = rearrange(patch_tkns, 'b v (num_pH num_pW) d -> (b v) d num_pH num_pW', b=b, v=v, num_pH=num_pH, num_pW=num_pW)   # b v 3072 27 36
+        b, v, d, model_H, model_W = x.shape     # b v 16 60 80
+        pH = pW = self.x_patch_size
+        num_pH = model_H//pH                    # 30
+        num_pW = model_W//pW                    # 40
         
 
         # time condition
         t = self.t_embedder(t)          # b*v d        
         c = nn.functional.silu(t)       # b*v d
         
-
-        # encoder - cls embedding 
-        s_cls_tkn = self.s_cls_embedder(cls_tkn.reshape(b*v, 1, -1))
-        
         
         # encoder - patch embedding 
+        x = rearrange(x, 'b v d h w -> (b v) d h w', b=b, v=v)
         s = self.s_embedder(x)  # b*v 1536 27 36 -> b*v 972 1536
-        
-        
-        # # prepare encoder cls tkn
-        # enc_cls_tkn = self.enc_cls_tkn.expand(b, v, -1)                         # b v d
-        # enc_cls_tkn = enc_cls_tkn.reshape(b*v, -1, self.encoder_hidden_size)    # b*v 1 d 
-        
-        
-        # concat encoder cls tkn w/ patch_tkns 
-        s = torch.cat([s_cls_tkn, s], dim=1)      # b*v n+1 d
-        
-        
-        # # add pos emb
-        # if self.use_pos_embed:  # t
-        #     s = s + self.pos_embed  # b*v n+1 d
-        
-        
-        # reshape to (b v n d)
         s = rearrange(s, '(b v) n d -> b v n d', b=b, v=v)
-            
+        
 
         # PHO prepare rope
-        pos, pos_nodiff = self._prepare_rope(b, v, num_pH, num_pW, s.device)  # b v n+1 2
+        pos, pos_nodiff = self._prepare_rope(b, v, num_pH, num_pW, s.device)  
         g_pos = pos_nodiff
         l_pos = pos
         
@@ -614,27 +572,9 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
         s = self.s_projector(s) # b*v n d1 -> b*v n d2
         
         
-        # decoder - cls embedding
-        x_cls_tkn = self.x_cls_embedder(cls_tkn.reshape(b*v, 1, -1))
-        
-        
         # decoder - patch embedding
         x = self.x_embedder(x)  # b*v d h w -> b*v n d
-        
-        
-        # # prepare decoder cls tkn
-        # dec_cls_tkn = self.dec_clk_tkn.expand(b, v, -1)
-        # dec_cls_tkn = dec_cls_tkn.reshape(b*v, -1, self.decoder_hidden_size)    # b*v 1 d 
-        
-        
-        # concat decoder cls_tkn w/ patch_tkns
-        x = torch.cat([x_cls_tkn, x], dim=1)  # b*v n+1 d
-        
-        
-        # # add decoder pos emb
-        # if self.use_pos_embed and self.x_pos_embed is not None: # f
-        #     x = x + self.x_pos_embed
-            
+       
         
         # reshape to (b v n d)
         x = rearrange(x, '(b v) n d -> b v n d', b=b, v=v)  # 4 4 973 3072
@@ -661,18 +601,11 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
         x = self.final_layer(x, s)  # last adaLN and restore to original dim: 2048 -> 768
 
 
-        x = rearrange(x, '(b v) n d -> b v n d', b=b, v=v)
+        x = rearrange(x, '(b v) (num_pH num_pW) (d pH pW) -> b v d (num_pH pH) (num_pW pW)', b=b, v=v, num_pH=num_pH, num_pW=num_pW, pH=self.x_patch_size, pW=self.x_patch_size)
 
         
         return x
 
-        cls_tkn = x[:,0]
-        patch_tkns = x[:,1:]
-        
-        patch_tkns = self.unpatchify(patch_tkns)  # b n d -> b num_pH*num_pW pH*pW*c -> b c num_pH*pH num_pW*pW -> b c h w 
-        
-        
-        return patch_tkns, cls_tkn   
 
 
 

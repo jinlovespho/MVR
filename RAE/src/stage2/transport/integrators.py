@@ -4,6 +4,7 @@ import torch.nn as nn
 from torchdiffeq import odeint
 from functools import partial
 from tqdm import tqdm
+import torch 
 
 class sde:
     """SDE solver class"""
@@ -126,41 +127,75 @@ class ode:
     #     return samples
 
 
-    def sample(self, x, model, return_trajectory=False, **model_kwargs):
+    # def sample(self, x, model, return_trajectory=False, **model_kwargs):
+    #     device = x[0].device if isinstance(x, tuple) else x.device
+    #     t = self.t.to(device)
+        
+    #     x_curr = x
+    #     if return_trajectory:
+    #         traj = [x_curr]
+        
+    #     with th.no_grad():  # Ensure no gradient tracking
+    #         for i in range(len(t) - 1):
+    #             dt = (t[i + 1] - t[i]).item()  # Convert to Python scalar once
+                
+    #             if isinstance(x_curr, tuple):
+    #                 t_batch = t[i].expand(x_curr[0].size(0))
+    #             else:
+    #                 t_batch = t[i].expand(x_curr.size(0))
+                
+    #             dx = self.drift(x_curr, t_batch, model, **model_kwargs)
+                
+    #             if isinstance(x_curr, tuple):
+    #                 x_curr = tuple(x_i + dt * dx_i for x_i, dx_i in zip(x_curr, dx))
+    #             else:
+    #                 x_curr = x_curr + dt * dx
+                
+    #             if return_trajectory:
+    #                 traj.append(x_curr)
+        
+    #     if return_trajectory:
+    #         if isinstance(x_curr, tuple):
+    #             traj = tuple(th.stack([step[i] for step in traj], dim=0) for i in range(len(x_curr)))
+    #         else:
+    #             traj = th.stack(traj, dim=0)
+    #         return traj
+        
+    #     if isinstance(x_curr, tuple):
+    #         return tuple(x_i.unsqueeze(0) for x_i in x_curr)
+    #     else:
+    #         return x_curr.unsqueeze(0)
+    
+
+
+    def sample(self, x, model, **model_kwargs):
         device = x[0].device if isinstance(x, tuple) else x.device
+
+        def _fn(t, x):
+            t_batch = torch.ones(
+                x[0].size(0) if isinstance(x, tuple) else x.size(0),
+                device=device
+            ) * t
+            return self.drift(x, t_batch, model, **model_kwargs)
+
         t = self.t.to(device)
-        
+
         x_curr = x
-        if return_trajectory:
-            traj = [x_curr]
-        
-        with th.no_grad():  # Ensure no gradient tracking
-            for i in range(len(t) - 1):
-                dt = (t[i + 1] - t[i]).item()  # Convert to Python scalar once
-                
-                if isinstance(x_curr, tuple):
-                    t_batch = t[i].expand(x_curr[0].size(0))
-                else:
-                    t_batch = t[i].expand(x_curr.size(0))
-                
-                dx = self.drift(x_curr, t_batch, model, **model_kwargs)
-                
-                if isinstance(x_curr, tuple):
-                    x_curr = tuple(x_i + dt * dx_i for x_i, dx_i in zip(x_curr, dx))
-                else:
-                    x_curr = x_curr + dt * dx
-                
-                if return_trajectory:
-                    traj.append(x_curr)
-        
-        if return_trajectory:
-            if isinstance(x_curr, tuple):
-                traj = tuple(th.stack([step[i] for step in traj], dim=0) for i in range(len(x_curr)))
-            else:
-                traj = th.stack(traj, dim=0)
-            return traj
-        
-        if isinstance(x_curr, tuple):
-            return tuple(x_i.unsqueeze(0) for x_i in x_curr)
-        else:
-            return x_curr.unsqueeze(0)
+
+        for i in range(len(t) - 1):
+            t_pair = torch.tensor([t[i], t[i+1]], device=device)
+            x_curr = odeint(
+                _fn,
+                x_curr,
+                t_pair,
+                method=self.sampler_type,
+                atol=self.atol,
+                rtol=self.rtol,
+            )[-1]
+            
+            # PHO4 (ON)
+            # add safety clamp
+            x_curr = torch.nan_to_num(x_curr, nan=0.0, posinf=1e4, neginf=-1e4)
+            x_curr = torch.clamp(x_curr, -1e4, 1e4)
+
+        return x_curr.unsqueeze(0)

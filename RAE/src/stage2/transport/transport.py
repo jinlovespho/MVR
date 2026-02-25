@@ -267,7 +267,6 @@ class Transport:
         t, x0, x1 = self.sample(x1)     # b v n+1 d                     
         t, xt, ut = self.path_sampler.plan(t, x0, x1)
 
-
         # lq_latent conditioning method 
         if cfg.mvrm.lq_latent_cond == 'addition':
             xt = xt + xcond
@@ -277,6 +276,66 @@ class Transport:
 
         # mvrm forward pass 
         model_output = model(xt, t, model_img_size)                 # b v 3072 27 36
+        assert model_output.shape == xt.shape 
+
+        terms = {}
+        terms['pred'] = model_output
+        terms['target_velocity'] = ut 
+        
+        if self.model_type == ModelType.VELOCITY:   # t
+            terms['loss'] = mean_flat(((model_output - ut) ** 2))   # b
+        else:   # f
+            _, drift_var = self.path_sampler.compute_drift(xt, t)
+            sigma_t, _ = self.path_sampler.compute_sigma_t(path.expand_t_like_x(t, xt))
+            if self.loss_type in [WeightType.VELOCITY]:
+                weight = (drift_var / sigma_t) ** 2
+            elif self.loss_type in [WeightType.LIKELIHOOD]:
+                weight = drift_var / (sigma_t ** 2)
+            elif self.loss_type in [WeightType.NONE]:
+                weight = 1
+            else:
+                raise NotImplementedError()
+            
+            if self.model_type == ModelType.NOISE:
+                terms['loss'] = mean_flat(weight * ((model_output - x0) ** 2))
+            else:
+                terms['loss'] = mean_flat(weight * ((model_output * sigma_t + x0) ** 2))
+        return terms
+
+
+
+    def training_losses_mvrm_VAE(
+        self, 
+        model,  
+        x1, 
+        xcond,
+        cfg
+    ):
+        """Loss for training the score model
+        Args:
+        - model: backbone model; could be score, noise, or velocity
+        - x1: datapoint (latent)
+        - model_kwargs: additional arguments for the model
+        """
+        
+        
+        assert x1.shape == xcond.shape 
+        
+        b, v, d, h, w = x1.shape    
+
+        t, x0, x1 = self.sample(x1)     # b v d h w               
+        t, xt, ut = self.path_sampler.plan(t, x0, x1)
+
+
+        # lq_latent conditioning method 
+        if cfg.mvrm.lq_latent_cond == 'addition':
+            xt = xt + xcond
+        elif cfg.mvrm.lq_latent_cond == 'concat':
+            xt = torch.concat([xt, xcond], dim=2)   # channel concat
+
+
+        # mvrm forward pass 
+        model_output = model(xt, t)                 # b v 3072 27 36
         assert model_output.shape == xt.shape 
 
 

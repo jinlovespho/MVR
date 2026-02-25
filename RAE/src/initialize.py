@@ -233,6 +233,24 @@ def load_model(cfg, rank, device):
         from vggt.utils.load_fn import load_and_preprocess_images
         encoder = VGGT.from_pretrained(cfg.stage_1.vggt.ckpt).to(device)
         encoder.eval()
+    if cfg.stage_1.model == 'vae':
+        from diffusers import AutoencoderKL
+        vae = AutoencoderKL.from_pretrained(cfg.stage_1.vae.ckpt, subfolder="vae").to(device)
+        vae.requires_grad_(False)
+        models['vae'] = vae
+        # # load da3 for eval
+        # from depth_anything_3.api import DepthAnything3
+        # from depth_anything_3.utils.io.input_processor import InputProcessor
+        # from depth_anything_3.utils.io.output_processor import OutputProcessor
+        # encoder_input_processor = InputProcessor()
+        # encoder_output_processor = OutputProcessor()
+        # encoder = DepthAnything3.from_pretrained(cfg.stage_1.da3.ckpt).to(device)
+        # encoder.eval()
+        encoder=None
+        encoder_input_processor=None
+        encoder_output_processor=None
+        
+                
     models['encoder'] = encoder
     processors['encoder_input_processor'] = encoder_input_processor
     processors['encoder_output_processor'] = encoder_output_processor
@@ -254,7 +272,6 @@ def load_model(cfg, rank, device):
         broadcast_buffers=False,
         find_unused_parameters=False,
     )
-    
     
     ddp_denoiser._set_static_graph()
     

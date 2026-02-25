@@ -169,8 +169,17 @@ class ScanNetPP(Dataset):
             image = images[name2id[name]]
             gt_img_path = os.path.join(gt_image_path, name)
             img_path = os.path.join(image_path, name)
+            
+            ext = os.path.splitext(img_path)[-1]
 
-            if not os.path.exists(img_path):
+            if os.path.exists(img_path):
+                pass 
+            elif os.path.exists(img_path.replace(ext, '.png')):
+                img_path = img_path.replace(ext, '.png')
+
+            elif os.path.exists(img_path.replace(ext, '.JPG')):
+                img_path = img_path.replace(ext, '.JPG')                
+            else:
                 continue
 
             if not os.path.exists(gt_img_path):

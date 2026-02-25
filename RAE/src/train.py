@@ -32,6 +32,7 @@ from utils.resume_utils import *
 from utils.wandb_utils import *
 from utils.dist_utils import *
 from utils.vis_utils import *
+from utils.loss_utils import *
 
 
 from torchvision.utils import save_image 
@@ -257,7 +258,39 @@ def main():
             if train_b==1 and len(train_hq_pred_depth_np.shape)<4 and len(train_lq_pred_depth_np.shape)<4:
                 train_hq_pred_depth_np = np.expand_dims(train_hq_pred_depth_np, axis=0)
                 train_lq_pred_depth_np = np.expand_dims(train_lq_pred_depth_np, axis=0)                
-   
+
+
+            # ------------------------------------------------
+            # VISUALIZE TRAIN (only first batch)
+            # ------------------------------------------------
+            if rank == 0 and training_cfg.vis.train_depth_every > 0 and global_train_step % training_cfg.vis.train_depth_every == 0:
+                logger.info(f"Train sample shape: {train_hq_views.shape}")
+                vis_train_hq_rgb = []
+                vis_train_lq_rgb = []
+                vis_train_hq_depth = []
+                vis_train_lq_depth = []
+                for view_idx in range(train_v):
+                    # RGB (unnormalized!)
+                    vis_train_hq_rgb.append(tensor_to_uint8_image(train_hq_views[0, view_idx]))
+                    vis_train_lq_rgb.append(tensor_to_uint8_image(train_lq_views[0, view_idx]))
+                    # Depths
+                    vis_train_hq_depth.append(depth_to_colormap(train_hq_pred_depth_np[0, view_idx]))
+                    vis_train_lq_depth.append(depth_to_colormap(train_lq_pred_depth_np[0, view_idx]))
+                # concatenate views along width
+                vis_train_hq_rgb    = np.concatenate(vis_train_hq_rgb, axis=1)
+                vis_train_lq_rgb    = np.concatenate(vis_train_lq_rgb, axis=1)
+                vis_train_hq_depth  = np.concatenate(vis_train_hq_depth, axis=1)
+                vis_train_lq_depth  = np.concatenate(vis_train_lq_depth, axis=1)
+                # stack rows (modalities)
+                vis_train_top = np.concatenate([vis_train_hq_rgb, vis_train_lq_rgb], axis=1)
+                vis_train_bot = np.concatenate([vis_train_hq_depth, vis_train_lq_depth], axis=1)
+                vis_train_all = np.concatenate([vis_train_top[:,:,::-1], vis_train_bot], axis=0)
+                # save
+                vis_train_depth_save_dir = f"{experiment_dir}/vis_train_depth"
+                os.makedirs(vis_train_depth_save_dir, exist_ok=True)
+                vis_id = "-".join(train_hq_id[0])
+                cv2.imwrite(f"{vis_train_depth_save_dir}/step{global_train_step:07}_{vis_id}.jpg",vis_train_all)
+
 
             # compute loss (per microbatch)
             transport_output = transport.training_losses_mvrm(
@@ -268,13 +301,29 @@ def main():
                 cfg=full_cfg
             )
             
-            
-            loss = transport_output["loss"].mean()
 
+            # flow matching velocity loss
+            transport_loss = transport_output["loss"].mean()
+            loss = transport_loss
+                        
+            if full_cfg.mvrm.loss.velocity_direction.use:
+                # velocity direction regularization
+                pred_vel = transport_output["pred"]
+                gt_vel   = transport_output["target_velocity"]
+                lambda_vel_dir = full_cfg.mvrm.loss.velocity_direction.lambda_coeff
+                loss_vel_dir = velocity_direction_loss(pred_vel, gt_vel.detach())
+                loss_vel_dir_scaled = lambda_vel_dir * loss_vel_dir
+                loss += loss_vel_dir_scaled
+            else:
+                loss_vel_dir = torch.tensor(0.0, device=device)
+                loss_vel_dir_scaled = torch.tensor(0.0, device=device)
+
+                
             # ---------------------------
             # Backward
             # ---------------------------
             loss.backward()
+
 
             if clip_grad:
                 torch.nn.utils.clip_grad_norm_(
@@ -308,6 +357,9 @@ def main():
 
                 stats = {
                     "train/loss_interval_avg": avg_loss,
+                    "train/loss_transport": transport_loss.item(),
+                    'train/loss_vel_dir': loss_vel_dir.item(),
+                    'train/loss_vel_dir_scaled':loss_vel_dir_scaled.item(),
                     "train/lr": optimizer.param_groups[0]["lr"],
                 }
 
@@ -522,6 +574,10 @@ def main():
                     f"δ1 {res_d1:.3f} | δ2 {res_d2:.3f} | δ3 {res_d3:.3f}"
                 )
                 models['ddp_denoiser'].train()
+                del vis_val_all
+                del vis_lq_rgbs, vis_lq_depths, vis_res_depths
+                del vis_lq_err_maps, vis_res_err_maps
+                torch.cuda.empty_cache()
             num_batches += 1
             global_train_step += 1
         

@@ -234,6 +234,14 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                 imgs, ex_t_norm, in_t, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg=cfg.mvrm.train, mvrm_result=None, mode='train'
             )
             lq_latent = lq_mvrm_out['extract_feat']      # b v 973 3072
+            
+            
+            # PHO7 (ON)
+            # scale = lq_latent.std()
+            # lq_latent = lq_latent / (scale + 1e-6)
+            
+            
+            
             # generate pure noise
             noise_generator.manual_seed(42)
             pure_noise = torch.randn(lq_latent.shape, generator=noise_generator, device=imgs.device, dtype=torch.float32)
@@ -246,9 +254,15 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                 'model_img_size': (model_H, model_W)
             }
             autocast_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+            
+            # print("lq_latent finite:", torch.isfinite(lq_latent).all())
+            # print("lq_latent max:", lq_latent.abs().max())
+            # print("xt finite before sampling:", torch.isfinite(xt).all())
             with torch.no_grad():
-                with torch.autocast(device_type=imgs.device.type, dtype=autocast_dtype):                
-                    restored_samples = eval_sampler(xt, denoiser.forward, **model_kwargs)[-1]     # b v n d
+            # with torch.autocast(device_type=imgs.device.type, dtype=autocast_dtype):                
+                restored_samples = eval_sampler(xt, denoiser.forward, **model_kwargs)[-1]     # b v n d
+            # print("restored finite:", torch.isfinite(restored_samples).all())
+            
             mvrm_result={}
             mvrm_result['restored_latent'] = restored_samples
             # restored forward pass
@@ -292,7 +306,18 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         
         # Convert raw output to prediction
         prediction = self._convert_to_prediction(raw_output)
+
+        # print("prediction.extrinsics finite:",
+        #     np.isfinite(prediction.extrinsics).all())
+
+        # print("max abs extrinsics:",
+        #     np.max(np.abs(prediction.extrinsics)))
         
+        # print("restored latent finite:",
+        #     torch.isfinite(restored_samples).all())
+
+        # print("restored latent max abs:",
+        #     restored_samples.abs().max())
 
         # Align prediction to extrinsincs
         prediction = self._align_to_input_extrinsics_intrinsics(

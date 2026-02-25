@@ -22,6 +22,10 @@ class PhoHypersim(Dataset):
         self.data_cfg = data_cfg 
         self.mode = mode 
         self.data = {}
+        
+
+        self.process_res = data_cfg.get('process_res', 504)
+        self.patch_size = data_cfg.get('patch_size', 14)
 
         
         # train/val/test annotations
@@ -191,8 +195,8 @@ class PhoHypersim(Dataset):
         Returns:
             resized_img: np.ndarray [H', W', 3], uint8
         """
-        process_res = 504
-        patch_size = 14
+        process_res = self.process_res
+        patch_size = self.patch_size
         # -------------------------
         # 1. resize longest side
         # -------------------------
@@ -221,8 +225,8 @@ class PhoHypersim(Dataset):
         return img
 
     def resize_depth(self, depth: np.ndarray):
-        process_res = 504
-        patch_size = 14
+        process_res = self.process_res
+        patch_size = self.patch_size
         h, w = depth.shape
         longest = max(h, w)
         if longest != process_res:

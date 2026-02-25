@@ -1,6 +1,9 @@
 stage_1:
-  model: da3
-  model_size: GIANT
+  model: vae
+  # model_size: "SD21"
+  model_size: "SD3"
+
+
   rae:
     target: 
     params:
@@ -17,16 +20,19 @@ stage_1:
     ckpt: depth-anything/DA3-GIANT-1.1
   vggt:
     ckpt: facebook/VGGT-1B
+  vae:
+    # ckpt: Manojb/stable-diffusion-2-1-base
+    ckpt: stabilityai/stable-diffusion-3.5-medium
 
 
 stage_2:
   model: mvrm
-  target: stage2.models.DDT_MVRM_multiview.DiTwDDTHeadMVRM_Multiview
+  target: stage2.models.DDT_MVRM_multiview_VAE.DiTwDDTHeadMVRM_Multiview_VAE
   params:
     # input_size: [27, 36]  # feat_H, feat_W
     input_size: 
-    patch_size: 1
-    in_channels: 1536
+    patch_size: 2
+    in_channels: 16
     hidden_size: [1536, 3072]
     depth: [28, 2]
     num_heads: [16, 16]
@@ -39,8 +45,10 @@ stage_2:
     use_rmsnorm: true
     wo_shift: false
     use_pos_embed: true
-  ckpt: 
-  # ckpt: NVIDIA_SERVER/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-mvrm__bs8-maxview8-accum1__lr-2e-04__msg-lqkernel-50__global-17__ddp/checkpoints/ep-0025000.pt
+  # ckpt: result_train/multi_view_VAE/260218/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__vae-SD3-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel100__ema95__hyp1tar1/checkpoints/ep-0010000.pt
+  # ckpt: result_train/multi_view_VAE/260218/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__vae-SD3-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel100__ema95__hyp1tar1_cont-ckpt-10k/checkpoints/ep-0025000.pt
+  # ckpt: result_train/multi_view_VAE/260218/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__vae-SD3-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel100__ema95__hyp1tar1_cont-ckpt-35k/checkpoints/ep-0060000.pt
+  ckpt: result_train/multi_view_VAE/260218/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__vae-SD3-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel100__ema95__hyp1tar1_cont-ckpt-35k/checkpoints/ep-0070000.pt
 
 
 transport:
@@ -92,8 +100,8 @@ training:
   ckpt_step_interval: 5000   # 5k
 
   vis:
-    train_depth_every: 1000   # 1k
-    val_depth_every: 1000
+    train_depth_every: 1   # 1k
+    val_depth_every: 1
 
 
   clip_grad: 1.0
@@ -113,9 +121,7 @@ training:
 
 
 log:
-  result_root_dir: result_train/multi_view/260219
-  # result_root_dir: result_train/multi_view/260216_debug_fix
-  # result_root_dir: result_train/multi_view/TMPTMP
+  result_root_dir: result_train/multi_view_VAE/260223
   tracker:
     name: wandb
     wandb:
@@ -123,32 +129,11 @@ log:
       entity: jinlovespho
       project: eccv26_mv_restoration
       
-
-      # 260203
-      # msg: "lq-kernel50__global17__no-abs-pos__no-learn-cls__init-svrm-ckpt"
-
-
-      # 260205
-      # msg: "lqkernel-50__global-17__viewsel-rand-rand"
-      # msg: "lqkernel-50__global-17__viewsel-nrand-nrand"
-      # msg: "lqkernel-50__global-17__viewsel-ncam-nrand"
-      
-      
-      
-      # 260206
-      # msg: "lqkernel-50__global-17"
-      # msg: "lqkernel-100__global-17"
-
-      # 260216
-      # msg: 'lqkernel50__ema95__hyp1tar1__FIX__val-skip-feat-false'
-      
-      # msg: 'lqkernel50__ema95__hyp1tar1__FIX__val-skip-feat-true'
-      # msg: 'lqkernel50__ema99__hyp1tar1__FIX__val-skip-feat-true'
-
-      # msg: 'lqkernel100__ema95__hyp1tar1__reg-loss-vel-dir005'
-      msg: 'lqkernel100__ema95__hyp1tar1__reg-loss-vel-dir01'
-
-      # msg: "tmptmp"
+      # 260218
+      # msg: 'lqkernel50__ema95__hyp1tar1'
+      # msg: 'lqkernel100__ema95__hyp1tar1_cont-ckpt-35k'
+      # msg: 'lqkernel100__ema95__hyp1tar1_cont-ckpt-60k'
+      msg: 'lqkernel100__ema95__hyp1tar1_cont-ckpt-70k_vis-re'
 
 
 data:
@@ -169,9 +154,9 @@ data:
         # strategy: near_random
         strategy: near_camera
         expand_ratio: 2
-      process_res: 504
-      patch_size: 14
-      
+      process_res: 640
+      patch_size: 8
+    
     tartanair:
       ann_path: 
       hq_root_path: /mnt/dataset1/MV_Restoration/tartanair/data
@@ -181,8 +166,9 @@ data:
         # strategy: random
         strategy: near_random 
         expand_ratio: 2
-      process_res: 504
-      patch_size: 14
+      process_res: 640
+      patch_size: 8
+
 
 
   val:
@@ -192,16 +178,18 @@ data:
     list: [eth3d]
 
     eth3d:
-      num_eval_img: 5
+      num_eval_img: 3
       # eval_scene: [courtyard]
-      # eval_scene: [courtyard,  electro,  facade,  kicker,  office,  playground]
-      eval_scene: [courtyard, delivery_area,  electro,  facade,  kicker,  office,  pipes,  playground,  relief,  relief_2,  terrains]
+      eval_scene: [courtyard,  electro,  facade,  kicker,  office,  playground]
+      # eval_scene: [courtyard, delivery_area,  electro,  facade,  kicker,  office,  pipes,  playground,  relief,  relief_2,  terrains]
       ann_path:
       hq_root_path: /mnt/dataset1/MV_Restoration/da3_benchmark_dataset/clean/eth3d
       lq_root_path: /mnt/dataset1/MV_Restoration/da3_benchmark_dataset/cam_blur_300/eth3d
       view_selection:
         strategy: near_random
         expand_ratio: 2
+      process_res: 640
+      patch_size: 16
 
 
 mvrm:
@@ -215,9 +203,4 @@ mvrm:
     restore_feat_layers: [17]
     concat_feat: False 
     skip_and_input_feat: true
-  loss:
-    velocity_direction:
-      use: true
-      # lambda_coeff: 0.05
-      lambda_coeff: 0.1
     

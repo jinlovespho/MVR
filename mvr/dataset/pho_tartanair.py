@@ -15,8 +15,10 @@ class PhoTartanAir(Dataset):
         self.ds_name = 'tartanair'
         self.data_cfg = data_cfg 
         self.mode = mode 
-        
         self.data = {}
+        
+        self.process_res = data_cfg.get('process_res', 504)
+        self.patch_size = data_cfg.get('patch_size', 14)
         
         # load data paths 
         hq_paths = sorted(glob.glob(f'{data_cfg.hq_root_path}/*/Easy/*/image_left/*.png'))
@@ -62,8 +64,8 @@ class PhoTartanAir(Dataset):
         return img_rgb
     
     def resize(self, img):
-        process_res = 504
-        patch_size = 14
+        process_res = self.process_res
+        patch_size = self.patch_size
 
         h, w = img.shape[:2]
         scale = process_res / max(h, w)
@@ -118,8 +120,8 @@ class PhoTartanAir(Dataset):
     #     return img
 
     def resize_depth(self, depth: np.ndarray):
-        process_res = 504
-        patch_size = 14
+        process_res = self.process_res
+        patch_size = self.patch_size
 
         h, w = depth.shape
         longest = max(h, w)
