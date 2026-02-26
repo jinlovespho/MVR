@@ -23,6 +23,42 @@ class PhoTartanAir(Dataset):
         # load data paths 
         hq_paths = sorted(glob.glob(f'{data_cfg.hq_root_path}/*/Easy/*/image_left/*.png'))
         depth_paths = sorted(glob.glob(f'{data_cfg.hq_root_path}/*/Easy/*/depth_left/*.npy'))
+        pose_txt_paths = sorted(glob.glob(f'{data_cfg.hq_root_path}/*/Easy/*/pose_left.txt'))
+        
+
+
+        # -------------------------------------------------
+        # Load pose files and build extrinsics
+        # -------------------------------------------------
+        self.camera_extrinsics = {}      # key: sequence_path -> (N,4,4)
+        self.global_to_pose_idx = {}     # global idx -> (seq_key, frame_idx)
+
+        for pose_path in pose_txt_paths:
+
+            # Example pose_path:
+            # root/abandonedfactory/Easy/P000/pose_left.txt
+
+            seq_key = os.path.dirname(pose_path)   # unique sequence folder
+
+            poses = np.loadtxt(pose_path).astype(np.float32)  # (N,7)
+            assert poses.shape[1] == 7
+
+            N = poses.shape[0]
+            extrinsics = np.zeros((N, 4, 4), dtype=np.float32)
+
+            for i in range(N):
+                t = poses[i, 0:3]
+                q = poses[i, 3:7]   # qx qy qz qw
+
+                R = self.quaternion_to_rotation_matrix(q)
+
+                extrinsics[i, :3, :3] = R
+                extrinsics[i, :3, 3]  = t
+                extrinsics[i, 3, 3]   = 1.0
+
+            self.camera_extrinsics[seq_key] = extrinsics
+                
+        
         
         
         # safety check 
@@ -33,6 +69,23 @@ class PhoTartanAir(Dataset):
         
         self.data['hq_img'] = hq_paths 
         self.data['gt_depth'] = depth_paths 
+
+
+        # -------------------------------------------------
+        # Build global idx → pose row mapping
+        # -------------------------------------------------
+        for global_idx, img_path in enumerate(self.data['hq_img']):
+
+            # Example image path:
+            # root/abandonedfactory/Easy/P000/image_left/000000_left.png
+
+            seq_key = os.path.dirname(os.path.dirname(img_path))
+            # -> root/abandonedfactory/Easy/P000
+
+            filename = os.path.basename(img_path)          # 000000_left.png
+            frame_id = int(filename.split('_')[0])         # 000000
+
+            self.global_to_pose_idx[global_idx] = (seq_key, frame_id)
         
 
         self.view_sel = data_cfg.view_selection
@@ -198,7 +251,29 @@ class PhoTartanAir(Dataset):
             replace = (len(candidates) < num_frames - 1),
         )
         return np.concatenate([[anchor], sampled])
+    
+    
+        
+    def quaternion_to_rotation_matrix(self, q):
+        """
+        q: [qx, qy, qz, qw]
+        returns: (3,3) rotation matrix
+        """
+        qx, qy, qz, qw = q
 
+        # normalize (important!)
+        norm = np.sqrt(qx*qx + qy*qy + qz*qz + qw*qw)
+        qx, qy, qz, qw = qx/norm, qy/norm, qz/norm, qw/norm
+
+        R = np.array([
+            [1 - 2*qy*qy - 2*qz*qz,     2*qx*qy - 2*qz*qw,     2*qx*qz + 2*qy*qw],
+            [2*qx*qy + 2*qz*qw,         1 - 2*qx*qx - 2*qz*qz, 2*qy*qz - 2*qx*qw],
+            [2*qx*qz - 2*qy*qw,         2*qy*qz + 2*qx*qw,     1 - 2*qx*qx - 2*qy*qy]
+        ], dtype=np.float32)
+
+        return R
+        
+        
 
 
     def __getitem__(self, items):
@@ -216,6 +291,21 @@ class PhoTartanAir(Dataset):
         
         outputs={}
         outputs['frame_ids'] = frame_ids
+        
+        
+                
+        # =====================================================
+        # camera poses
+        # =====================================================
+        pose_list = []
+
+        for global_i in frame_ids:
+            seq_key, frame_idx = self.global_to_pose_idx[global_i]
+            pose = self.camera_extrinsics[seq_key][frame_idx]
+            pose_list.append(pose)
+
+        outputs['poses'] = np.stack(pose_list, axis=0)  # (V,4,4)
+        
         
         
         # ----------------------

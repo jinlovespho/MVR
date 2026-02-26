@@ -47,9 +47,9 @@ denoiser:
 
 
   # JIHYE2 (lqkernel50,100,200-74k)
-  ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel50/kernel50_0074000.pt
+  # ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel50/kernel50_0074000.pt
   # ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel100/kernel100_0074000.pt
-  # ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel200/kernel200_0074000.pt
+  ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel200/kernel200_0074000.pt
 
 
 
@@ -135,11 +135,16 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/w_mvrm/NVIDIA2_lqkernel200_25k/filtered_cam_blur_100/eval_full_10
 
 
-  # W_MVRM - JIHYE2 (lqkernel50, 100, 200)
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/w_mvrm/JIHYE2_lqkernel50_74k/filtered_cam_blur_100/eval_full_50
+  # W_MVRM - CAM_BLUR100 - JIHYE2 (lqkernel50, 100, 200)
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/w_mvrm/JIHYE2_lqkernel50_74k/filtered_cam_blur_100/eval_full_50
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/w_mvrm/JIHYE2_lqkernel100_74k/filtered_cam_blur_100/eval_full_50
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/w_mvrm/JIHYE2_lqkernel200_74k/filtered_cam_blur_100/eval_full_50
 
+
+  # W_MVRM - CAM_BLUR300 - JIHYE2 (lqkernel50, 100, 300)
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/w_mvrm/JIHYE2_lqkernel50_74k/filtered_cam_blur_300/eval_full_50
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/w_mvrm/JIHYE2_lqkernel100_74k/filtered_cam_blur_300/eval_full_50
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/w_mvrm/JIHYE2_lqkernel200_74k/filtered_cam_blur_300/eval_full_50
 
 
 
@@ -161,8 +166,8 @@ eval:
   # Evaluation modes
   # Options: pose, recon_unposed, recon_posed, view_syn
   modes:
-    # - pose
-    # - recon_unposed
+    - pose
+    - recon_unposed
     - recon_posed
 
   # Reference view selection strategy for inference
@@ -183,7 +188,7 @@ eval:
   # max_frames: 1
 
   # Only run evaluation (skip inference)
-  eval_only: true
+  eval_only: false
 
   # Only print saved metrics (skip inference and evaluation)
   print_only: false

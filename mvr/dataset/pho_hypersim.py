@@ -52,6 +52,9 @@ class PhoHypersim(Dataset):
         self.camera_rankings = {}
         self.camera_num_frames = {}
         common_keys = ori_map.keys() & pos_map.keys()
+        
+        self.camera_extrinsics = {}
+        
         for scene_id, camera_id in sorted(common_keys):
             # parse identifiers
             cam_ori_path = ori_map[(scene_id, camera_id)]
@@ -76,6 +79,8 @@ class PhoHypersim(Dataset):
             extrinsics[:, :3, :3] = ext_r
             extrinsics[:, :3, 3]  = ext_t
             extrinsics[:, 3, 3]   = 1.0
+            
+            self.camera_extrinsics[(scene_id, camera_id)] = extrinsics
 
             # compute ranking
             ranking, _ = compute_ranking(
@@ -325,6 +330,13 @@ class PhoHypersim(Dataset):
 
 
 
+    def load_camera_pose(self, scene_id, camera_id, frame_idx):
+        camera_id = camera_id.split('_')[1:3]
+        camera_id = '_'.join(camera_id)
+        return self.camera_extrinsics[(scene_id, camera_id)][frame_idx]
+
+
+
     def __getitem__(self, items):
         
         idx, num_input_view = items
@@ -342,6 +354,18 @@ class PhoHypersim(Dataset):
         
         outputs={}
         outputs['frame_ids'] = frame_ids
+        
+
+        # =====================================================
+        #  camera poses
+        # =====================================================
+        pose_list = []
+        for global_i in frame_ids:
+            scene_id, camera_id, frame_id = self.global_to_camera_idx[global_i]
+            pose = self.load_camera_pose(scene_id, camera_id, frame_id)
+            pose_list.append(pose)
+
+        outputs['poses'] = np.stack(pose_list, axis=0)  # (V,4,4)
         
         
         # ----------------------
@@ -392,6 +416,8 @@ class PhoHypersim(Dataset):
         elif self.mode == 'val':
             outputs['lq_ids'] = [self.lq_ids[i] for i in frame_ids]
             outputs['lq_views'] = [self.lq_imgs[i] for i in frame_ids]
+            
+        
 
         
         # # -------------------------
@@ -410,6 +436,7 @@ class PhoHypersim(Dataset):
         #         depth_view_list.append(self.resize_depth(self.convert_hdf5_depth(depth_view)))
         #     outputs['gt_depth_ids'] = depth_view_id
         #     outputs['gt_depths'] = depth_view_list
+
 
         return outputs
        

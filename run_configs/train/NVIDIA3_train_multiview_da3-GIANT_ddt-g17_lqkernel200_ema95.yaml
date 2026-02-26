@@ -38,7 +38,7 @@ stage_2:
     use_rope: true
     use_rmsnorm: true
     wo_shift: false
-    use_pos_embed: true
+    use_pos_embed: false
   ckpt: 
   # ckpt: result_train/single_view/260202/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__stage1-da3__stage2-DiTwDDTHeadMVRM__bs-8-accum-1__lr-2e-04__msg-lq-kernel50__global17__no-abs-pos__no-learn-cls/checkpoints/ep-0020000.pt
 

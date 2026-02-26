@@ -44,7 +44,6 @@ def pose_encoding_to_extri_intri(
 ):
     """Convert a pose encoding back to camera extrinsics and intrinsics."""
 
-    # breakpoint()
     T = pose_encoding[..., :3]          # b v 3
     quat = pose_encoding[..., 3:7]      # b v 4
     fov_h = pose_encoding[..., 7]       # b v

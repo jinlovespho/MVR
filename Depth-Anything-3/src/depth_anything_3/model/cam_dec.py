@@ -31,7 +31,6 @@ class CameraDec(nn.Module):
         self.fc_fov = nn.Sequential(nn.Linear(output_dim, 2), nn.ReLU())
 
     def forward(self, feat, camera_encoding=None, *args, **kwargs):
-        # breakpoint()
         B, N = feat.shape[:2]
         feat = feat.reshape(B * N, -1)
         feat = self.backbone(feat)

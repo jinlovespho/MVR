@@ -156,6 +156,19 @@ def multiview_collate_fn(batch):
         gt_depths = torch.stack(gt_depths, dim=0)                  # (B,V,1,H,W)
         outputs['gt_depths'] = gt_depths
         outputs['gt_depth_ids'] = gt_depth_ids
+        
+
+
+    # ------------------------
+    # Poses
+    # ------------------------
+    if 'poses' in batch[0].keys():
+        poses = torch.stack(
+            [torch.from_numpy(b['poses']).float() for b in batch],
+            dim=0
+        )  # (B, V, 4, 4)
+        outputs['poses'] = poses
+
 
     # ------------------------
     # return

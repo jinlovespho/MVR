@@ -198,3 +198,4 @@ da3_ds/
 
 # etc 
 NVIDIA_SERVER_CKPT/
+extrinsic2pyramid/

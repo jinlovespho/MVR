@@ -38,7 +38,8 @@ stage_2:
     use_rope: true
     use_rmsnorm: true
     wo_shift: false
-    use_pos_embed: true
+    use_pos_embed: false
+    use_global_residual: false
   ckpt: 
   # ckpt: NVIDIA_SERVER/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-mvrm__bs8-maxview8-accum1__lr-2e-04__msg-lqkernel-50__global-17__ddp/checkpoints/ep-0025000.pt
 
@@ -113,9 +114,10 @@ training:
 
 
 log:
-  result_root_dir: result_train/multi_view/260219
+  # result_root_dir: result_train/multi_view/260219
   # result_root_dir: result_train/multi_view/260216_debug_fix
   # result_root_dir: result_train/multi_view/TMPTMP
+  result_root_dir: result_train/multi_view/260226
   tracker:
     name: wandb
     wandb:
@@ -146,9 +148,12 @@ log:
       # msg: 'lqkernel50__ema99__hyp1tar1__FIX__val-skip-feat-true'
 
       # msg: 'lqkernel100__ema95__hyp1tar1__reg-loss-vel-dir005'
-      msg: 'lqkernel100__ema95__hyp1tar1__reg-loss-vel-dir01'
+      # msg: 'lqkernel100__ema95__hyp1tar1__reg-loss-vel-dir01'
 
       # msg: "tmptmp"
+
+      # 260227
+      msg: 'lqkernel100__ema95__hyp1tar1__cam-tkn-weight100'
 
 
 data:
@@ -157,6 +162,7 @@ data:
     max_num_input_view: 8
     # max_num_input_view: 1
     # list: [hypersim,]
+    # list: [tartanair,]
     list: [hypersim, tartanair,]
     
     hypersim:
@@ -188,8 +194,8 @@ data:
   val:
     image_size: 512 
     max_num_input_view: 1
-    # list: []
-    list: [eth3d]
+    list: []
+    # list: [eth3d]
 
     eth3d:
       num_eval_img: 5
@@ -217,7 +223,13 @@ mvrm:
     skip_and_input_feat: true
   loss:
     velocity_direction:
-      use: true
+      use: false
       # lambda_coeff: 0.05
       lambda_coeff: 0.1
+    camera_pose:
+      use: true 
+      lambda_coeff: 1.0
+
+    cam_tkn_weight: 100.0
+  
     

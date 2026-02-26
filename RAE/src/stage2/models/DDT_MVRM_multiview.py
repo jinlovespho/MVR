@@ -229,6 +229,7 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
             use_rmsnorm=True,
             wo_shift=False,
             use_pos_embed: bool = True,
+            use_global_residual = False
     ):
         super().__init__()
         
@@ -236,6 +237,8 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
         # PHO 
         self.num_cls_tkn = 1
         self.vit_patch_size=14  # for giant
+        
+        self.use_global_residual = use_global_residual
         
         
         # self.input_size = input_size 
@@ -301,7 +304,6 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
         # Will use fixed sin-cos embedding:
         
         
-        use_pos_embed = False
         if use_pos_embed:   # t
             num_patches = self.s_embedder.num_patches
             self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + self.num_cls_tkn, self.encoder_hidden_size), requires_grad=False)
@@ -534,7 +536,10 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
 
 
     def forward(self, x, t, model_img_size):
-        
+            
+        if self.use_global_residual:
+            global_residual = x         # b v 973 1536
+            
         
         # print('PRINT!!!', model_img_size)
         model_H, model_W = model_img_size
@@ -662,7 +667,9 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
 
 
         x = rearrange(x, '(b v) n d -> b v n d', b=b, v=v)
-
+        
+        if self.use_global_residual:
+            x = x + global_residual
         
         return x
 

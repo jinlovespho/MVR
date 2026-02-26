@@ -179,7 +179,7 @@ class DualDPT(nn.Module):
               aux_cf:  [B, S, 1,       H/down_ratio, W/down_ratio]
         """
         
-        B, S, N, C = feats[0][0].shape
+        B, S, N, C = feats[0][0].shape      # patch tokens
         feats = [feat[0].reshape(B * S, N, C) for feat in feats]
         if chunk_size is None or chunk_size >= S:   # f
             out_dict = self._forward_impl(feats, H, W, patch_start_idx)

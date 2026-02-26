@@ -249,14 +249,15 @@ class Transport:
         # from PIL import Image 
         # from torchvision.utils import save_image 
         # img=Image.open('tmp.jpg')
-        # img = torchvision.transforms.ToTensor()(img).unsqueeze(0)
+        # img = torchvision.transforms.ToTensor()(img).unsqueeze(0)   # 1 3 382 2026
         # t, x0, x1 = self.sample(img)
-        # t, xt, ut = self.path_sampler.plan(torch.Tensor([0.3]), x0, x1)
+        # t, xt, ut = self.path_sampler.plan(t, x0, x1)
         # save_image(x0, 'img_x0.jpg')
         # save_image(x1, 'img_x1.jpg')
         # save_image(xt, 'img_xt.jpg')
         # save_image(ut, 'img_ut.jpg')
-        
+        # x1_hat = xt + ut * (1.0 - t)
+        # save_image(x1_hat, 'img_x1_hat.jpg')
         
         # x0: pure noise 
         # x1: pure data 
@@ -264,26 +265,40 @@ class Transport:
         # ut: gt velocity at t 
         
 
-        t, x0, x1 = self.sample(x1)     # b v n+1 d                     
+        t, x0, x1 = self.sample(x1)     # b v n+1 d     
         t, xt, ut = self.path_sampler.plan(t, x0, x1)
-
+        
         # lq_latent conditioning method 
         if cfg.mvrm.lq_latent_cond == 'addition':
             xt = xt + xcond
         elif cfg.mvrm.lq_latent_cond == 'concat':
             xt = torch.concat([xt, xcond], dim=2)   # channel concat
 
-
         # mvrm forward pass 
-        model_output = model(xt, t, model_img_size)                 # b v 3072 27 36
+        model_output = model(xt, t, model_img_size) # b v n+11 d
         assert model_output.shape == xt.shape 
 
         terms = {}
         terms['pred'] = model_output
         terms['target_velocity'] = ut 
+        terms['cam_tkn_loss'] = mean_flat(((model_output[:,:,0] - ut[:,:,0]) ** 2))
+        terms['patch_tkn_loss'] = mean_flat(((model_output[:,:,1:] - ut[:,:,1:]) ** 2))
         
         if self.model_type == ModelType.VELOCITY:   # t
-            terms['loss'] = mean_flat(((model_output - ut) ** 2))   # b
+            
+            # Create token weights: give more weight to camera token
+            # camera token index = 0, patches = 1 to n
+            token_weights = torch.ones(x1.shape[2], device=x1.device)  # shape: (n+1,)
+            token_weights[0] = cfg.mvrm.loss.cam_tkn_weight  # e.g., 5.0 for more emphasis
+            token_weights[1:] = 1.0  # patches have normal weight
+
+            # Expand to match (b, v, n+1, d)
+            token_weights = token_weights.view(1, 1, -1, 1)
+            
+            # Weighted MSE loss
+            terms['loss'] = mean_flat(token_weights * ((model_output - ut) ** 2))
+            
+            # terms['loss'] = mean_flat(((model_output - ut) ** 2))   # b
         else:   # f
             _, drift_var = self.path_sampler.compute_drift(xt, t)
             sigma_t, _ = self.path_sampler.compute_sigma_t(path.expand_t_like_x(t, xt))

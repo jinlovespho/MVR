@@ -32,7 +32,7 @@ from utils.resume_utils import *
 from utils.wandb_utils import *
 from utils.dist_utils import *
 from utils.vis_utils import *
-from utils.loss_utils import *
+from utils.loss_utils import velocity_direction_loss, camera_loss_single
 
 
 from torchvision.utils import save_image 
@@ -234,11 +234,13 @@ def main():
                                                     mvrm_cfg=full_cfg.mvrm.train, 
                                                     mode='train'
                                                     )
+            hq_pred_pose_enc = hq_encoder_out.pose_enc
+            hq_pred_pose = hq_encoder_out['extrinsics'] # b v 3 4
             hq_encoder_out = processors['encoder_output_processor'](hq_encoder_out)
             train_hq_pred_depth_np = hq_encoder_out.depth                  # b v 378 504
             # train_hq_pred_depth = torch.from_numpy(train_hq_pred_depth_np).to(device) 
             hq_latent = hq_mvrm_out['extract_feat']
-        
+
 
             # lq view forward pass
             with torch.no_grad():
@@ -248,12 +250,90 @@ def main():
                                                     mvrm_cfg=full_cfg.mvrm.train, 
                                                     mode='train'
                                                     )
+            lq_pred_pose_enc = lq_encoder_out.pose_enc
+            lq_pred_pose = lq_encoder_out['extrinsics'] # b v 3 4
             lq_encoder_out = processors['encoder_output_processor'](lq_encoder_out)
             train_lq_pred_depth_np = lq_encoder_out.depth                  # b v 378 504
             # train_lq_pred_depth = torch.from_numpy(train_lq_pred_depth_np).to(device) 
             lq_latent = lq_mvrm_out['extract_feat']      # b v 973 3072
             assert lq_latent.shape == hq_latent.shape 
+            
+            # print(lq_pred_pose_enc.requires_grad)
+            
+            # # VISUALIZE CAMERA POSES 
+            # from vis_cam_pose import plot_cam_trajectory
+            # gt_pose = batch['poses']     # b v 4 4 
+            # save_image(batch['hq_views'].squeeze(0), 'TMP/hq.jpg')
+            # save_image(batch['lq_views'].squeeze(0), 'TMP/lq.jpg')
+            # plot_cam_trajectory(gt_pose[0], hq_pred_pose[0], lq_pred_pose[0], save_path="TMP/cam_traj.png")
+            # print(batch['hq_ids'])
+            
 
+            # from extrinsic2pyramid.util.camera_pose_visualizer import CameraPoseVisualizer
+            
+            # gt_pose_np = gt_pose.detach().cpu().numpy()
+
+            # # Compute camera centers
+            # centers = []
+
+            # for i in range(gt_pose_np.shape[0]):
+            #     R = gt_pose_np[i][:3, :3]
+            #     t = gt_pose_np[i][:3, 3]
+            #     C = -R.T @ t
+            #     centers.append(C)
+
+            # centers = np.stack(centers)
+
+            # min_vals = centers.min(axis=0)
+            # max_vals = centers.max(axis=0)
+
+            # margin = 1.0
+
+            # visualizer = CameraPoseVisualizer(
+            #     [min_vals[0]-margin, max_vals[0]+margin],
+            #     [min_vals[1]-margin, max_vals[1]+margin],
+            #     [min_vals[2]-margin, max_vals[2]+margin],
+            # )
+            # visualizer = CameraPoseVisualizer([-10, 10], [-10, 10], [0, 10])
+            
+            # def to_homogeneous(pose_3x4):
+            #     pose_4x4 = np.eye(4)
+            #     pose_4x4[:3, :4] = pose_3x4
+            #     return pose_4x4
+                        
+            # gt_pose_np = gt_pose.detach().cpu().numpy()
+            # hq_pose_np = hq_pred_pose.detach().cpu().numpy()
+            # lq_pose_np = lq_pred_pose.detach().cpu().numpy()
+            
+            
+            # num_views = gt_pose_np.shape[0]
+
+            # for i in range(num_views):
+
+            #     # ---- GT (cyan) ----
+            #     visualizer.extrinsic2pyramid(
+            #         gt_pose_np[i],
+            #         color_map='cyan',
+            #         focal_len_scaled=10
+            #     )
+
+            #     # ---- HQ prediction (green) ----
+            #     visualizer.extrinsic2pyramid(
+            #         to_homogeneous(hq_pose_np[i]),
+            #         color_map='green',
+            #         focal_len_scaled=10
+            #     )
+
+            #     # ---- LQ prediction (red) ----
+            #     visualizer.extrinsic2pyramid(
+            #         to_homogeneous(lq_pose_np[i]),
+            #         color_map='red',
+            #         focal_len_scaled=10
+            #     )
+
+            # visualizer.save("tmp.png")
+
+        
             
             if train_b==1 and len(train_hq_pred_depth_np.shape)<4 and len(train_lq_pred_depth_np.shape)<4:
                 train_hq_pred_depth_np = np.expand_dims(train_hq_pred_depth_np, axis=0)
@@ -313,10 +393,40 @@ def main():
                 lambda_vel_dir = full_cfg.mvrm.loss.velocity_direction.lambda_coeff
                 loss_vel_dir = velocity_direction_loss(pred_vel, gt_vel.detach())
                 loss_vel_dir_scaled = lambda_vel_dir * loss_vel_dir
-                loss += loss_vel_dir_scaled
+                # loss += loss_vel_dir_scaled
             else:
                 loss_vel_dir = torch.tensor(0.0, device=device)
                 loss_vel_dir_scaled = torch.tensor(0.0, device=device)
+                
+                
+            # camera pose loss
+            if full_cfg.mvrm.loss.camera_pose.use:
+                lambda_cam = full_cfg.mvrm.loss.camera_pose.lambda_coeff
+                weight_trans=1.0       # weight for translation loss
+                weight_rot=1.0         # weight for rotation loss
+                weight_focal=0.5       # weight for focal length loss
+                # --------------------------------------------------
+                # Flatten (B, V, 9) → (B*V, 9)
+                # --------------------------------------------------
+                B, V, D = hq_pred_pose_enc.shape
+                hq_pose_flat = hq_pred_pose_enc.reshape(B * V, D)
+                lq_pose_flat = lq_pred_pose_enc.reshape(B * V, D)
+                # --------------------------------------------------
+                # Compute camera loss
+                # --------------------------------------------------
+                loss_T, loss_R, loss_FL = camera_loss_single(
+                    pred_pose_enc=lq_pose_flat,
+                    gt_pose_enc=hq_pose_flat.detach(),   # detach GT branch
+                    loss_type="l1"
+                )
+                # Total camera loss
+                loss_cam = weight_trans*loss_T + weight_rot*loss_R + weight_focal*loss_FL
+                loss_cam_scaled = lambda_cam * loss_cam
+                # Add to total loss
+                # loss += loss_cam_scaled
+            else:
+                loss_cam = torch.tensor(0.0, device=device)
+                loss_cam_scaled = torch.tensor(0.0, device=device)
 
                 
             # ---------------------------
@@ -358,8 +468,18 @@ def main():
                 stats = {
                     "train/loss_interval_avg": avg_loss,
                     "train/loss_transport": transport_loss.item(),
+                    "train/loss_cam_token": transport_output["cam_tkn_loss"].item(),
+                    "train/loss_patch_token": transport_output["patch_tkn_loss"].item(),
+                    
                     'train/loss_vel_dir': loss_vel_dir.item(),
-                    'train/loss_vel_dir_scaled':loss_vel_dir_scaled.item(),
+                    'train/loss_vel_dir_scaled': loss_vel_dir_scaled.item(),
+                    
+                    "train_cam/loss_cam_T": loss_T.item() if full_cfg.mvrm.loss.camera_pose.use else 0.0,
+                    "train_cam/loss_cam_R": loss_R.item() if full_cfg.mvrm.loss.camera_pose.use else 0.0,
+                    "train_cam/loss_cam_FL": loss_FL.item() if full_cfg.mvrm.loss.camera_pose.use else 0.0,
+                    "train_cam/loss_cam": loss_cam.item() if full_cfg.mvrm.loss.camera_pose.use else 0.0,
+                    "train_cam/loss_cam_scaled": loss_cam_scaled.item() if full_cfg.mvrm.loss.camera_pose.use else 0.0,
+                    
                     "train/lr": optimizer.param_groups[0]["lr"],
                 }
 
