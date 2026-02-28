@@ -38,6 +38,13 @@ from depth_anything_3.utils.io.output_processor import OutputProcessor
 from depth_anything_3.utils.logger import logger
 from depth_anything_3.utils.pose_align import align_poses_umeyama
 
+from torchvision.utils import save_image 
+
+from mvr.utils.featsim_utils import *
+from mvr.utils.metric_utils import *
+from RAE.src.utils.vis_utils import vis_all
+
+
 torch.backends.cudnn.benchmark = False
 # logger.info("CUDNN Benchmark Disabled")
 
@@ -164,6 +171,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         denoiser=None,
         noise_generator=None,
         cfg=None,
+        scene_info=None,
+        use_pose=None
     ) -> Prediction:
         """
         Run inference on input images.
@@ -195,6 +204,13 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         Returns:
             Prediction object containing depth maps and camera parameters
         """
+        
+        
+        # PHO
+        data, scene = scene_info 
+        pose_setting = 'pose' if use_pose else 'unposed'
+        
+        
         if "gs" in export_format:
             assert infer_gs, "must set `infer_gs=True` to perform gs-related export."
 
@@ -202,7 +218,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             assert isinstance(image.image_files[0], str), "`image` must be image paths for COLMAP export."
 
 
-        if 'gt_image_files' in image.keys() and cfg.MVRM_EVAL.eval_method == 'mvrm_up':
+        if 'gt_image_files' in image.keys() and cfg.MVRM_EVAL.load_hq:
             gt_imgs_cpu, _, _ = self._preprocess_inputs(
                 image.gt_image_files, None, None, process_res, process_res_method
             )
@@ -230,18 +246,54 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         # Apply MVRM restoration
         if cfg.MVRM_EVAL.eval_method == 'w_mvrm':             
             print('APPLYING MVRM O')
-            _, lq_mvrm_out = self._run_model_forward(
-                imgs, ex_t_norm, in_t, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg=cfg.mvrm.train, mvrm_result=None, mode='train'
-            )
-            lq_latent = lq_mvrm_out['extract_feat']      # b v 973 3072
+            
+
+            export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]
             
             
-            # PHO7 (ON)
-            # scale = lq_latent.std()
-            # lq_latent = lq_latent / (scale + 1e-6)
+
+            # HQ FORWARD PASS
+            print("HQ FORWARD PASS")
+            hq_encoder_out, hq_mvrm_out = self._run_model_forward(
+                                            gt_imgs, 
+                                            ex_t_norm, 
+                                            in_t, 
+                                            export_feat_layers, 
+                                            infer_gs, 
+                                            use_ray_pose, 
+                                            ref_view_strategy, 
+                                            mvrm_cfg=cfg.mvrm.train, 
+                                            mvrm_result=None, 
+                                            mode='train'
+                                        )
+            hq_pred_pose_enc = hq_encoder_out.pose_enc      # 1 v 9
+            hq_pred_pose = hq_encoder_out['extrinsics']     # 1 v 3 4
+            hq_latent = hq_mvrm_out['extract_feat']         # b v 973 3072
+            hq_depth = hq_encoder_out.depth.unsqueeze(2)    # 1 v 1 h w
             
             
-            
+
+            # LQ FORWARD PASS
+            print("LQ FORWARD PASS")
+            lq_encoder_out, lq_mvrm_out = self._run_model_forward(
+                                            imgs, 
+                                            ex_t_norm, 
+                                            in_t, 
+                                            export_feat_layers, 
+                                            infer_gs, 
+                                            use_ray_pose, 
+                                            ref_view_strategy, 
+                                            mvrm_cfg=cfg.mvrm.train, 
+                                            mvrm_result=None, 
+                                            mode='train'
+                                        )
+            lq_pred_pose_enc = lq_encoder_out.pose_enc      # 1 v 9
+            lq_pred_pose = lq_encoder_out['extrinsics']     # 1 v 3 4
+            lq_latent = lq_mvrm_out['extract_feat']         # b v n+1 d
+            lq_depth = lq_encoder_out.depth.unsqueeze(2)     # 1 v 1 h w
+
+
+
             # generate pure noise
             noise_generator.manual_seed(42)
             pure_noise = torch.randn(lq_latent.shape, generator=noise_generator, device=imgs.device, dtype=torch.float32)
@@ -254,38 +306,74 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                 'model_img_size': (model_H, model_W)
             }
             autocast_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-            
             # print("lq_latent finite:", torch.isfinite(lq_latent).all())
             # print("lq_latent max:", lq_latent.abs().max())
             # print("xt finite before sampling:", torch.isfinite(xt).all())
             with torch.no_grad():
-            # with torch.autocast(device_type=imgs.device.type, dtype=autocast_dtype):                
-                restored_samples = eval_sampler(xt, denoiser.forward, **model_kwargs)[-1]     # b v n d
-            # print("restored finite:", torch.isfinite(restored_samples).all())
+                with torch.autocast(device_type=imgs.device.type, dtype=autocast_dtype):                
+                    restored_samples = eval_sampler(xt, denoiser.forward, **model_kwargs)[-1]     # b v n d
+            # print("restored finite:", torch.isfinite(restored_samples).all())            
+            
             
             mvrm_result={}
             mvrm_result['restored_latent'] = restored_samples
-            # restored forward pass
+            # mvrm_result['restored_latent'] = hq_latent
+            
+            
+            # RES FORWARD PASS
+            print("RES FORWARD PASS")
             raw_output, _ = self._run_model_forward(
-                imgs, ex_t_norm, in_t, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg=cfg.mvrm.val, mvrm_result=mvrm_result, mode='val'
+                                            imgs, 
+                                            ex_t_norm, 
+                                            in_t, 
+                                            export_feat_layers, 
+                                            infer_gs, 
+                                            use_ray_pose, 
+                                            ref_view_strategy, 
+                                            mvrm_cfg=cfg.mvrm.val, 
+                                            mvrm_result=mvrm_result, 
+                                            mode='val'
+                                        )
+            res_pred_pose_enc = raw_output.pose_enc      # 1 v 9
+            res_pred_pose = raw_output['extrinsics']     # 1 v 3 4
+            res_depth = raw_output.depth.unsqueeze(2)    # 1 v 1 h w
+            
+            
+            
+            vis_save_root = os.path.join(cfg.workspace.work_dir, 'pho_vis_results', data, pose_setting)
+            vis_all(
+                vis_save_root=vis_save_root,
+                scene=scene,
+                hq_img=gt_imgs[0],
+                lq_img=imgs[0],
+                hq_depth=hq_depth[0],
+                lq_depth=lq_depth[0],
+                res_depth=res_depth[0],
             )
             
-        
-        elif cfg.MVRM_EVAL.eval_method == 'mvrm_up':  
-            print('APPLYING MVRM UPPERBOUND')
-            # breakpoint()
-            _, hq_mvrm_out = self._run_model_forward(
-                gt_imgs, ex_t_norm, in_t, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg=cfg.mvrm.train, mvrm_result=None, mode='train'
-            )
-            hq_latent = hq_mvrm_out['extract_feat']      # b v 973 3072
             
-            # breakpoint()
-            mvrm_result={}
-            mvrm_result['restored_latent'] = hq_latent
-            raw_output, _ = self._run_model_forward(
-                imgs, ex_t_norm, in_t, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg=cfg.mvrm.val, mvrm_result=mvrm_result, mode='val'
+            metric_save_root = os.path.join(cfg.workspace.work_dir, 'pho_metric_results', data, pose_setting)
+            metric_all(
+                metric_save_root=metric_save_root,
+                scene=scene,
+                poses = (hq_pred_pose[0], lq_pred_pose[0],res_pred_pose[0]),
+                depths = (hq_depth, lq_depth, res_depth)
             )
-            # breakpoint()
+            
+            
+            featsim_log = featsim_all(
+                hq_encoder_out, 
+                lq_encoder_out, 
+                raw_output
+            )
+
+
+            featsim_save_root = os.path.join(cfg.workspace.work_dir, 'pho_featsim_results', data, pose_setting)
+            plot_three_similarity_panels(
+                featsim_log,
+                save_path=f"{featsim_save_root}/{scene}_sim_all_combined.png"
+            )
+            
 
         elif cfg.MVRM_EVAL.eval_method == 'wo_mvrm':             
             print('APPLYING MVRM X')
@@ -301,23 +389,11 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             )
             latent = mvrm_out['extract_feat']      # b v 973 3072
 
-            breakpoint()
-               
+        
+        
         
         # Convert raw output to prediction
         prediction = self._convert_to_prediction(raw_output)
-
-        # print("prediction.extrinsics finite:",
-        #     np.isfinite(prediction.extrinsics).all())
-
-        # print("max abs extrinsics:",
-        #     np.max(np.abs(prediction.extrinsics)))
-        
-        # print("restored latent finite:",
-        #     torch.isfinite(restored_samples).all())
-
-        # print("restored latent max abs:",
-        #     restored_samples.abs().max())
 
         # Align prediction to extrinsincs
         prediction = self._align_to_input_extrinsics_intrinsics(
@@ -378,6 +454,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             self._export_results(prediction, export_format, export_dir, **export_kwargs)
 
         return prediction
+
 
     def _preprocess_inputs(
         self,

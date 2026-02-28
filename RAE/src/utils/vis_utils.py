@@ -1,3 +1,4 @@
+import os 
 import cv2 
 import torch 
 import numpy as np
@@ -165,3 +166,67 @@ def write_scene_header(f, scene):
         f"{'Pixels':>12}\n"
     )
     f.write("-" * 90 + "\n")
+
+
+def vis_all(vis_save_root, scene, hq_img, lq_img, hq_depth, lq_depth, res_depth):
+    """
+    hq_img:   (V, 3, H, W)
+    lq_img:   (V, 3, H, W)
+    hq_depth: (V, 1, H, W)
+    lq_depth: (V, 1, H, W)
+    res_depth:(V, 1, H, W)
+
+    """
+
+    os.makedirs(vis_save_root, exist_ok=True)
+
+    V = hq_img.shape[0]
+    all_rows = []
+
+    for i in range(V):
+
+        # -------------------------
+        # RGB images
+        # -------------------------
+        hq_rgb = tensor_to_uint8_image(hq_img[i])
+        lq_rgb = tensor_to_uint8_image(lq_img[i])
+
+        H, W, _ = hq_rgb.shape
+
+        # -------------------------
+        # Depth maps → numpy
+        # -------------------------
+        hq_d = hq_depth[i, 0].detach().cpu().numpy()
+        lq_d = lq_depth[i, 0].detach().cpu().numpy()
+        res_d = res_depth[i, 0].detach().cpu().numpy()
+
+        # -------------------------
+        # Depth → colormap
+        # -------------------------
+        hq_d_vis = depth_to_colormap(hq_d, resize=(H, W))
+        lq_d_vis = depth_to_colormap(lq_d, resize=(H, W))
+        res_d_vis = depth_to_colormap(res_d, resize=(H, W))
+
+        # -------------------------
+        # One row: 5 panels
+        # -------------------------
+        row = np.concatenate(
+            [hq_rgb[:,:,::-1], hq_d_vis, lq_rgb[:,:,::-1], lq_d_vis, res_d_vis],
+            axis=1
+        )
+        
+        all_rows.append(row)
+
+    # -------------------------
+    # Stack all rows vertically
+    # -------------------------
+    final_vis = np.concatenate(all_rows, axis=0)
+
+    save_path = os.path.join(vis_save_root, f"{scene}.png")
+    cv2.imwrite(save_path, final_vis)
+
+    print(f"Saved visualization to {save_path}")
+    
+
+    
+      

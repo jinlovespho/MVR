@@ -113,15 +113,24 @@ class DTU(Dataset):
                 - aux.mask_files: List[str] - paths to depth masks
         """
         
+        gt_folder = os.path.join(self.da3_clean_root_path, 'dtu', "Rectified", scene)
         rgb_folder = os.path.join(self.da3_deg_root_path, 'dtu', "Rectified", scene)
         camera_folder = os.path.join(self.da3_clean_root_path, 'dtu', "Cameras")
+
 
         files = sorted(glob.glob(os.path.join(rgb_folder, "*")))
         # Reorder: place index 33 first (reference view convention)
         files = [files[33]] + files[:33] + files[34:]
+        
+        
+        gt_files = sorted(glob.glob(os.path.join(gt_folder, "*")))
+        # Reorder: place index 33 first (reference view convention)
+        gt_files = [gt_files[33]] + gt_files[:33] + gt_files[34:]
+        
 
         out = Dict(
             {
+                'gt_image_files': gt_files,
                 "image_files": files,
                 "extrinsics": [],
                 "intrinsics": [],

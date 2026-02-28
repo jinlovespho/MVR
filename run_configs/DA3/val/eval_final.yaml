@@ -36,7 +36,8 @@ denoiser:
     use_rope: true
     use_rmsnorm: true
     wo_shift: false
-    use_pos_embed: true
+    use_pos_embed: false
+    use_global_residual: false
   # ckpt: NVIDIA_SERVER/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-mvrm__bs8-maxview8-accum1__lr-2e-04__msg-lqkernel-50__global-17__ddp/checkpoints/ep-0025000.pt
   # ckpt: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/JIHYE_CKPT/lqkernel50_48k/ep-0048000.pt
   # ckpt: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/JIHYE_CKPT/lqkernel100_48k/ep-0048000.pt

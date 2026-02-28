@@ -120,28 +120,40 @@ class DTU64(Dataset):
         if scene in self._scene_cache:
             return self._scene_cache[scene]
 
+        gt_folder = os.path.join(self.da3_clean_root_path, 'dtu64', scene, "image")
         rgb_folder = os.path.join(self.da3_deg_root_path, 'dtu64', scene, "image")
 
         # Get all PNG files sorted
         files = sorted(glob.glob(os.path.join(rgb_folder, "*")))
-
         # Reorder: place index 33 first (reference view convention)
         if len(files) > 33:
             files = [files[33]] + files[:33] + files[34:]
 
+
+        # Get all PNG files sorted
+        gt_files = sorted(glob.glob(os.path.join(gt_folder, "*")))
+        # Reorder: place index 33 first (reference view convention)
+        if len(gt_files) > 33:
+            gt_files = [gt_files[33]] + gt_files[:33] + gt_files[34:]
+            
+        
+        
+
         out = Dict({
+            'gt_image_files': [],
             "image_files": [],
             "extrinsics": [],
             "intrinsics": [],
             "aux": Dict({}),
         })
-
-        for rgb_file in files:
-            basename = os.path.basename(rgb_file)
+        
+        for gt_file in gt_files:
+            
+            basename = os.path.basename(gt_file)
             # File naming: "00000033.png" -> cam_idx = 33
             file_idx = basename.split(".")[0]
             cam_idx = int(file_idx)
-
+            
             # Camera file path
             cam_file = os.path.join(self.da3_clean_root_path, 'dtu64', 'Cameras', f"{cam_idx:0>8}_cam.txt")
 
@@ -151,9 +163,14 @@ class DTU64(Dataset):
 
             intrinsics, extrinsics = self.read_cam_file(cam_file)
 
-            out.image_files.append(rgb_file)
+            out.gt_image_files.append(gt_file)
             out.extrinsics.append(extrinsics)
             out.intrinsics.append(intrinsics)
+            
+
+        for rgb_file in files:
+            out.image_files.append(rgb_file)
+
 
         out.extrinsics = np.asarray(out.extrinsics, dtype=np.float32)
         out.intrinsics = np.asarray(out.intrinsics, dtype=np.float32)

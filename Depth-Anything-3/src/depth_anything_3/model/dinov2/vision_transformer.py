@@ -319,21 +319,21 @@ class DinoVisionTransformer(nn.Module):
         for i, blk in enumerate(self.blocks):
 
 
-            # MVRM restore degraded features
-            if kwargs['mode'] == 'val':
-                mvrm_val_cfg = kwargs['mvrm_cfg']
-                if (i == mvrm_val_cfg['restore_feat_layers'][0]+1) and (kwargs['mvrm_result'] is not None):
-                    # print(f'val - {i} APPLIED RESTORED LATENT!')
-                    restored_latent = kwargs['mvrm_result']['restored_latent']
-                    if mvrm_val_cfg.concat_feat:
-                        x = restored_latent[..., 1536:]
-                        local_x = restored_latent[..., :1536]
-                    else:
-                        x = restored_latent
-                else:
-                    if mvrm_val_cfg.skip_and_input_feat and i < mvrm_val_cfg['restore_feat_layers'][0]+1:
-                        # print(f'val - skipped layer {i}')
-                        continue
+            # # MVRM restore degraded features
+            # if kwargs['mode'] == 'val':
+            #     mvrm_val_cfg = kwargs['mvrm_cfg']
+            #     if (i == mvrm_val_cfg['restore_feat_layers'][0]+1) and (kwargs['mvrm_result'] is not None):
+            #         print(f'val - {i} APPLIED RESTORED LATENT!')
+            #         restored_latent = kwargs['mvrm_result']['restored_latent']
+            #         if mvrm_val_cfg.concat_feat:
+            #             x = restored_latent[..., 1536:]
+            #             local_x = restored_latent[..., :1536]
+            #         else:
+            #             x = restored_latent
+            #     else:
+            #         if mvrm_val_cfg.skip_and_input_feat and i < mvrm_val_cfg['restore_feat_layers'][0]+1:
+            #             # print(f'val - skipped layer {i}')
+            #             continue
 
             
         
@@ -374,7 +374,7 @@ class DinoVisionTransformer(nn.Module):
                 # print(f'{i} global attn')
                 x = self.process_attention(x, blk, "global", pos=g_pos, attn_mask=kwargs.get("attn_mask", None))    # b v 972+1 1536
             else:
-                # print(f'{i} frame attn')        
+                # print(f'{i} frame attn')
                 x = self.process_attention(x, blk, "local", pos=l_pos)  # b v 972+1 1536          
                 local_x = x                                             # b v 972+1 1536
             # -------------------------------------------------------------------------------------------------------
@@ -393,17 +393,18 @@ class DinoVisionTransformer(nn.Module):
                         return None, None, mvrm_output
 
 
-            # # MVRM restore degraded features
-            # if kwargs['mode'] == 'val':
-            #     mvrm_val_cfg = kwargs['mvrm_cfg']
-            #     if i in mvrm_val_cfg.restore_feat_layers:
-            #         print(f'val - {i} APPLIED RESTORED LATENT!')
-            #         restored_latent = kwargs['mvrm_result']['restored_latent']
-            #         if mvrm_val_cfg.concat_feat:
-            #             x = restored_latent[..., 1536:]
-            #             local_x = restored_latent[..., :1536]
-            #         else:
-            #             x = restored_latent
+
+            # MVRM restore degraded features
+            if kwargs['mode'] == 'val':
+                mvrm_val_cfg = kwargs['mvrm_cfg']
+                if i in mvrm_val_cfg.restore_feat_layers:
+                    # print(f'val - {i} APPLIED RESTORED LATENT!')
+                    restored_latent = kwargs['mvrm_result']['restored_latent']
+                    if mvrm_val_cfg.concat_feat:
+                        x = restored_latent[..., 1536:]
+                        local_x = restored_latent[..., :1536]
+                    else:
+                        x = restored_latent
 
 
             # collect feat layers for DPT Head
@@ -412,11 +413,13 @@ class DinoVisionTransformer(nn.Module):
                 out_x = torch.cat([local_x, x], dim=-1) if self.cat_token else x
                 # Restore original view order if reordering was applied
                 if x.shape[1] >= THRESH_FOR_REF_SELECTION and self.alt_start != -1 and 'b_idx' in locals():
+                    # print(f'{i} ref selection revert before passing to DPT')
                     out_x = restore_original_order(out_x, b_idx)
                 output.append((out_x[:, :, 0], out_x))      # appends (camera_tkn, full_tkn)
             if i in export_feat_layers:
                 aux_output.append(x)
         
+        # breakpoint()
         return output, aux_output, mvrm_output
 
     def process_attention(self, x, block, attn_type="global", pos=None, attn_mask=None):
@@ -471,7 +474,6 @@ class DinoVisionTransformer(nn.Module):
 
 
 
-
         camera_tokens = [out[0] for out in outputs]
         if outputs[0][1].shape[-1] == self.embed_dim:   # f 
             outputs = [self.norm(out[1]) for out in outputs]
@@ -485,10 +487,20 @@ class DinoVisionTransformer(nn.Module):
             ]
         else:
             raise ValueError(f"Invalid output shape: {outputs[0][1].shape}")
-        aux_outputs = [self.norm(out) for out in aux_outputs]
+        
+    
         # the bottom code makes outputs only contain patch tokens, e.g., gets rid of cls, camera, register tokens.
         outputs = [out[..., 1 + self.num_register_tokens :, :] for out in outputs]  
-        aux_outputs = [out[..., 1 + self.num_register_tokens :, :] for out in aux_outputs]
+        
+        
+        
+        
+        # PHO - commented the bottom, to get camera tkns as well
+        # aux_outputs = [self.norm(out) for out in aux_outputs]
+        # aux_outputs = [out[..., 1 + self.num_register_tokens :, :] for out in aux_outputs]
+        
+        
+        
         
         
         # # MVRM output

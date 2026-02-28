@@ -256,6 +256,7 @@ class Transport:
         # save_image(x1, 'img_x1.jpg')
         # save_image(xt, 'img_xt.jpg')
         # save_image(ut, 'img_ut.jpg')
+        
         # x1_hat = xt + ut * (1.0 - t)
         # save_image(x1_hat, 'img_x1_hat.jpg')
         

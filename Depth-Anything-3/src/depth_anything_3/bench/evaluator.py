@@ -228,8 +228,6 @@ class Evaluator:
             scene_data = self._sample_frames(scene_data, scene)
             
             
-            
-
             # for img_path in scene_data.image_files:
             #     new_path = img_path.replace("/clean/", "/filtered_clean/")
             #     # new_path = img_path.replace("/cam_blur_50/", "/filtered_cam_blur_50/")
@@ -241,11 +239,8 @@ class Evaluator:
             #     shutil.copy2(img_path, new_path)  # copy2 preserves metadata
 
 
-
-
             if need_unposed:    # t
                 export_dir = self._export_dir(data, scene, posed=False)
-                # breakpoint()
                 api.inference(
                     scene_data,
                     export_dir=export_dir,
@@ -254,7 +249,9 @@ class Evaluator:
                     eval_sampler=self.eval_sampler,
                     denoiser=self.denoiser,
                     noise_generator=noise_generator,
-                    cfg=self.full_cfg
+                    cfg=self.full_cfg,
+                    scene_info = (data,scene),
+                    use_pose=False
                 )
                 self._save_gt_meta(export_dir, scene_data)
 
@@ -270,11 +267,11 @@ class Evaluator:
                     eval_sampler=self.eval_sampler,
                     denoiser=self.denoiser,
                     noise_generator=noise_generator,
-                    cfg=self.full_cfg
+                    cfg=self.full_cfg,
+                    scene_info = (data,scene),
+                    use_pose=True
                 )
                 self._save_gt_meta(export_dir, scene_data)
-
-                # breakpoint()
 
             
     def eval(self) -> TDict[str, dict]:
@@ -495,7 +492,6 @@ class Evaluator:
 
         _wait_for_file_ready(result_path)
         pred = np.load(result_path)
-        # breakpoint()
         return compute_pose(
             torch.from_numpy(as_homogeneous(pred["extrinsics"])),
             torch.from_numpy(as_homogeneous(gt_meta["extrinsics"])),

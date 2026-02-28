@@ -34,7 +34,7 @@ from utils.dist_utils import *
 from utils.vis_utils import *
 from utils.loss_utils import velocity_direction_loss, camera_loss_single
 
-
+import torch.nn.functional as F 
 from torchvision.utils import save_image 
 from utils.vis_utils import depth_to_colormap, depth_error_to_colormap_thresholded, tensor_to_uint8_image
 import torchvision.transforms as T 
@@ -42,6 +42,11 @@ import torchvision.transforms as T
 from einops import rearrange
 from RAE.src import initialize
 from motionblur.motionblur import Kernel 
+import matplotlib.pyplot as plt
+
+
+
+from mvr.utils.vis_utils import *
 
 
 # torch.backends.cuda.enable_flash_sdp(False)
@@ -230,7 +235,7 @@ def main():
             with torch.no_grad():
                 hq_encoder_out, hq_mvrm_out = models['encoder'](
                                                     image=train_hq_views, 
-                                                    export_feat_layers=[], 
+                                                    export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39], 
                                                     mvrm_cfg=full_cfg.mvrm.train, 
                                                     mode='train'
                                                     )
@@ -238,15 +243,16 @@ def main():
             hq_pred_pose = hq_encoder_out['extrinsics'] # b v 3 4
             hq_encoder_out = processors['encoder_output_processor'](hq_encoder_out)
             train_hq_pred_depth_np = hq_encoder_out.depth                  # b v 378 504
-            # train_hq_pred_depth = torch.from_numpy(train_hq_pred_depth_np).to(device) 
+            train_hq_pred_depth = torch.from_numpy(train_hq_pred_depth_np).to(device) 
             hq_latent = hq_mvrm_out['extract_feat']
-
-
+            
+            
+            
             # lq view forward pass
             with torch.no_grad():
                 lq_encoder_out, lq_mvrm_out = models['encoder'](
                                                     image=train_lq_views, 
-                                                    export_feat_layers=[], 
+                                                    export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39], 
                                                     mvrm_cfg=full_cfg.mvrm.train, 
                                                     mode='train'
                                                     )
@@ -254,9 +260,152 @@ def main():
             lq_pred_pose = lq_encoder_out['extrinsics'] # b v 3 4
             lq_encoder_out = processors['encoder_output_processor'](lq_encoder_out)
             train_lq_pred_depth_np = lq_encoder_out.depth                  # b v 378 504
-            # train_lq_pred_depth = torch.from_numpy(train_lq_pred_depth_np).to(device) 
+            train_lq_pred_depth = torch.from_numpy(train_lq_pred_depth_np).to(device) 
             lq_latent = lq_mvrm_out['extract_feat']      # b v 973 3072
             assert lq_latent.shape == hq_latent.shape 
+            
+
+
+
+            # POSE DEBUG
+            # POSE DEBUG
+            # POSE DEBUG
+            val_noise_generator.manual_seed(global_seed)
+            pure_noise = torch.randn(lq_latent.shape, generator=val_noise_generator, device=device, dtype=torch.float32)
+            if full_cfg.mvrm.lq_latent_cond == 'addition':
+                xt = pure_noise + lq_latent            
+            model_kwargs={
+                'model_img_size': (train_h, train_w)
+            }
+            with torch.no_grad():
+                restored_samples = eval_sampler(xt, ema_model_fn, **model_kwargs)[-1]     # b v n d
+            mvrm_result={}
+            mvrm_result['restored_latent'] = restored_samples
+            with torch.no_grad():
+                encoder_out, val_mvrm_out = models['encoder'](
+                                                            image=train_lq_views, 
+                                                            export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39], 
+                                                            mvrm_cfg=full_cfg.mvrm.val, 
+                                                            mvrm_result=mvrm_result,
+                                                            mode='val'
+                                                            )
+            encoder_out = processors['encoder_output_processor'](encoder_out)
+            pred_depth_np = encoder_out.depth   # num_view h w
+            pred_depth = torch.from_numpy(pred_depth_np).to(device)
+            
+            
+            
+            
+            sim_log = {}  # layer -> dict of metrics
+            assert hq_encoder_out.aux.keys() == lq_encoder_out.aux.keys() == encoder_out.aux.keys()
+            for feat_layer_key in hq_encoder_out.aux.keys():
+                layer_idx = feat_layer_key.split('_')[-1]
+
+                hq_feat = hq_encoder_out.aux[feat_layer_key]  # (V, 1+N, D)
+                lq_feat = lq_encoder_out.aux[feat_layer_key]  # (V, 1+N, D)
+                res_feat = encoder_out.aux[feat_layer_key]    # (V, 1+N, D)
+
+                # tokens
+                cam_tkn_hq = hq_feat[:, 0:1]    # (V, 1, D)
+                cam_tkn_lq = lq_feat[:, 0:1]
+                cam_tkn_res = res_feat[:, 0:1]
+
+                patch_tkn_hq = hq_feat[:, 1:]   # (V, N, D)
+                patch_tkn_lq = lq_feat[:, 1:]
+                patch_tkn_res = res_feat[:, 1:]
+
+                # --- overall (all tokens)
+                all_hq_lq = cosine_sim_mean(hq_feat, lq_feat)
+                all_hq_res = cosine_sim_mean(hq_feat, res_feat)
+
+                # --- camera token similarity (mean over V; the token axis is size 1 anyway)
+                cam_hq_lq = cosine_sim_mean(cam_tkn_hq, cam_tkn_lq)
+                cam_hq_res = cosine_sim_mean(cam_tkn_hq, cam_tkn_res)
+
+                # --- patch token similarity stats (over V*N tokens)
+                patch_hq_lq_stats = cosine_sim_stats(patch_tkn_hq, patch_tkn_lq)
+                patch_hq_res_stats = cosine_sim_stats(patch_tkn_hq, patch_tkn_res)
+
+                sim_log[layer_idx] = {
+                    "all_tokens": {
+                        "hq_vs_lq_mean": all_hq_lq,
+                        "hq_vs_res_mean": all_hq_res,
+                    },
+                    "camera_token": {
+                        "hq_vs_lq_mean": cam_hq_lq,
+                        "hq_vs_res_mean": cam_hq_res,
+                    },
+                    "patch_tokens": {
+                        "hq_vs_lq": patch_hq_lq_stats,
+                        "hq_vs_res": patch_hq_res_stats,
+                    }
+                }
+
+                # optional: quick print
+                print(
+                    f"[layer {layer_idx}] "
+                    f"all(hq,lq)={all_hq_lq:.4f} all(hq,res)={all_hq_res:.4f} | "
+                    f"cam(hq,lq)={cam_hq_lq:.4f} cam(hq,res)={cam_hq_res:.4f} | "
+                    f"patch_mean(hq,lq)={patch_hq_lq_stats['mean']:.4f} patch_mean(hq,res)={patch_hq_res_stats['mean']:.4f}"
+                )
+
+
+
+
+            # plot_save_root = f'plots_rere/wo_mvrm/{train_step}'
+            # plot_save_root = f'plots_rere/w_mvrm_JIHYE2_lqkernel100/{train_step}'
+            plot_save_root = f'plots_rere/w_mvrm_JIHYE2_lqkernel200/{train_step}'
+
+
+
+
+
+
+            plot_two_similarity_curves(
+                sim_log,
+                key1="all_tokens",
+                key2_a="hq_vs_lq_mean",
+                key2_b="hq_vs_res_mean",
+                label_a="HQ vs LQ",
+                label_b="HQ vs Restored",
+                title="All Tokens Similarity Across Layers",
+                save_path=f"{plot_save_root}/sim_all_tokens_combined.png"
+            )
+
+
+
+
+            plot_two_similarity_curves(
+                sim_log,
+                key1="camera_token",
+                key2_a="hq_vs_lq_mean",
+                key2_b="hq_vs_res_mean",
+                label_a="HQ vs LQ",
+                label_b="HQ vs Restored",
+                title="Camera Token Similarity Across Layers",
+                save_path=f"{plot_save_root}/sim_camera_token_combined.png"
+            )
+
+            
+            plot_two_similarity_curves(
+                sim_log,
+                key1="patch_tokens",
+                key2_a="hq_vs_lq",
+                key2_b="hq_vs_res",
+                label_a="HQ vs LQ",
+                label_b="HQ vs Restored",
+                title="Patch Token Similarity Across Layers",
+                save_path=f"{plot_save_root}/sim_patch_tokens_combined.png"
+            )
+            
+            save_image(train_lq_views.squeeze(0), f"{plot_save_root}/img_lq.png", normalize=True)
+            save_image(train_hq_views.squeeze(0), f"{plot_save_root}/img_hq.png", normalize=True)
+            save_image(train_hq_pred_depth.unsqueeze(1), f"{plot_save_root}/img_hq_depth.png", normalize=True)
+            save_image(train_lq_pred_depth.unsqueeze(1), f"{plot_save_root}/img_lq_depth.png", normalize=True)
+            save_image(pred_depth.unsqueeze(1), f"{plot_save_root}/img_res_depth.png", normalize=True)
+
+
+            
             
             # print(lq_pred_pose_enc.requires_grad)
             
@@ -267,109 +416,143 @@ def main():
             # save_image(batch['lq_views'].squeeze(0), 'TMP/lq.jpg')
             # plot_cam_trajectory(gt_pose[0], hq_pred_pose[0], lq_pred_pose[0], save_path="TMP/cam_traj.png")
             # print(batch['hq_ids'])
-            
-
-            # from extrinsic2pyramid.util.camera_pose_visualizer import CameraPoseVisualizer
-            
-            # gt_pose_np = gt_pose.detach().cpu().numpy()
-
-            # # Compute camera centers
-            # centers = []
-
-            # for i in range(gt_pose_np.shape[0]):
-            #     R = gt_pose_np[i][:3, :3]
-            #     t = gt_pose_np[i][:3, 3]
-            #     C = -R.T @ t
-            #     centers.append(C)
-
-            # centers = np.stack(centers)
-
-            # min_vals = centers.min(axis=0)
-            # max_vals = centers.max(axis=0)
-
-            # margin = 1.0
-
-            # visualizer = CameraPoseVisualizer(
-            #     [min_vals[0]-margin, max_vals[0]+margin],
-            #     [min_vals[1]-margin, max_vals[1]+margin],
-            #     [min_vals[2]-margin, max_vals[2]+margin],
-            # )
-            # visualizer = CameraPoseVisualizer([-10, 10], [-10, 10], [0, 10])
-            
-            # def to_homogeneous(pose_3x4):
-            #     pose_4x4 = np.eye(4)
-            #     pose_4x4[:3, :4] = pose_3x4
-            #     return pose_4x4
-                        
-            # gt_pose_np = gt_pose.detach().cpu().numpy()
-            # hq_pose_np = hq_pred_pose.detach().cpu().numpy()
-            # lq_pose_np = lq_pred_pose.detach().cpu().numpy()
-            
-            
-            # num_views = gt_pose_np.shape[0]
-
-            # for i in range(num_views):
-
-            #     # ---- GT (cyan) ----
-            #     visualizer.extrinsic2pyramid(
-            #         gt_pose_np[i],
-            #         color_map='cyan',
-            #         focal_len_scaled=10
-            #     )
-
-            #     # ---- HQ prediction (green) ----
-            #     visualizer.extrinsic2pyramid(
-            #         to_homogeneous(hq_pose_np[i]),
-            #         color_map='green',
-            #         focal_len_scaled=10
-            #     )
-
-            #     # ---- LQ prediction (red) ----
-            #     visualizer.extrinsic2pyramid(
-            #         to_homogeneous(lq_pose_np[i]),
-            #         color_map='red',
-            #         focal_len_scaled=10
-            #     )
-
-            # visualizer.save("tmp.png")
-
         
             
             if train_b==1 and len(train_hq_pred_depth_np.shape)<4 and len(train_lq_pred_depth_np.shape)<4:
                 train_hq_pred_depth_np = np.expand_dims(train_hq_pred_depth_np, axis=0)
                 train_lq_pred_depth_np = np.expand_dims(train_lq_pred_depth_np, axis=0)                
+                pred_depth_np = np.expand_dims(pred_depth_np, axis=0)                
 
 
-            # ------------------------------------------------
-            # VISUALIZE TRAIN (only first batch)
-            # ------------------------------------------------
             if rank == 0 and training_cfg.vis.train_depth_every > 0 and global_train_step % training_cfg.vis.train_depth_every == 0:
                 logger.info(f"Train sample shape: {train_hq_views.shape}")
-                vis_train_hq_rgb = []
-                vis_train_lq_rgb = []
-                vis_train_hq_depth = []
-                vis_train_lq_depth = []
+
+                vis_hq_rgb = []
+                vis_lq_rgb = []
+                vis_res_rgb = []
+
+                vis_hq_depth = []
+                vis_lq_depth = []
+                vis_res_depth = []
+
                 for view_idx in range(train_v):
-                    # RGB (unnormalized!)
-                    vis_train_hq_rgb.append(tensor_to_uint8_image(train_hq_views[0, view_idx]))
-                    vis_train_lq_rgb.append(tensor_to_uint8_image(train_lq_views[0, view_idx]))
-                    # Depths
-                    vis_train_hq_depth.append(depth_to_colormap(train_hq_pred_depth_np[0, view_idx]))
-                    vis_train_lq_depth.append(depth_to_colormap(train_lq_pred_depth_np[0, view_idx]))
-                # concatenate views along width
-                vis_train_hq_rgb    = np.concatenate(vis_train_hq_rgb, axis=1)
-                vis_train_lq_rgb    = np.concatenate(vis_train_lq_rgb, axis=1)
-                vis_train_hq_depth  = np.concatenate(vis_train_hq_depth, axis=1)
-                vis_train_lq_depth  = np.concatenate(vis_train_lq_depth, axis=1)
-                # stack rows (modalities)
-                vis_train_top = np.concatenate([vis_train_hq_rgb, vis_train_lq_rgb], axis=1)
-                vis_train_bot = np.concatenate([vis_train_hq_depth, vis_train_lq_depth], axis=1)
-                vis_train_all = np.concatenate([vis_train_top[:,:,::-1], vis_train_bot], axis=0)
-                # save
+
+                    # ---------------- RGB ----------------
+                    hq_rgb = tensor_to_uint8_image(train_hq_views[0, view_idx])
+                    lq_rgb = tensor_to_uint8_image(train_lq_views[0, view_idx])
+
+                    vis_hq_rgb.append(hq_rgb)
+                    vis_lq_rgb.append(lq_rgb)
+                    vis_res_rgb.append(lq_rgb)  # placeholder (no restored RGB yet)
+
+                    # ---------------- Depth ----------------
+                    vis_hq_depth.append(
+                        depth_to_colormap(train_hq_pred_depth_np[0, view_idx])
+                    )
+                    vis_lq_depth.append(
+                        depth_to_colormap(train_lq_pred_depth_np[0, view_idx])
+                    )
+                    vis_res_depth.append(
+                        depth_to_colormap(pred_depth_np[0, view_idx])
+                    )
+
+                # ------------------------------------------------
+                # Concatenate multi-view horizontally
+                # ------------------------------------------------
+                vis_hq_rgb    = np.concatenate(vis_hq_rgb, axis=1)
+                vis_lq_rgb    = np.concatenate(vis_lq_rgb, axis=1)
+                vis_res_rgb   = np.concatenate(vis_res_rgb, axis=1)
+
+                vis_hq_depth  = np.concatenate(vis_hq_depth, axis=1)
+                vis_lq_depth  = np.concatenate(vis_lq_depth, axis=1)
+                vis_res_depth = np.concatenate(vis_res_depth, axis=1)
+
+                # ------------------------------------------------
+                # Build 3-column rows
+                # ------------------------------------------------
+
+                # Row 1: RGB comparison
+                row_rgb = np.concatenate(
+                    [
+                        vis_hq_rgb,
+                        vis_lq_rgb,
+                        vis_res_rgb
+                    ],
+                    axis=1
+                )
+
+                # Row 2: Depth comparison
+                row_depth = np.concatenate(
+                    [
+                        vis_hq_depth,
+                        vis_lq_depth,
+                        vis_res_depth
+                    ],
+                    axis=1
+                )
+
+                # Stack rows vertically
+                vis_train_all = np.concatenate(
+                    [
+                        row_rgb[:, :, ::-1],  # RGB -> BGR for cv2
+                        row_depth
+                    ],
+                    axis=0
+                )
+
+                # ------------------------------------------------
+                # Save
+                # ------------------------------------------------
                 vis_train_depth_save_dir = f"{experiment_dir}/vis_train_depth"
                 os.makedirs(vis_train_depth_save_dir, exist_ok=True)
+
                 vis_id = "-".join(train_hq_id[0])
-                cv2.imwrite(f"{vis_train_depth_save_dir}/step{global_train_step:07}_{vis_id}.jpg",vis_train_all)
+
+                cv2.imwrite(
+                    f"{vis_train_depth_save_dir}/step{global_train_step:07}_{vis_id}.jpg",
+                    vis_train_all
+                )
+
+
+            breakpoint()
+
+
+
+            # # ------------------------------------------------
+            # # VISUALIZE TRAIN (only first batch)
+            # # ------------------------------------------------
+            # if rank == 0 and training_cfg.vis.train_depth_every > 0 and global_train_step % training_cfg.vis.train_depth_every == 0:
+            #     logger.info(f"Train sample shape: {train_hq_views.shape}")
+            #     vis_train_hq_rgb = []
+            #     vis_train_lq_rgb = []
+            #     vis_train_hq_depth = []
+            #     vis_train_lq_depth = []
+            #     vis_train_res_depth = []
+            #     for view_idx in range(train_v):
+            #         # RGB (unnormalized!)
+            #         vis_train_hq_rgb.append(tensor_to_uint8_image(train_hq_views[0, view_idx]))
+            #         vis_train_lq_rgb.append(tensor_to_uint8_image(train_lq_views[0, view_idx]))
+            #         # Depths
+            #         vis_train_hq_depth.append(depth_to_colormap(train_hq_pred_depth_np[0, view_idx]))
+            #         vis_train_lq_depth.append(depth_to_colormap(train_lq_pred_depth_np[0, view_idx]))
+            #         vis_train_res_depth.append(depth_to_colormap(pred_depth_np[0, view_idx]))
+            #     # concatenate views along width
+            #     vis_train_hq_rgb    = np.concatenate(vis_train_hq_rgb, axis=1)
+            #     vis_train_lq_rgb    = np.concatenate(vis_train_lq_rgb, axis=1)
+            #     vis_train_hq_depth  = np.concatenate(vis_train_hq_depth, axis=1)
+            #     vis_train_lq_depth  = np.concatenate(vis_train_lq_depth, axis=1)
+            #     vis_train_res_depth = np.concatenate(vis_train_res_depth, axis=1)
+            #     # stack rows (modalities)
+            #     vis_train_top = np.concatenate([vis_train_hq_rgb, vis_train_lq_rgb], axis=1)
+            #     vis_train_bot = np.concatenate([vis_train_hq_depth, vis_train_lq_depth], axis=1)
+            #     vis_train_all = np.concatenate([vis_train_top[:,:,::-1], vis_train_bot], axis=0)
+            #     # save
+            #     vis_train_depth_save_dir = f"{experiment_dir}/vis_train_depth"
+            #     os.makedirs(vis_train_depth_save_dir, exist_ok=True)
+            #     vis_id = "-".join(train_hq_id[0])
+            #     cv2.imwrite(f"{vis_train_depth_save_dir}/step{global_train_step:07}_{vis_id}.jpg",vis_train_all)
+
+
 
 
             # compute loss (per microbatch)
@@ -468,8 +651,8 @@ def main():
                 stats = {
                     "train/loss_interval_avg": avg_loss,
                     "train/loss_transport": transport_loss.item(),
-                    "train/loss_cam_token": transport_output["cam_tkn_loss"].item(),
-                    "train/loss_patch_token": transport_output["patch_tkn_loss"].item(),
+                    "train/loss_cam_token": transport_output["cam_tkn_loss"].mean().item(),
+                    "train/loss_patch_token": transport_output["patch_tkn_loss"].mean().item(),
                     
                     'train/loss_vel_dir': loss_vel_dir.item(),
                     'train/loss_vel_dir_scaled': loss_vel_dir_scaled.item(),

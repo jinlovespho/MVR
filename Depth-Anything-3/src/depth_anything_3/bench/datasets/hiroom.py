@@ -132,6 +132,7 @@ class HiRoomDataset(Dataset):
             return self._scene_cache[scene]
 
         scene_dir = os.path.join(self.da3_clean_root_path, 'hiroom', 'data', scene)
+        gt_image_dir = os.path.join(self.da3_clean_root_path, 'hiroom', 'data', scene, "image")
         image_dir = os.path.join(self.da3_deg_root_path, 'hiroom', 'data', scene, "image")
 
         # Get scene name for GT point cloud
@@ -146,6 +147,7 @@ class HiRoomDataset(Dataset):
         image_names = sorted(os.listdir(image_dir))
 
         out = Dict({
+            'gt_image_files':[],
             "image_files": [],
             "extrinsics": [],
             "intrinsics": [],
@@ -158,6 +160,7 @@ class HiRoomDataset(Dataset):
 
         for img_name in image_names:
             
+            gt_image_path = os.path.join(gt_image_dir, img_name)
             img_path = os.path.join(image_dir, img_name)
             frame_name = img_name.split(".")[0]
 
@@ -168,10 +171,18 @@ class HiRoomDataset(Dataset):
 
             if not os.path.exists(pose_path):
                 continue
+        
+            if not os.path.exists(img_path):
+                continue
+            
+            if not os.path.exists(gt_image_path):
+                continue
 
             # Load extrinsics (world-to-camera)
             ext = np.load(pose_path).astype(np.float32)
 
+
+            out.gt_image_files.append(gt_image_path)
             out.image_files.append(img_path)
             out.extrinsics.append(ext)
             out.intrinsics.append(ixt_shared.copy())

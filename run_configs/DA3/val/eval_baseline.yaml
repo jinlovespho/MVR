@@ -90,7 +90,7 @@ model:
 workspace:
   # Working directory for outputs (model results, metrics, etc.)
 
-  # FINAL - WO_MVRM
+  # FINAL - WO_MVRM (max_view100)
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/wo_mvrm/clean/eval_full_100
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/wo_mvrm/filtered_clean/eval_full_100
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/wo_mvrm/filtered_cam_blur_50/eval_full_100
@@ -98,14 +98,22 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/wo_mvrm/filtered_cam_blur_300/eval_full_100
 
 
+  # FINAL - WO_MVRM (max_view50)
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/wo_mvrm/filtered_clean/eval_full_50
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/wo_mvrm/filtered_cam_blur_50/eval_full_50
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/wo_mvrm/filtered_cam_blur_100/eval_full_50
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/wo_mvrm/filtered_cam_blur_300/eval_full_50
 
+
+  # FINAL - WO_MVRM (max_view10)
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/wo_mvrm/filtered_clean/eval_full_10
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/wo_mvrm/filtered_cam_blur_50/eval_full_10
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/wo_mvrm/filtered_cam_blur_100/eval_full_10
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/da3_giant/wo_mvrm/filtered_cam_blur_300/eval_full_10
 
 
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_TMPTMP
+
+
   
 
 
@@ -120,10 +128,10 @@ eval:
   # Datasets to evaluate
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
-    # - eth3d
-    # - 7scenes
-    # - scannetpp
-    # - hiroom
+    - eth3d
+    - 7scenes
+    - scannetpp
+    - hiroom
     - dtu
     - dtu64
 
@@ -146,8 +154,8 @@ eval:
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
   # max_frames: 100
-  # max_frames: 50
-  max_frames: 30
+  max_frames: 50
+  # max_frames: 30
   # max_frames: 15
   # max_frames: 10
   # max_frames: 3

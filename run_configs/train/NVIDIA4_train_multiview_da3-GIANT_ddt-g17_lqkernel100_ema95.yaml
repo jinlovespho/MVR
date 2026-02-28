@@ -93,8 +93,8 @@ training:
   ckpt_step_interval: 1000   # 1k
 
   vis:
-    train_depth_every: 500   # 1k
-    val_depth_every: 500
+    train_depth_every: 1000   # 1k
+    val_depth_every: 1000
 
 
   clip_grad: 1.0
@@ -140,7 +140,9 @@ log:
       # msg: 'lqkernel100__ema95__hyp1tar1'
 
       # 260227
+      # msg: 'lqkernel100__ema95__hyp1tar1__cam-tkn-weight1'
       msg: 'lqkernel100__ema95__hyp1tar1__cam-tkn-weight100'
+      
 
 
 
@@ -213,4 +215,6 @@ mvrm:
     camera_pose:
       use: true 
       lambda_coeff: 1.0
+
+    # cam_tkn_weight: 1.0
     cam_tkn_weight: 100.0

@@ -318,16 +318,22 @@ class DepthAnything3Net(nn.Module):
         aux_features = Dict()
         assert len(feats) == len(feat_layers)
         for feat, feat_layer in zip(feats, feat_layers):
-            # Reshape features to spatial dimensions
-            feat_reshaped = feat.reshape(
-                [
-                    feat.shape[0],
-                    feat.shape[1],
-                    H // self.PATCH_SIZE,
-                    W // self.PATCH_SIZE,
-                    feat.shape[-1],
-                ]
-            )
+            
+            # # Reshape features to spatial dimensions
+            # feat_reshaped = feat.reshape(
+            #     [
+            #         feat.shape[0],
+            #         feat.shape[1],
+            #         H // self.PATCH_SIZE,
+            #         W // self.PATCH_SIZE,
+            #         feat.shape[-1],
+            #     ]
+            # )
+            # aux_features[f"feat_layer_{feat_layer}"] = feat_reshaped
+
+
+            # PHO
+            feat_reshaped = feat
             aux_features[f"feat_layer_{feat_layer}"] = feat_reshaped
 
         return aux_features

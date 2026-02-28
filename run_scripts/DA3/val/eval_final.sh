@@ -6,7 +6,7 @@
 #     inference.debug=true \
 
 # Full evaluation (inference + evaluation + print results)
-CUDA_VISIBLE_DEVICES=4 python -m depth_anything_3.bench.evaluator --config run_configs/DA3/val/eval_final.yaml
+CUDA_VISIBLE_DEVICES=7 python -m depth_anything_3.bench.evaluator --config run_configs/DA3/val/eval_final.yaml
 
 
 # # Skip inference, only evaluate existing predictions

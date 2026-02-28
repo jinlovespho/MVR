@@ -149,6 +149,7 @@ class SevenScenes(Dataset):
         ], dtype=np.float32)
 
         out = Dict({
+            'gt_image_files':[],
             "image_files": [],
             "extrinsics": [],
             "intrinsics": [],
@@ -164,16 +165,27 @@ class SevenScenes(Dataset):
             ext = glob.glob(os.path.join(deg_folder, '*color*'))[0]
             _, ext = os.path.splitext(ext)            
             img_path = os.path.join(deg_folder, f"frame-{i:06d}.color{ext}")
+            
+            gt_image_path = os.path.join(data_folder, f"frame-{i:06d}.color.png")
+            
+            
             pose_path = os.path.join(data_folder, f"frame-{i:06d}.pose.txt")
             depth_path = os.path.join(data_folder,  f"frame-{i:06d}.depth.png")
+            
 
             if not os.path.exists(img_path) or not os.path.exists(pose_path):
                 continue
+
+
+            if not os.path.exists(gt_image_path) or not os.path.exists(pose_path):
+                continue
+
 
             # Load camera-to-world pose and convert to world-to-camera (extrinsic)
             c2w = np.loadtxt(pose_path)
             ext = np.linalg.inv(c2w).astype(np.float32)
 
+            out.gt_image_files.append(gt_image_path)
             out.image_files.append(img_path)
             out.extrinsics.append(ext)
             out.intrinsics.append(ixt.copy())
