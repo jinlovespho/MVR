@@ -119,6 +119,27 @@ bash run_scripts/train/JIHYE2_run_train_multiview_da3-GIANT_ddt_g17_lqkernel200_
 
 ---
 
+### 2. Training config yaml file
+- For [lqkernel50](run_configs/train/JIHYE_train_multiview_da3_ddt-g17_kernel50.yaml)
+- For [lqkernel100](run_configs/train/JIHYE_train_multiview_da3_ddt-g17_kernel100.yaml)
+
+
+# 🔥 Training (260301)
+
+### 1. Training bash script ()
+```bash
+# feature extraction layer: g17 (lqkernel200)
+bash run_scripts/train/JIHYE3_run_train_multiview_da3-GIANT_ddt_g17_lqkernel200_maxview8.sh
+# feature extraction layer: g31 (lqkernel200)
+bash bash run_scripts/train/JIHYE3_run_train_multiview_da3-GIANT_ddt_g31_lqkernel200_maxview8.sh 
+
+```
+
+### 2. Training config yaml file
+- For [g17](run_configs/train/JIHYE3_train_multiview_da3-GIANT_ddt-g17_lqkernel200_maxview8.yaml)
+- For [g31](run_configs/train/JIHYE3_train_multiview_da3-GIANT_ddt-g31_lqkernel200_maxview8.yaml)
+---
+
 
 <!-- # 🚀 Inference Demo
 ### Demo Script 
