@@ -10,65 +10,65 @@
 # MVRM Configuration
 # ==============================================================================
 MVRM_EVAL:
-  # [wo_mvrm, w_mvrm, mvrm_up]
-  eval_method: wo_mvrm
-  load_hq: false
+  # [wo_mvrm_HQ, wo_mvrm_LQ, wo_mvrm_IR, w_mvrm]
+  eval_method: wo_mvrm_LQ
+  load_lq: true
+  load_res: false
+
 
 # ==============================================================================
 # Denoiser Configuration
 # ==============================================================================
 denoiser:
-  model: DiTwDDTHeadMVRM_Multiview
-  target: RAE.src.stage2.models.DDT_MVRM_multiview.DiTwDDTHeadMVRM_Multiview
+  model: 
+  target: 
   params:
     input_size: 
-    patch_size: 1
-    in_channels: 1536
-    hidden_size: [1536, 3072]
-    depth: [28, 2]
-    num_heads: [16, 16]
-    mlp_ratio: 4.0
+    patch_size:
+    in_channels: 
+    hidden_size: 
+    depth: 
+    num_heads:
+    mlp_ratio: 
     class_dropout_prob:
     num_classes: 
-    use_qknorm: true 
-    use_swiglu: true
-    use_rope: true
-    use_rmsnorm: true
-    wo_shift: false
-    use_pos_embed: true
+    use_qknorm: 
+    use_swiglu: 
+    use_rope: 
+    use_rmsnorm:
+    wo_shift: 
+    use_pos_embed: 
+    use_global_residual:
   ckpt: 
-
 mvrm:
-  lq_latent_cond: addition    # [addition, concat]
+  lq_latent_cond: 
   train:
-    # DPT Head input feats = [19, 27, 33, 39]
-    extract_feat_layers: [17]
-    concat_feat: False
-    break_and_return_feat: true
+    extract_feat_layers: 
+    concat_feat: 
+    break_and_return_feat: 
   val:
-    restore_feat_layers: [17]
-    concat_feat: False 
-    skip_and_input_feat: true
-
+    restore_feat_layers: 
+    concat_feat: 
+    skip_and_input_feat: 
 transport:
   params:
-    path_type: 'Linear'
-    prediction: 'velocity'
-    loss_weight: null
-    time_dist_type: 'logit-normal_0_1'
+    path_type: 
+    prediction: 
+    loss_weight: 
+    time_dist_type: 
 sampler:
-  mode: ODE
+  mode: 
   params:
-    sampling_method: 'euler'
-    num_steps: 50
-    atol: 1.0e-6
-    rtol: 1.0e-3
-    reverse: false
+    sampling_method: 
+    num_steps: 
+    atol: 
+    rtol:
+    reverse: 
 misc:
   latent_size: 
   num_classes: 
-  time_dist_shift_dim: 1492992  # 1536*27*36
-  time_dist_shift_base: 4096
+  time_dist_shift_dim: 
+  time_dist_shift_base: 
 
 # ==============================================================================
 # Model Configuration
@@ -83,18 +83,20 @@ model:
 workspace:
   # Working directory for outputs (model results, metrics, etc.)
 
-  # FINAL - vrt (maxview100)
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/restored_vrt/filtered_cam_blur_50/eval_full_100
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/restored_vrt/filtered_cam_blur_100/eval_full_100
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/restored_vrt/filtered_cam_blur_300/eval_full_100
 
-  # FINAL - vrt (maxview50)
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/restored_vrt/filtered_cam_blur_50/eval_full_50
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/restored_vrt/filtered_cam_blur_100/eval_full_50
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/restored_vrt/filtered_cam_blur_300/eval_full_50
+  ## WO_MVRM - BASELINE - MAXVIEW10
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINAL/da3_giant/wo_mvrm_LQ/filtered_cam_blur_50/eval_full_10_saddle
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINAL/da3_giant/wo_mvrm_LQ/filtered_cam_blur_100/eval_full_10_saddle
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINAL/da3_giant/wo_mvrm_LQ/filtered_cam_blur_300/eval_full_10_saddle
 
 
+  ## WO_MVRM - BASELINE - MAXVIEW50
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINAL/da3_giant/wo_mvrm_LQ/filtered_cam_blur_50/eval_full_50_saddle
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINAL/da3_giant/wo_mvrm_LQ/filtered_cam_blur_100/eval_full_50_saddle
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINAL/da3_giant/wo_mvrm_LQ/filtered_cam_blur_300/eval_full_50_saddle
 
+
+  
 
 # ==============================================================================
 # Evaluation Configuration
@@ -119,7 +121,8 @@ eval:
 
   # Reference view selection strategy for inference
   # Options: first, saddle_balanced, auto, mid
-  ref_view_strategy: "first"
+  # ref_view_strategy: "first"
+  ref_view_strategy: "saddle_balanced"
 
   # Specific scenes to evaluate (null = all scenes)
   # Example: [courtyard, relief] for eth3d
@@ -129,12 +132,13 @@ eval:
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
   # max_frames: 100
-  max_frames: 50
-  # max_frames: 10
-  # max_frames: 3
+  # max_frames: 50
+  max_frames: 10
+  # max_frames: 5
   # max_frames: 1
 
   # Only run evaluation (skip inference)
+  # eval_only: true
   eval_only: false
 
   # Only print saved metrics (skip inference and evaluation)
@@ -145,7 +149,7 @@ eval:
 # ==============================================================================
 inference:
   # Number of parallel workers for TSDF fusion
-  num_fusion_workers: 4
+  num_fusion_workers: 2
 
   # Enable debug mode with verbose output
   # debug: false

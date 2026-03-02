@@ -227,7 +227,6 @@ class Evaluator:
             scene_data = dataset.get_data(scene)
             scene_data = self._sample_frames(scene_data, scene)
             
-            
             # for img_path in scene_data.image_files:
             #     new_path = img_path.replace("/clean/", "/filtered_clean/")
             #     # new_path = img_path.replace("/cam_blur_50/", "/filtered_cam_blur_50/")
@@ -238,13 +237,12 @@ class Evaluator:
             #     # Copy image
             #     shutil.copy2(img_path, new_path)  # copy2 preserves metadata
 
-
             if need_unposed:    # t
                 export_dir = self._export_dir(data, scene, posed=False)
                 api.inference(
                     scene_data,
-                    export_dir=export_dir,
-                    export_format=export_format,
+                    export_dir=export_dir,             
+                    export_format=export_format,                # export_format: 'mini_npz-glb'
                     ref_view_strategy=self.ref_view_strategy,
                     eval_sampler=self.eval_sampler,
                     denoiser=self.denoiser,
@@ -253,6 +251,7 @@ class Evaluator:
                     scene_info = (data,scene),
                     use_pose=False
                 )
+                # breakpoint()
                 self._save_gt_meta(export_dir, scene_data)
 
             if need_posed:
@@ -340,8 +339,8 @@ class Evaluator:
             scenes = self._get_scenes(dataset)
 
             for scene in tqdm(scenes, desc=f"{data} scenes", leave=False):
-                export_dir = self._export_dir(data, scene, posed=False)
-                result_path = os.path.join(export_dir, "exports", "mini_npz", "results.npz")
+                export_dir = self._export_dir(data, scene, posed=False)                             # model predictions
+                result_path = os.path.join(export_dir, "exports", "mini_npz", "results.npz")        # model predictions
                 
                 # Check if result file exists and is valid
                 if not os.path.exists(result_path):
@@ -352,7 +351,7 @@ class Evaluator:
                 
                 try:
                     # Use saved GT meta (handles frame sampling correctly)
-                    gt_meta = self._load_gt_meta(export_dir)
+                    gt_meta = self._load_gt_meta(export_dir)                            # get gt_meta used for evaluation (handles frame sampling)
                     if gt_meta is not None:
                         result = self._compute_pose_with_gt(result_path, gt_meta)
                     else:
@@ -422,6 +421,7 @@ class Evaluator:
                 sequential=use_sequential,
             )
 
+            # breakpoint()
             # Sequential evaluation (fast, no need to parallelize)
             for scene, fuse_path in zip(scene_list, fuse_paths):
                 # DTU supports CPU-based evaluation
@@ -513,7 +513,10 @@ class Evaluator:
         if self.max_frames <= 0:
             return scene_data
 
-        num_frames = len(scene_data.image_files)
+        # num_frames = len(scene_data.image_files)
+        
+        # PHO
+        num_frames = len(scene_data.lq_image_files)
         if num_frames <= self.max_frames:
             return scene_data
 
@@ -527,7 +530,12 @@ class Evaluator:
 
         # Create new scene_data with sampled frames
         sampled = Dict()
-        sampled.gt_image_files = [scene_data.gt_image_files[i] for i in sampled_indices]
+        
+        
+        # PHO
+        sampled.lq_image_files = [scene_data.lq_image_files[i] for i in sampled_indices]
+        sampled.res_image_files = [scene_data.res_image_files[i] for i in sampled_indices]
+            
         sampled.image_files = [scene_data.image_files[i] for i in sampled_indices]
         sampled.extrinsics = scene_data.extrinsics[sampled_indices]
         sampled.intrinsics = scene_data.intrinsics[sampled_indices]

@@ -42,13 +42,11 @@ from depth_anything_3.bench.utils import (
     sample_points_from_mesh,
 )
 from depth_anything_3.utils.constants import (
-    
-    # PHO
-    DA3_LQ_ROOT_PATH,
-    DA3_RES_ROOT_PATH,
-    
+    DA3_CLEAN_ROOT_PATH,
+    DA3_DEG_ROOT_PATH,
+    DA3_RES_LQ_ROOT_PATH,
     SCANNETPP_DOWN_SAMPLE,
-    SCANNETPP_EVAL_DATA_ROOT,
+    # SCANNETPP_EVAL_DATA_ROOT,
     SCANNETPP_EVAL_THRESHOLD,
     SCANNETPP_INPUT_H,
     SCANNETPP_INPUT_W,
@@ -84,11 +82,14 @@ class ScanNetPP(Dataset):
         │       └── mesh_aligned_0.05.ply       # Ground truth mesh
     """
 
-    # PHO
-    da3_lq_root = os.path.join(DA3_LQ_ROOT_PATH, 'scannetpp')
-    da3_res_root = os.path.join(DA3_RES_ROOT_PATH, 'scannetpp')
 
-    data_root = SCANNETPP_EVAL_DATA_ROOT
+    # pho
+    da3_clean_root_path = DA3_CLEAN_ROOT_PATH
+    da3_deg_root_path = DA3_DEG_ROOT_PATH
+    da3_res_lq_root_path = DA3_RES_LQ_ROOT_PATH
+    
+    
+    # data_root = SCANNETPP_EVAL_DATA_ROOT
     SCENES = SCANNETPP_SCENES
 
     # Input resolution after undistortion and resize
@@ -102,7 +103,7 @@ class ScanNetPP(Dataset):
     sdf_trunc = SCANNETPP_SDF_TRUNC
     eval_threshold = SCANNETPP_EVAL_THRESHOLD
     down_sample = SCANNETPP_DOWN_SAMPLE
-
+    
     def __init__(self):
         super().__init__()
         self._scene_cache = {}
@@ -130,14 +131,12 @@ class ScanNetPP(Dataset):
         if scene in self._scene_cache:
             return self._scene_cache[scene]
 
-        input_path = os.path.join(self.data_root, scene, "merge_dslr_iphone")
+        input_path = os.path.join(self.da3_clean_root_path, 'scannetpp', scene, "merge_dslr_iphone")
+        deg_path = os.path.join(self.da3_deg_root_path, 'scannetpp', scene, "merge_dslr_iphone")
         colmap_path = os.path.join(input_path, "colmap/sparse_render_rgb")
-        image_path = os.path.join(input_path, "images")
+        gt_image_path = os.path.join(input_path, "images") 
+        image_path = os.path.join(deg_path, "images")
         depth_path_dir = os.path.join(input_path, "render_depth")
-        
-        # PHO
-        lq_image_path = os.path.join(self.da3_lq_root, scene, "merge_dslr_iphone", "images")
-        res_image_path = os.path.join(self.da3_res_root, scene, "merge_dslr_iphone", "images")
 
         # Read COLMAP model
         cams, images, points3d = read_model(colmap_path)
@@ -153,11 +152,7 @@ class ScanNetPP(Dataset):
         )
 
         out = Dict({
-
-            # PHO
-            "lq_image_files": [],
-            "res_image_files": [],
-            
+            "gt_image_files": [],
             "image_files": [],
             "extrinsics": [],
             "intrinsics": [],
@@ -172,11 +167,26 @@ class ScanNetPP(Dataset):
         })
 
         for name in names:
-            image = images[name2id[name]]
-            img_path = os.path.join(image_path, name)
-            if not os.path.exists(img_path):
-                continue
             
+            image = images[name2id[name]]
+            gt_img_path = os.path.join(gt_image_path, name)
+            img_path = os.path.join(image_path, name)
+            
+            ext = os.path.splitext(img_path)[-1]
+
+            if os.path.exists(img_path):
+                pass 
+            elif os.path.exists(img_path.replace(ext, '.png')):
+                img_path = img_path.replace(ext, '.png')
+
+            elif os.path.exists(img_path.replace(ext, '.JPG')):
+                img_path = img_path.replace(ext, '.JPG')                
+            else:
+                continue
+
+            if not os.path.exists(gt_img_path):
+                continue
+
             # Build extrinsics (world-to-camera)
             ext = np.eye(4, dtype=np.float32)
             ext[:3, :3] = image.qvec2rotmat()
@@ -206,6 +216,7 @@ class ScanNetPP(Dataset):
             frame_name = os.path.basename(name)[:-4]  # Remove .jpg
             depth_file = os.path.join(depth_path_dir, f"{frame_name}.png")
 
+            out.gt_image_files.append(gt_img_path)
             out.image_files.append(img_path)
             out.extrinsics.append(ext)
             out.intrinsics.append(ixt)
@@ -214,20 +225,6 @@ class ScanNetPP(Dataset):
             out.aux.cam_hw_list.append((cam_height, cam_width))
             out.aux.ixt_raw_list.append(ixt_raw)
             out.aux.gt_depth_files.append(depth_file)
-            
-            
-            # PHO (LQ)
-            lq_img_path = os.path.join(lq_image_path, name)
-            if not os.path.exists(lq_img_path):
-                continue
-            out.lq_image_files.append(lq_img_path)
-            
-            # PHO (RES)
-            res_img_path = os.path.join(res_image_path, name.replace('.jpg', '.png'))
-            if not os.path.exists(lq_img_path):
-                continue
-            out.res_image_files.append(res_img_path)
-            
 
         out.extrinsics = np.asarray(out.extrinsics, dtype=np.float32)
         out.intrinsics = np.asarray(out.intrinsics, dtype=np.float32)
@@ -589,6 +586,8 @@ class ScanNetPP(Dataset):
             Boolean mask where True = valid region to keep
         """
         if not os.path.exists(gt_depth_path):
+            # PHO
+            raise Exception
             return None
 
         gt_depth = imageio.imread(gt_depth_path) / 1000.0  # mm to meters
@@ -619,3 +618,4 @@ class ScanNetPP(Dataset):
             depth[invalid_mask] = 0.0
 
         return depth
+

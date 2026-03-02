@@ -44,8 +44,6 @@ from mvr.utils.featsim_utils import *
 from mvr.utils.metric_utils import *
 from RAE.src.utils.vis_utils import vis_all
 
-from RAE.src.vis_cam_pose import plot_cam_trajectory
-
 
 torch.backends.cudnn.benchmark = False
 # logger.info("CUDNN Benchmark Disabled")
@@ -220,23 +218,14 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             assert isinstance(image.image_files[0], str), "`image` must be image paths for COLMAP export."
 
 
-        # PHO
-        if 'lq_image_files' in image.keys() and cfg.MVRM_EVAL.load_lq:
-            lq_imgs_cpu, _, _ = self._preprocess_inputs(
-                image.lq_image_files, None, None, process_res, process_res_method
+        if 'gt_image_files' in image.keys() and cfg.MVRM_EVAL.load_hq:
+            gt_imgs_cpu, _, _ = self._preprocess_inputs(
+                image.gt_image_files, None, None, process_res, process_res_method
             )
-            lq_imgs, _, _ = self._prepare_model_inputs(lq_imgs_cpu, None, None)
-
-
-        # PHO
-        if 'res_image_files' in image.keys() and cfg.MVRM_EVAL.load_res:
-            res_imgs_cpu, _, _ = self._preprocess_inputs(
-                image.res_image_files, None, None, process_res, process_res_method
-            )
-            res_imgs, _, _ = self._prepare_model_inputs(res_imgs_cpu, None, None)
+            gt_imgs, _, _ = self._prepare_model_inputs(gt_imgs_cpu, None, None)
             
         
-        # Preprocess hq images
+        # Preprocess images
         imgs_cpu, extrinsics, intrinsics = self._preprocess_inputs(
             image.image_files, extrinsics, intrinsics, process_res, process_res_method
         )
@@ -255,16 +244,18 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
 
 
         # Apply MVRM restoration
-        if cfg.MVRM_EVAL.eval_method == 'w_mvrm':       
-            print('-'*70)      
+        if cfg.MVRM_EVAL.eval_method == 'w_mvrm':             
             print('APPLYING MVRM O')
-            print('-'*70)
             
+
             export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]
-            # (W_MVRM) HQ FORWARD PASS 
+            
+            
+
+            # HQ FORWARD PASS
             print("HQ FORWARD PASS")
             hq_encoder_out, hq_mvrm_out = self._run_model_forward(
-                                            imgs, 
+                                            gt_imgs, 
                                             ex_t_norm, 
                                             in_t, 
                                             export_feat_layers, 
@@ -280,10 +271,12 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             hq_latent = hq_mvrm_out['extract_feat']         # b v 973 3072
             hq_depth = hq_encoder_out.depth.unsqueeze(2)    # 1 v 1 h w
             
-            # (W_MVRM) LQ FORWARD PASS
+            
+
+            # LQ FORWARD PASS
             print("LQ FORWARD PASS")
             lq_encoder_out, lq_mvrm_out = self._run_model_forward(
-                                            lq_imgs, 
+                                            imgs, 
                                             ex_t_norm, 
                                             in_t, 
                                             export_feat_layers, 
@@ -298,6 +291,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             lq_pred_pose = lq_encoder_out['extrinsics']     # 1 v 3 4
             lq_latent = lq_mvrm_out['extract_feat']         # b v n+1 d
             lq_depth = lq_encoder_out.depth.unsqueeze(2)     # 1 v 1 h w
+
+
 
             # generate pure noise
             noise_generator.manual_seed(42)
@@ -314,14 +309,16 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             with torch.no_grad():
                 with torch.autocast(device_type=imgs.device.type, dtype=autocast_dtype):                
                     restored_samples = eval_sampler(xt, denoiser.forward, **model_kwargs)[-1]     # b v n d
+            
             mvrm_result={}
             mvrm_result['restored_latent'] = restored_samples
             # mvrm_result['restored_latent'] = hq_latent
             
-            # (W_MVRM) RES FORWARD PASS
+            
+            # RES FORWARD PASS
             print("RES FORWARD PASS")
             raw_output, _ = self._run_model_forward(
-                                            lq_imgs, 
+                                            imgs, 
                                             ex_t_norm, 
                                             in_t, 
                                             export_feat_layers, 
@@ -336,18 +333,22 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             res_pred_pose = raw_output['extrinsics']     # 1 v 3 4
             res_depth = raw_output.depth.unsqueeze(2)    # 1 v 1 h w
             
+            
             scene = scene.replace('/', '_') if '/' in scene else scene
+            
             
             vis_save_root = os.path.join(cfg.workspace.work_dir, 'pho_vis_results', data, pose_setting)
             vis_all(
                 vis_save_root=vis_save_root,
                 scene=scene,
-                hq_img=imgs[0],
-                lq_img=lq_imgs[0],
+                hq_img=gt_imgs[0],
+                lq_img=imgs[0],
                 hq_depth=hq_depth[0],
                 lq_depth=lq_depth[0],
                 res_depth=res_depth[0],
             )
+            
+            
             metric_save_root = os.path.join(cfg.workspace.work_dir, 'pho_metric_results', data, pose_setting)
             metric_all(
                 metric_save_root=metric_save_root,
@@ -355,251 +356,39 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                 poses = (hq_pred_pose[0], lq_pred_pose[0],res_pred_pose[0]),
                 depths = (hq_depth, lq_depth, res_depth)
             )
-            featsim_log = featsim_all(hq_encoder_out, lq_encoder_out, raw_output)
+            
+            
+            featsim_log = featsim_all(
+                hq_encoder_out, 
+                lq_encoder_out, 
+                raw_output
+            )
+
+
             featsim_save_root = os.path.join(cfg.workspace.work_dir, 'pho_featsim_results', data, pose_setting)
             plot_three_similarity_panels(
                 featsim_log,
                 save_path=f"{featsim_save_root}/{scene}_sim_all_combined.png"
             )
-            cam_save_root = os.path.join(cfg.workspace.work_dir, 'pho_cam_traj_results', data, pose_setting)
-            plot_cam_trajectory(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/{scene}.png")
-     
-            
-            
             
 
-        elif cfg.MVRM_EVAL.eval_method == 'wo_mvrm_IR':             
-            print('-'*70)
-            print('WO_MVRM_IR')
-            print('-'*70)
-            
-            export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]
-            
-            # (WO_MVRM_IR) HQ FORWARD PASS
-            print("HQ FORWARD PASS")
-            hq_encoder_out, _ = self._run_model_forward(
-                                            imgs, 
-                                            ex_t_norm, 
-                                            in_t, 
-                                            export_feat_layers, 
-                                            infer_gs, 
-                                            use_ray_pose, 
-                                            ref_view_strategy, 
-                                            mvrm_cfg=None, 
-                                            mvrm_result=None, 
-                                            mode=None
-                                        )
-            hq_pred_pose = hq_encoder_out['extrinsics']     # 1 v 3 4
-            hq_depth = hq_encoder_out.depth.unsqueeze(2)    # 1 v 1 h w
-            
-            # (WO_MVRM_IR) LQ FORWARD PASS
-            print("LQ FORWARD PASS")
-            lq_encoder_out, _ = self._run_model_forward(
-                                            lq_imgs, 
-                                            ex_t_norm, 
-                                            in_t, 
-                                            export_feat_layers, 
-                                            infer_gs, 
-                                            use_ray_pose, 
-                                            ref_view_strategy, 
-                                            mvrm_cfg=None, 
-                                            mvrm_result=None, 
-                                            mode=None
-                                        )
-            lq_pred_pose = lq_encoder_out['extrinsics']     # 1 v 3 4
-            lq_depth = lq_encoder_out.depth.unsqueeze(2)     # 1 v 1 h w
-
-            # (WO_MVRM_IR) IR IMG FORWARD PASS
-            print("IR IMG FORWARD PASS")
+        elif cfg.MVRM_EVAL.eval_method == 'wo_mvrm':             
+            print('APPLYING MVRM X')
+            # imgs: b v 3 h w 
             raw_output, _ = self._run_model_forward(
-                                            res_imgs, 
-                                            ex_t_norm, 
-                                            in_t, 
-                                            export_feat_layers, 
-                                            infer_gs, 
-                                            use_ray_pose, 
-                                            ref_view_strategy, 
-                                            mvrm_cfg=None, 
-                                            mvrm_result=None, 
-                                            mode=None
-                                        )
-            res_pred_pose = raw_output['extrinsics']     # 1 v 3 4
-            res_depth = raw_output.depth.unsqueeze(2)    # 1 v 1 h w
-            
-            scene = scene.replace('/', '_') if '/' in scene else scene
-            
-            vis_save_root = os.path.join(cfg.workspace.work_dir, 'pho_vis_results', data, pose_setting)
-            vis_all(
-                vis_save_root=vis_save_root,
-                scene=scene,
-                hq_img=imgs[0],
-                lq_img=res_imgs[0],
-                hq_depth=hq_depth[0],
-                lq_depth=lq_depth[0],
-                res_depth=res_depth[0],
+                imgs, ex_t_norm, in_t, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg=None, mvrm_result=None, mode=None
             )
-            metric_save_root = os.path.join(cfg.workspace.work_dir, 'pho_metric_results', data, pose_setting)
-            metric_all(
-                metric_save_root=metric_save_root,
-                scene=scene,
-                poses = (hq_pred_pose[0], lq_pred_pose[0],res_pred_pose[0]),
-                depths = (hq_depth, lq_depth, res_depth)
+        
+        elif cfg.MVRM_EVAL.eval_method == 'layer_analysis':       
+            print('LAYER ANALYSIS O')
+            raw_output, mvrm_out = self._run_model_forward(
+                imgs, ex_t_norm, in_t, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg=cfg.mvrm.train, mvrm_result=None, mode='train'
             )
-            featsim_log = featsim_all(hq_encoder_out, lq_encoder_out, raw_output)
-            featsim_save_root = os.path.join(cfg.workspace.work_dir, 'pho_featsim_results', data, pose_setting)
-            plot_three_similarity_panels(
-                featsim_log,
-                save_path=f"{featsim_save_root}/{scene}_sim_all_combined.png"
-            )
-            cam_save_root = os.path.join(cfg.workspace.work_dir, 'pho_cam_traj_results', data, pose_setting)
-            plot_cam_trajectory(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/{scene}.png")
-     
+            latent = mvrm_out['extract_feat']      # b v 973 3072
 
-
-
-            
-        elif cfg.MVRM_EVAL.eval_method == 'wo_mvrm_LQ':       
-            print('-'*70)
-            print('WO_MVRM_LQ')
-            print('-'*70)
-
-            export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]
-            
-            # (WO_MVRM_LQ) HQ FORWARD PASS
-            print("HQ FORWARD PASS")
-            hq_encoder_out, _ = self._run_model_forward(
-                                            imgs, 
-                                            ex_t_norm, 
-                                            in_t, 
-                                            export_feat_layers, 
-                                            infer_gs, 
-                                            use_ray_pose, 
-                                            ref_view_strategy, 
-                                            mvrm_cfg=None, 
-                                            mvrm_result=None, 
-                                            mode=None
-                                        )
-            hq_pred_pose = hq_encoder_out['extrinsics']     # 1 v 3 4
-            hq_depth = hq_encoder_out.depth.unsqueeze(2)    # 1 v 1 h w
-            
-            # (WO_MVRM_LQ) LQ FORWARD PASS
-            print("LQ FORWARD PASS")
-            raw_output, _ = self._run_model_forward(
-                                            lq_imgs, 
-                                            ex_t_norm, 
-                                            in_t, 
-                                            export_feat_layers, 
-                                            infer_gs, 
-                                            use_ray_pose, 
-                                            ref_view_strategy, 
-                                            mvrm_cfg=None, 
-                                            mvrm_result=None, 
-                                            mode=None
-                                        )
-            res_pred_pose = raw_output['extrinsics']     # 1 v 3 4
-            res_depth = raw_output.depth.unsqueeze(2)    # 1 v 1 h w
-            
-            # same for lq
-            lq_encoder_out=raw_output
-            lq_pred_pose = res_pred_pose
-            lq_depth = res_depth
-            
-            scene = scene.replace('/', '_') if '/' in scene else scene
-            
-            vis_save_root = os.path.join(cfg.workspace.work_dir, 'pho_vis_results', data, pose_setting)
-            vis_all(
-                vis_save_root=vis_save_root,
-                scene=scene,
-                hq_img=imgs[0],
-                lq_img=lq_imgs[0],
-                hq_depth=hq_depth[0],
-                lq_depth=lq_depth[0],
-                res_depth=res_depth[0],
-            )
-            metric_save_root = os.path.join(cfg.workspace.work_dir, 'pho_metric_results', data, pose_setting)
-            metric_all(
-                metric_save_root=metric_save_root,
-                scene=scene,
-                poses = (hq_pred_pose[0], lq_pred_pose[0],res_pred_pose[0]),
-                depths = (hq_depth, lq_depth, res_depth)
-            )
-            featsim_log = featsim_all(hq_encoder_out, lq_encoder_out, raw_output)
-            featsim_save_root = os.path.join(cfg.workspace.work_dir, 'pho_featsim_results', data, pose_setting)
-            plot_three_similarity_panels(
-                featsim_log,
-                save_path=f"{featsim_save_root}/{scene}_sim_all_combined.png"
-            )
-            cam_save_root = os.path.join(cfg.workspace.work_dir, 'pho_cam_traj_results', data, pose_setting)
-            plot_cam_trajectory(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/{scene}.png")
-     
-
-
-
-
-        elif cfg.MVRM_EVAL.eval_method == 'wo_mvrm_HQ':       
-            print('-'*70)
-            print('WO_MVRM_HQ')
-            print('-'*70)
-
-            export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]
-            
-            # (WO_MVRM_HQ) HQ FORWARD PASS
-            print("HQ FORWARD PASS")
-            raw_output, _ = self._run_model_forward(
-                                            imgs, 
-                                            ex_t_norm, 
-                                            in_t, 
-                                            export_feat_layers, 
-                                            infer_gs, 
-                                            use_ray_pose, 
-                                            ref_view_strategy, 
-                                            mvrm_cfg=None, 
-                                            mvrm_result=None, 
-                                            mode=None
-                                        )
-            hq_encoder_out = raw_output
-            hq_pred_pose = raw_output['extrinsics']     # 1 v 3 4
-            hq_depth = raw_output.depth.unsqueeze(2)    # 1 v 1 h w
-            
-            lq_imgs = imgs
-            lq_encoder_out = raw_output
-            lq_pred_pose = hq_pred_pose
-            lq_depth = hq_depth
-            
-            res_pred_pose = hq_pred_pose
-            res_depth = hq_depth            
-            
-            scene = scene.replace('/', '_') if '/' in scene else scene
-            
-            vis_save_root = os.path.join(cfg.workspace.work_dir, 'pho_vis_results', data, pose_setting)
-            vis_all(
-                vis_save_root=vis_save_root,
-                scene=scene,
-                hq_img=imgs[0],
-                lq_img=lq_imgs[0],
-                hq_depth=hq_depth[0],
-                lq_depth=lq_depth[0],
-                res_depth=res_depth[0],
-            )
-            metric_save_root = os.path.join(cfg.workspace.work_dir, 'pho_metric_results', data, pose_setting)
-            metric_all(
-                metric_save_root=metric_save_root,
-                scene=scene,
-                poses = (hq_pred_pose[0], lq_pred_pose[0],res_pred_pose[0]),
-                depths = (hq_depth, lq_depth, res_depth)
-            )
-            featsim_log = featsim_all(hq_encoder_out, lq_encoder_out, raw_output)
-            featsim_save_root = os.path.join(cfg.workspace.work_dir, 'pho_featsim_results', data, pose_setting)
-            plot_three_similarity_panels(
-                featsim_log,
-                save_path=f"{featsim_save_root}/{scene}_sim_all_combined.png"
-            )
-            cam_save_root = os.path.join(cfg.workspace.work_dir, 'pho_cam_traj_results', data, pose_setting)
-            plot_cam_trajectory(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/{scene}.png")
-     
-            
-            
-            
+        
+        # breakpoint()
+        
         # Convert raw output to prediction
         prediction = self._convert_to_prediction(raw_output)
 

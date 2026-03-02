@@ -221,6 +221,8 @@ def fuse_depth_to_tsdf(
     Returns:
         Extracted triangle mesh
     """
+    
+    # breakpoint()
     for i in range(len(depths)):
         depth = depths[i]
         image = images[i]

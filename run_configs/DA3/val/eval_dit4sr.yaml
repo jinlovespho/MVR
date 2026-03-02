@@ -12,6 +12,8 @@
 MVRM_EVAL:
   # [wo_mvrm, w_mvrm, mvrm_up]
   eval_method: wo_mvrm
+  load_hq: false
+
 
 
 # ==============================================================================
@@ -83,10 +85,16 @@ model:
 workspace:
   # Working directory for outputs (model results, metrics, etc.)
 
-  # FINAL - dit4sr
+  # FINAL - dit4sr (maxview100)
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/restored_dit4sr/filtered_cam_blur_50/eval_full_100
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/restored_dit4sr/filtered_cam_blur_100/eval_full_100
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/restored_dit4sr/filtered_cam_blur_300/eval_full_100
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/restored_dit4sr/filtered_cam_blur_300/eval_full_100
+
+
+  # FINAL - dit4sr (maxview50)
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/restored_dit4sr/filtered_cam_blur_50/eval_full_50
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/restored_dit4sr/filtered_cam_blur_100/eval_full_50
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/restored_dit4sr/filtered_cam_blur_300/eval_full_50
 
 
 
@@ -99,11 +107,11 @@ eval:
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
     - eth3d
-    # - 7scenes
+    - 7scenes
     - scannetpp
-    # - hiroom
-    # - dtu
-    # - dtu64
+    - hiroom
+    - dtu
+    - dtu64
 
   # Evaluation modes
   # Options: pose, recon_unposed, recon_posed, view_syn
@@ -123,8 +131,8 @@ eval:
   # Maximum number of frames per scene (for sampling)
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
-  max_frames: 100
-  # max_frames: 50
+  # max_frames: 100
+  max_frames: 50
   # max_frames: 10
   # max_frames: 3
   # max_frames: 1

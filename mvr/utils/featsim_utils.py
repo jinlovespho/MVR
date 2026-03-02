@@ -211,8 +211,8 @@ def plot_three_similarity_panels(
         sharey=True
     )
 
-    color_lq  = "#1f77b4"
-    color_res = "#d62728"
+    color_lq  = "#d62728"
+    color_res =  "#1f77b4"
 
     line_width = 2.1   # thinner & prettier
     marker_size = 5  # slightly smaller markers
@@ -247,7 +247,7 @@ def plot_three_similarity_panels(
         linewidth=line_width,
         marker="o",
         markersize=marker_size,
-        label="HQ vs LQ"
+        label="LQ"
     )
 
     axes[0].plot(
@@ -257,7 +257,7 @@ def plot_three_similarity_panels(
         linewidth=line_width,
         marker="s",
         markersize=marker_size,
-        label="HQ vs Restored"
+        label="Restored"
     )
 
     axes[0].set_ylabel("Cosine Similarity")
@@ -274,7 +274,7 @@ def plot_three_similarity_panels(
         linewidth=line_width,
         marker="o",
         markersize=marker_size,
-        label="HQ vs LQ"
+        label="LQ"
     )
 
     axes[1].plot(
@@ -284,7 +284,7 @@ def plot_three_similarity_panels(
         linewidth=line_width,
         marker="s",
         markersize=marker_size,
-        label="HQ vs Restored"
+        label="Restored"
     )
 
     style_axis(axes[1], "Camera Token")
@@ -300,7 +300,7 @@ def plot_three_similarity_panels(
         linewidth=line_width,
         marker="o",
         markersize=marker_size,
-        label="HQ vs LQ"
+        label="LQ"
     )
 
     axes[2].plot(
@@ -310,7 +310,7 @@ def plot_three_similarity_panels(
         linewidth=line_width,
         marker="s",
         markersize=marker_size,
-        label="HQ vs Restored"
+        label="Restored"
     )
 
     style_axis(axes[2], "Patch Tokens")

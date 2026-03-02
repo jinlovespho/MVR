@@ -46,10 +46,11 @@ from depth_anything_3.bench.utils import (
     sample_points_from_mesh,
 )
 from depth_anything_3.utils.constants import (
-    DA3_LQ_ROOT_PATH,
-    DA3_RES_ROOT_PATH,
+    DA3_CLEAN_ROOT_PATH,
+    DA3_DEG_ROOT_PATH,
+    DA3_RES_LQ_ROOT_PATH,
     ETH3D_DOWN_SAMPLE,
-    ETH3D_EVAL_DATA_ROOT,
+    # ETH3D_EVAL_DATA_ROOT,
     ETH3D_EVAL_THRESHOLD,
     ETH3D_FILTER_KEYS,
     ETH3D_MAX_DEPTH,
@@ -82,12 +83,15 @@ class ETH3D(Dataset):
         │   ├── combined_mesh.ply          # Ground truth mesh
         │   └── ground_truth_depth/        # GT depth maps (optional)
     """
+    
+    
+    # pho
+    da3_clean_root_path = DA3_CLEAN_ROOT_PATH
+    da3_deg_root_path = DA3_DEG_ROOT_PATH
+    da3_res_lq_root_path = DA3_RES_LQ_ROOT_PATH
+    data_root = os.path.join(DA3_CLEAN_ROOT_PATH, 'eth3d')
 
-    # PHO
-    da3_lq_root = os.path.join(DA3_LQ_ROOT_PATH, 'eth3d')
-    da3_res_root = os.path.join(DA3_RES_ROOT_PATH, 'eth3d')
-
-    data_root = ETH3D_EVAL_DATA_ROOT
+    # data_root = ETH3D_EVAL_DATA_ROOT
     SCENES = ETH3D_SCENES
 
     # Evaluation hyperparameters from constants
@@ -199,12 +203,8 @@ class ETH3D(Dataset):
         if scene in self._scene_cache:
             return self._scene_cache[scene]
 
-
-        # PHO 
-        lq_scene_dir = os.path.join(self.da3_lq_root, scene)
-        res_scene_dir = os.path.join(self.da3_res_root, scene)
-
-        scene_dir = os.path.join(self.data_root, scene)
+        # scene_dir = os.path.join(self.data_root, scene)
+        scene_dir = os.path.join(self.da3_clean_root_path, 'eth3d', scene)
 
         # Parse camera files
         cameras_file = os.path.join(scene_dir, "dslr_calibration_jpg", "cameras.txt")
@@ -216,11 +216,8 @@ class ETH3D(Dataset):
         gt_mesh_path = os.path.join(scene_dir, "combined_mesh.ply")
 
         out = Dict({
-            
-            # PHO
-            "lq_image_files": [],
-            "res_image_files": [],
-            
+            'res_lq_image_files':[],
+            "gt_image_files": [],
             "image_files": [],
             "extrinsics": [],
             "intrinsics": [],
@@ -233,23 +230,42 @@ class ETH3D(Dataset):
 
         # Process each image (preserve original order from images.txt)
         filtered_count = 0
-        for image_name, pose_info in pose_dict.items():
+        for image_name, pose_info in pose_dict.items():            
+
+            orig_image_name = image_name 
+            
             # Filter problematic views
             if self._should_filter_image(scene, image_name):
                 filtered_count += 1
                 continue
-
             
-            image_path = os.path.join(scene_dir, "images", image_name)
+
+            # pho - check ext
+            ext = glob.glob(os.path.join(self.da3_deg_root_path, 'eth3d', scene, "images", "dslr_images", "*"))[0]
+            _, ext = os.path.splitext(ext)
+            if not image_name.endswith(ext):
+                image_name = image_name.rsplit('.', 1)[0] + ext
+            image_path = os.path.join(self.da3_deg_root_path, 'eth3d', scene, "images", image_name)
             if not os.path.exists(image_path):
                 continue
-            
 
+            # PHO
+            gt_image_path = os.path.join(self.da3_clean_root_path, 'eth3d', scene, "images", orig_image_name)
+            if not os.path.exists(gt_image_path):
+                continue
+            
+            # PHO
+            lq_base = os.path.splitext(orig_image_name)[0]
+            res_lq_image_path = os.path.join(self.da3_res_lq_root_path, 'eth3d', scene, "images", lq_base+'.jpg')
+            if not os.path.exists(res_lq_image_path):
+                continue
+            
+            
             cam_info = camera_dict.get(pose_info["camera_id"])
             if cam_info is None:
                 continue
 
-            # Build intrinsics matrix
+            # Build intrinsics matrix, shape:(3,3)
             ixt = np.array([
                 [cam_info["fx"], 0, cam_info["cx"]],
                 [0, cam_info["fy"], cam_info["cy"]],
@@ -258,31 +274,19 @@ class ETH3D(Dataset):
 
             # Build extrinsics matrix (world-to-camera)
             # COLMAP format: world point -> camera point
-            rot = quat2rotmat(pose_info["quat"])
+            rot = quat2rotmat(pose_info["quat"])    # (3,3)
             ext = np.eye(4, dtype=np.float32)
             ext[:3, :3] = rot
-            ext[:3, 3] = pose_info["trans"]
+            ext[:3, 3] = pose_info["trans"] # (4,4)
 
 
+            out.res_lq_image_files.append(res_lq_image_path)
+            out.gt_image_files.append(gt_image_path)
             out.image_files.append(image_path)
             out.extrinsics.append(ext)
             out.intrinsics.append(ixt)
             out.aux.heights.append(cam_info["height"])
             out.aux.widths.append(cam_info["width"])
-            
-            
-            # PHO (LQ)
-            lq_image_path = os.path.join(lq_scene_dir, "images", image_name.replace('.JPG', '.jpg'))
-            if not os.path.exists(lq_image_path):
-                continue
-            out.lq_image_files.append(lq_image_path)
-            
-            # PHO (RES)
-            res_image_path = os.path.join(res_scene_dir, "images", image_name.replace('.JPG', '.png'))
-            if not os.path.exists(res_image_path):
-                continue
-            out.res_image_files.append(res_image_path)
-
 
         out.extrinsics = np.asarray(out.extrinsics, dtype=np.float32)
         out.intrinsics = np.asarray(out.intrinsics, dtype=np.float32)
@@ -311,8 +315,9 @@ class ETH3D(Dataset):
         Returns:
             Dict with metrics: acc, comp, overall, precision, recall, fscore
         """
+        # breakpoint()
         gt_data = self.get_data(scene)
-        gt_mesh_path = gt_data.aux.gt_mesh_path
+        gt_mesh_path = gt_data.aux.gt_mesh_path     # '../da3_ds/workspace/benchmark_dataset/eth3d/courtyard/combined_mesh.ply'
 
         # Load and sample ground truth mesh
         gt_mesh = o3d.io.read_triangle_mesh(gt_mesh_path)
@@ -383,12 +388,18 @@ class ETH3D(Dataset):
         _wait_for_file_ready(result_path)
         pred_data = Dict({k: v for k, v in np.load(result_path).items()})
 
+
+        '''
+            (Pdb) gt_data.keys()    dict_keys(['extrinsics', 'intrinsics', 'image_files'])
+            (Pdb) pred_data.keys()  dict_keys(['depth', 'conf', 'extrinsics', 'intrinsics'])
+        '''
+
         # Load original images (keep original size)
         images = []
         orig_sizes = []  # (H, W) for each image
         for img_path in gt_data.image_files:
-            img = cv2.imread(img_path)
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img = cv2.imread(img_path)                      # 4032 6048 3
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)      # 4032 6048 3
             images.append(img)
             orig_sizes.append((img.shape[0], img.shape[1]))
 
@@ -440,6 +451,7 @@ class ETH3D(Dataset):
         5. Apply scale
         6. Adjust intrinsics to original image size
         """
+        # breakpoint()
         # Scale alignment with fixed random_state for reproducibility
         _, _, scale, extrinsics = align_poses_umeyama(
             gt_data.extrinsics.copy(),
@@ -552,30 +564,38 @@ class ETH3D(Dataset):
             Boolean mask where True = valid region to keep
         """
         h, w = shape
-
+        
+        # PHO 
+        if image_name.endswith('.JPG') or image_name.endswith('.jpg'):
+            image_name = os.path.splitext(image_name)[0] + ".png"
+        
+        
         # GT mask file path
         gt_mask_path = os.path.join(
             self.data_root, scene, "masks_for_images", "dslr_images",
-            image_name.replace(".JPG", ".png")
+            image_name
         )
 
         # GT depth file path (used to determine valid depth regions)
         gt_depth_path = os.path.join(
-            self.data_root, scene, "ground_truth_depth", "dslr_images", image_name
-        )
+            self.data_root, scene, "ground_truth_depth", "dslr_images", os.path.splitext(image_name)[0]+'.JPG'
+            )
 
+        # breakpoint()
         # Load GT depth
         if os.path.exists(gt_depth_path):
             gt_depth = np.fromfile(gt_depth_path, dtype=np.float32).reshape(h, w)
         else:
-            gt_depth = np.ones((h, w), dtype=np.float32)
+            raise Exception 
+            # gt_depth = np.ones((h, w), dtype=np.float32)
 
         # Load GT mask
         if os.path.exists(gt_mask_path):
             gt_mask = cv2.imread(gt_mask_path, cv2.IMREAD_GRAYSCALE)
             gt_mask = np.asarray(gt_mask)
         else:
-            gt_mask = np.zeros((h, w), dtype=np.uint8)
+            raise Exception 
+            # gt_mask = np.zeros((h, w), dtype=np.uint8)
 
         # Compute zero_mask
         # gt_mask == 1 means occluded/invalid region
@@ -624,3 +644,4 @@ class ETH3D(Dataset):
             depth[invalid_mask] = 0.0
 
         return depth
+

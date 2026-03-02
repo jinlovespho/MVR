@@ -39,13 +39,11 @@ from tqdm import tqdm
 from depth_anything_3.bench.dataset import Dataset
 from depth_anything_3.bench.registries import MONO_REGISTRY, MV_REGISTRY
 from depth_anything_3.utils.constants import (
-
-    # PHO
-    DA3_LQ_ROOT_PATH,
-    DA3_RES_ROOT_PATH,
-    
+    DA3_CLEAN_ROOT_PATH,
+    DA3_DEG_ROOT_PATH,
+    DA3_RES_LQ_ROOT_PATH,
     DTU_DIST_THRESH,
-    DTU_EVAL_DATA_ROOT,
+    # DTU_EVAL_DATA_ROOT,
     DTU_MAX_POINTS,
     DTU_NUM_CONSIST,
     DTU_SCENES,
@@ -68,11 +66,14 @@ class DTU(Dataset):
     https://drive.google.com/file/d/1rX0EXlUL4prRxrRu2DgLJv2j7-tpUD4D/view
     """
 
-    # PHO
-    da3_lq_root = os.path.join(DA3_LQ_ROOT_PATH, 'dtu')
-    da3_res_root = os.path.join(DA3_RES_ROOT_PATH, 'dtu')
 
-    data_root = DTU_EVAL_DATA_ROOT
+    # pho
+    da3_clean_root_path = DA3_CLEAN_ROOT_PATH
+    da3_deg_root_path = DA3_DEG_ROOT_PATH
+    da3_res_lq_root_path = DA3_RES_LQ_ROOT_PATH
+    data_root = os.path.join(DA3_CLEAN_ROOT_PATH, 'dtu')
+    
+    # data_root = DTU_EVAL_DATA_ROOT
     SCENES = DTU_SCENES
 
     # Evaluation/triangulation hyperparameters from constants
@@ -113,34 +114,25 @@ class DTU(Dataset):
                 - intrinsics: np.ndarray [N, 3, 3]
                 - aux.mask_files: List[str] - paths to depth masks
         """
-        rgb_folder = os.path.join(self.data_root, "Rectified", scene)
-        camera_folder = os.path.join(self.data_root, "Cameras")
+        
+        gt_folder = os.path.join(self.da3_clean_root_path, 'dtu', "Rectified", scene)
+        rgb_folder = os.path.join(self.da3_deg_root_path, 'dtu', "Rectified", scene)
+        camera_folder = os.path.join(self.da3_clean_root_path, 'dtu', "Cameras")
 
-        files = sorted(glob.glob(os.path.join(rgb_folder, "*.png")))
+
+        files = sorted(glob.glob(os.path.join(rgb_folder, "*")))
         # Reorder: place index 33 first (reference view convention)
         files = [files[33]] + files[:33] + files[34:]
-
-
-        # PHO (LQ)
-        lq_folder = os.path.join(self.da3_lq_root, "Rectified", scene)
-        lq_files = sorted(glob.glob(os.path.join(lq_folder, "*.jpg")))
-        # Reorder: place index 33 first (reference view convention)
-        lq_files = [lq_files[33]] + lq_files[:33] + lq_files[34:]
         
         
-        # PHO (RES)
-        res_folder = os.path.join(self.da3_res_root, "Rectified", scene)
-        res_files = sorted(glob.glob(os.path.join(res_folder, "*.png")))
+        gt_files = sorted(glob.glob(os.path.join(gt_folder, "*")))
         # Reorder: place index 33 first (reference view convention)
-        res_files = [res_files[33]] + res_files[:33] + res_files[34:]
+        gt_files = [gt_files[33]] + gt_files[:33] + gt_files[34:]
         
 
         out = Dict(
             {
-                # PHO
-                "lq_image_files": lq_files,
-                "res_image_files": res_files,
-            
+                'gt_image_files': gt_files,
                 "image_files": files,
                 "extrinsics": [],
                 "intrinsics": [],
@@ -160,7 +152,6 @@ class DTU(Dataset):
             out.extrinsics.append(ext)
             out.intrinsics.append(ixt)
             out.aux.mask_files.append(mask_file)
-            
 
         out.extrinsics = np.asarray(out.extrinsics, dtype=np.float32)
         out.intrinsics = np.asarray(out.intrinsics, dtype=np.float32)
@@ -239,8 +230,8 @@ class DTU(Dataset):
                 "image_files": data["image_files"] if "image_files" in data else None,
             })
         return None
-    
-    
+
+
     def fuse3d(self, scene: str, result_path: str, fuse_path: str, mode: str) -> None:
         """
         Fuse per-view depths into a point cloud and save to PLY.
@@ -251,63 +242,28 @@ class DTU(Dataset):
             fuse_path: Output path for fused point cloud (.ply)
             mode: "recon_unposed" or "recon_posed"
         """
-        
-        # gt_data = self.get_data(scene)
-        
-        # # full gt data 
-        # full_gt_data = self.get_data(scene)
 
-        # # PHO        
-        # gt_meta = self._load_gt_meta(result_path)
-        # if gt_meta is not None:
-        #     gt_data = gt_meta
-        #     # Need to rebuild aux from full GT data based on image indices
-        #     image_indices = [
-        #         full_gt_data.image_files.index(f)
-        #         for f in gt_data.image_files
-        #         if f in full_gt_data.image_files
-        #     ]
-        #     gt_data.aux.mask_files = [full_gt_data.aux.mask_files[i] for i in image_indices]
-        # else:
-        #     gt_data = full_gt_data
-        #     image_indices = list(range(len(full_gt_data.image_files)))
-            
-        # pred_data = Dict({k: v for k, v in np.load(result_path).items()})
-        # masks = self.load_masks(gt_data.aux.mask_files)
-
-
+        # full gt data 
         full_gt_data = self.get_data(scene)
 
+        # PHO        
         gt_meta = self._load_gt_meta(result_path)
-
         if gt_meta is not None:
             gt_data = gt_meta
-
-            # Build fast lookup dictionary
-            full_index_map = {
-                f: i for i, f in enumerate(full_gt_data.image_files)
-            }
-
-            # Ensure all sampled images exist
-            image_indices = []
-            for f in gt_data.image_files:
-                if f not in full_index_map:
-                    raise ValueError(f"Image {f} not found in full GT data")
-                image_indices.append(full_index_map[f])
-
-            # Rebuild mask files
-            gt_data.aux.mask_files = [
-                full_gt_data.aux.mask_files[i]
-                for i in image_indices
+            # Need to rebuild aux from full GT data based on image indices
+            image_indices = [
+                full_gt_data.image_files.index(f)
+                for f in gt_data.image_files
+                if f in full_gt_data.image_files
             ]
-
+            gt_data.aux.mask_files = [full_gt_data.aux.mask_files[i] for i in image_indices]
         else:
             gt_data = full_gt_data
             image_indices = list(range(len(full_gt_data.image_files)))
 
+
         pred_data = Dict({k: v for k, v in np.load(result_path).items()})
         masks = self.load_masks(gt_data.aux.mask_files)
-
 
         if mode == "recon_unposed":
             depths, intrinsics, extrinsics = self._prep_unposed(pred_data, gt_data, masks)
@@ -686,6 +642,11 @@ class DTU(Dataset):
         depths = pred_data.depth * scale
         intrinsics = pred_data.intrinsics.copy()
 
+
+        # PHO 
+        assert len(depths) == len(masks)
+        
+        breakpoint()
         if depths.shape[-2:] != masks.shape[-2:]:
             # When resizing depths to mask size, adjust intrinsics accordingly
             sx = masks.shape[-1] / depths.shape[-1]
@@ -720,6 +681,11 @@ class DTU(Dataset):
         depths = pred_data.depth.copy()
         intrinsics = gt_data.intrinsics.copy()
         extrinsics = gt_data.extrinsics.copy()
+
+
+        # PHO 
+        assert len(depths) == len(masks)
+        
 
         if depths.shape[-2:] != masks.shape[-2:]:
             depths = F.interpolate(
@@ -789,3 +755,4 @@ class DTU(Dataset):
         rng = np.random.default_rng(seed=42)
         random_idx = rng.choice(len(points), max_points, replace=False)
         return points[random_idx]
+
