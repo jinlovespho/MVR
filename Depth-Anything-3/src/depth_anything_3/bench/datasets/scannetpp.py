@@ -172,6 +172,22 @@ class ScanNetPP(Dataset):
         })
 
         for name in names:
+            
+            
+            # PHO (LQ)
+            lq_img_path = os.path.join(lq_image_path, name)
+            if not os.path.exists(lq_img_path):
+                continue
+            out.lq_image_files.append(lq_img_path)
+            
+            # PHO (RES)
+            res_img_path = os.path.join(res_image_path, name.replace('.jpg', '.png'))
+            if not os.path.exists(lq_img_path):
+                continue
+            out.res_image_files.append(res_img_path)
+            
+            
+            
             image = images[name2id[name]]
             img_path = os.path.join(image_path, name)
             if not os.path.exists(img_path):
@@ -214,19 +230,6 @@ class ScanNetPP(Dataset):
             out.aux.cam_hw_list.append((cam_height, cam_width))
             out.aux.ixt_raw_list.append(ixt_raw)
             out.aux.gt_depth_files.append(depth_file)
-            
-            
-            # PHO (LQ)
-            lq_img_path = os.path.join(lq_image_path, name)
-            if not os.path.exists(lq_img_path):
-                continue
-            out.lq_image_files.append(lq_img_path)
-            
-            # PHO (RES)
-            res_img_path = os.path.join(res_image_path, name.replace('.jpg', '.png'))
-            if not os.path.exists(lq_img_path):
-                continue
-            out.res_image_files.append(res_img_path)
             
 
         out.extrinsics = np.asarray(out.extrinsics, dtype=np.float32)

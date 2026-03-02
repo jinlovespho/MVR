@@ -239,6 +239,19 @@ class ETH3D(Dataset):
                 filtered_count += 1
                 continue
 
+
+            # PHO (LQ)
+            lq_image_path = os.path.join(lq_scene_dir, "images", image_name.replace('.JPG', '.jpg'))
+            if not os.path.exists(lq_image_path):
+                continue
+            out.lq_image_files.append(lq_image_path)
+            
+            # PHO (RES)
+            res_image_path = os.path.join(res_scene_dir, "images", image_name.replace('.JPG', '.png'))
+            if not os.path.exists(res_image_path):
+                continue
+            out.res_image_files.append(res_image_path)
+
             
             image_path = os.path.join(scene_dir, "images", image_name)
             if not os.path.exists(image_path):
@@ -270,18 +283,6 @@ class ETH3D(Dataset):
             out.aux.heights.append(cam_info["height"])
             out.aux.widths.append(cam_info["width"])
             
-            
-            # PHO (LQ)
-            lq_image_path = os.path.join(lq_scene_dir, "images", image_name.replace('.JPG', '.jpg'))
-            if not os.path.exists(lq_image_path):
-                continue
-            out.lq_image_files.append(lq_image_path)
-            
-            # PHO (RES)
-            res_image_path = os.path.join(res_scene_dir, "images", image_name.replace('.JPG', '.png'))
-            if not os.path.exists(res_image_path):
-                continue
-            out.res_image_files.append(res_image_path)
 
 
         out.extrinsics = np.asarray(out.extrinsics, dtype=np.float32)

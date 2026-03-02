@@ -338,6 +338,11 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             
             scene = scene.replace('/', '_') if '/' in scene else scene
             
+            # from torchvision.utils import save_image
+            # save_image(imgs.squeeze(0), 'img.jpg', normalize=True)
+            # save_image(lq_imgs.squeeze(0), 'img_lq.jpg', normalize=True)
+
+
             vis_save_root = os.path.join(cfg.workspace.work_dir, 'pho_vis_results', data, pose_setting)
             vis_all(
                 vis_save_root=vis_save_root,

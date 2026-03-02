@@ -149,6 +149,7 @@ class DTU(Dataset):
         )
 
         for rgb_file in files:
+            
             basename = os.path.basename(rgb_file)
             file_idx = basename.split("_")[1]
             cam_idx = depth_idx = int(file_idx) - 1

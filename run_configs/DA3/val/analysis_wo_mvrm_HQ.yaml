@@ -85,15 +85,15 @@ workspace:
 
 
   ## WO_MVRM - INPUT_HQ - MAXVIEW10
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINAL/da3_giant/wo_mvrm_HQ/filtered_clean/eval_full_10_saddle
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINALFINAL/da3_giant/wo_mvrm_HQ/filtered_clean/eval_full_10_saddle
 
 
   ## WO_MVRM - INPUT_HQ - MAXVIEW50
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINAL/da3_giant/wo_mvrm_HQ/filtered_clean/eval_full_50_saddle
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINALFINAL/da3_giant/wo_mvrm_HQ/filtered_clean/eval_full_50_saddle
 
 
   ## WO_MVRM - INPUT_HQ - MAXVIEW100
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINAL/da3_giant/wo_mvrm_HQ/filtered_clean/eval_full_100_saddle
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINALFINAL/da3_giant/wo_mvrm_HQ/filtered_clean/eval_full_100_saddle
 
 
 

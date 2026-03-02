@@ -166,6 +166,21 @@ class HiRoomDataset(Dataset):
         })
 
         for img_name in image_names:
+            
+            
+            # PHO (LQ)
+            lq_img_path = os.path.join(lq_image_dir, img_name)
+            if not os.path.exists(lq_img_path):
+                continue
+            out.lq_image_files.append(lq_img_path)
+            
+            # PHO (RES)
+            res_img_path = os.path.join(res_image_dir, img_name.replace('.jpg', '.png'))
+            if not os.path.exists(res_img_path):
+                continue
+            out.res_image_files.append(res_img_path)
+            
+            
             img_path = os.path.join(image_dir, img_name)
             frame_name = img_name.split(".")[0]
 
@@ -185,19 +200,6 @@ class HiRoomDataset(Dataset):
             out.intrinsics.append(ixt_shared.copy())
             out.aux.gt_depth_files.append(depth_path)
             out.aux.aliasing_mask_files.append(aliasing_mask_path)
-            
-            # PHO (LQ)
-            lq_img_path = os.path.join(lq_image_dir, img_name)
-            if not os.path.exists(lq_img_path):
-                continue
-            out.lq_image_files.append(lq_img_path)
-            
-            # PHO (RES)
-            res_img_path = os.path.join(res_image_dir, img_name.replace('.jpg', '.png'))
-            if not os.path.exists(res_img_path):
-                continue
-            out.res_image_files.append(res_img_path)
-            
             
 
         out.extrinsics = np.asarray(out.extrinsics, dtype=np.float32)
