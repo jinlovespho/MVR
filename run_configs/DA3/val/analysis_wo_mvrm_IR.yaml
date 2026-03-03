@@ -88,7 +88,7 @@ workspace:
   # ---------- MAXVIEW10 ----------
 
   ## WO_MVRM - VRT - MAXVIEW10
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINALFINAL/da3_giant/wo_mvrm_IR/vrt/filtered_cam_blur_50/eval_full_10_saddle
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINALFINAL/da3_giant/wo_mvrm_IR/vrt/filtered_cam_blur_50/eval_full_10_saddle
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINALFINAL/da3_giant/wo_mvrm_IR/vrt/filtered_cam_blur_100/eval_full_10_saddle
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINALFINAL/da3_giant/wo_mvrm_IR/vrt/filtered_cam_blur_300/eval_full_10_saddle
 
@@ -101,7 +101,7 @@ workspace:
 
   ## WO_MVRM - RESTORMER - MAXVIEW10
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINALFINAL/da3_giant/wo_mvrm_IR/restormer/filtered_cam_blur_50/eval_full_10_saddle
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINALFINAL/da3_giant/wo_mvrm_IR/restormer/filtered_cam_blur_100/eval_full_10_saddle
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINALFINAL/da3_giant/wo_mvrm_IR/restormer/filtered_cam_blur_100/eval_full_10_saddle
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINALFINAL/da3_giant/wo_mvrm_IR/restormer/filtered_cam_blur_300/eval_full_10_saddle
 
 

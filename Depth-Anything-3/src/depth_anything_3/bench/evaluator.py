@@ -573,14 +573,36 @@ class Evaluator:
         """Convert numpy scalars to plain Python floats for JSON safety."""
         return {k: float(v) for k, v in d.items()}
 
+    # @staticmethod
+    # def _mean_of_dicts(dicts: Iterable[dict]) -> dict:
+    #     """Compute elementwise mean across a list of homogeneous metric dicts."""
+    #     dicts = list(dicts)
+    #     if not dicts:
+    #         return {}
+    #     keys = dicts[0].keys()
+    #     return {k: float(np.mean([d[k] for d in dicts]).item()) for k in keys}
+
+
     @staticmethod
     def _mean_of_dicts(dicts: Iterable[dict]) -> dict:
-        """Compute elementwise mean across a list of homogeneous metric dicts."""
+        """Compute elementwise mean across a list of homogeneous metric dicts.
+        Ignores NaN values (failed scenes)."""
         dicts = list(dicts)
         if not dicts:
             return {}
+
         keys = dicts[0].keys()
-        return {k: float(np.mean([d[k] for d in dicts]).item()) for k in keys}
+        out = {}
+
+        for k in keys:
+            values = np.array([d[k] for d in dicts], dtype=np.float64)
+            if np.all(np.isnan(values)):
+                out[k] = float("nan")
+            else:
+                out[k] = float(np.nanmean(values))
+
+        return out
+
 
     @staticmethod
     def _dump_json(path: str, obj: dict, indent: int = 4) -> None:

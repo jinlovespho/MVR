@@ -562,6 +562,29 @@ class DTU(Dataset):
         # Compute accuracy (pred -> GT) and completeness (GT -> pred)
         stl = self._read_ply(gt_ply) if isinstance(gt_ply, str) else gt_ply
 
+
+
+        # print("Total pred points:", data_pcd.shape[0])
+        # print("After downsample:", data_down.shape[0])
+        # print("After BB filter:", data_in.shape[0])
+        # print("After grid inbound:", data_grid_in.shape[0])
+        # print("After ObsMask:", data_in_obs.shape[0])
+        # print("GT points:", stl.shape[0])
+        
+
+        # PHO
+        # If no observed predicted points → invalid reconstruction
+        if data_in_obs.shape[0] == 0:
+            print(f"[WARNING] {scanid}: No points inside ObsMask. Skipping.")
+            return np.nan, np.nan, np.nan
+
+        # PHO
+        # Also guard completeness side
+        if data_in.shape[0] == 0:
+            print(f"[WARNING] {scanid}: No points inside BB. Skipping.")
+            return np.nan, np.nan, np.nan
+
+
         if use_gpu and torch.cuda.is_available():
             # GPU-accelerated distance computation
             mean_d2s = self._knn_dist_gpu(data_in_obs, stl, max_dist)
