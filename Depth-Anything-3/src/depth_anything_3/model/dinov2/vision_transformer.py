@@ -316,6 +316,7 @@ class DinoVisionTransformer(nn.Module):
         mvrm_output={}
         
         
+        ref_view_start_idx=1000
         for i, blk in enumerate(self.blocks):
 
 
@@ -344,11 +345,19 @@ class DinoVisionTransformer(nn.Module):
                 l_pos = pos
 
             if self.alt_start != -1 and (i == self.alt_start - 1) and x.shape[1] >= THRESH_FOR_REF_SELECTION and kwargs.get("cam_token", None) is None:
-                # print(f'{i} ref selection')
-                # Select reference view using configured strategy
-                strategy = kwargs.get("ref_view_strategy", "saddle_balanced")
-                logger.info(f"Selecting reference view using strategy: {strategy}")
-                b_idx = select_reference_view(x, strategy=strategy)
+                ref_view_start_idx = i
+                print(f'{i} ref selection')
+                print('ref_view_start_idx: ', ref_view_start_idx)
+                if kwargs['ref_b_idx'] is not None:
+                    logger.info("Using reference view index provided by PHO")
+                    b_idx = kwargs['ref_b_idx']
+                else:
+                    # Select reference view using configured strategy
+                    strategy = kwargs.get("ref_view_strategy", "saddle_balanced")
+                    logger.info(f"Selecting reference view using strategy: {strategy}")
+                    b_idx = select_reference_view(x, strategy=strategy)
+                
+                logger.info(f"Current ref_b_idx: {b_idx}")
                 # Reorder views to place reference view first
                 x = reorder_by_reference(x, b_idx)
                 local_x = reorder_by_reference(local_x, b_idx)
@@ -384,11 +393,12 @@ class DinoVisionTransformer(nn.Module):
             if kwargs['mode'] == 'train':
                 mvrm_train_cfg = kwargs['mvrm_cfg']
                 if i in mvrm_train_cfg.extract_feat_layers:
-                    # print(f'train - {i} EXTRACTING LQ LATENT')     
+                    print(f'train - {i} EXTRACTING LQ LATENT')     
+                    # print('ref_view_start_idx: ', ref_view_start_idx)
                     if mvrm_train_cfg.concat_feat: 
-                        mvrm_output['extract_feat'] = torch.cat([local_x, x], dim=-1)   # b v n+1 2d
+                        mvrm_output[('extract_feat', i)] = torch.cat([local_x, x], dim=-1)   # b v n+1 2d
                     else:
-                        mvrm_output['extract_feat'] = x     # b v n+1 d
+                        mvrm_output[('extract_feat', i)] = x     # b v n+1 d
                     if mvrm_train_cfg.break_and_return_feat and len(mvrm_train_cfg.extract_feat_layers) == 1:
                         return None, None, mvrm_output
 
@@ -398,13 +408,30 @@ class DinoVisionTransformer(nn.Module):
             if kwargs['mode'] == 'val':
                 mvrm_val_cfg = kwargs['mvrm_cfg']
                 if i in mvrm_val_cfg.restore_feat_layers:
-                    # print(f'val - {i} APPLIED RESTORED LATENT!')
-                    restored_latent = kwargs['mvrm_result']['restored_latent']
+                    print(f'val - {i} APPLIED RESTORED LATENT!')
+                    # print('ref_view_start_idx: ', ref_view_start_idx)
+                    restored_latent = kwargs['mvrm_result'][('restored_latent', i)]
                     if mvrm_val_cfg.concat_feat:
                         x = restored_latent[..., 1536:]
                         local_x = restored_latent[..., :1536]
                     else:
                         x = restored_latent
+            
+            
+            
+            # W_MVRM_FRONT_CONNECT_BACK
+            if kwargs['front_connect_back_mvrm_cfg'] is not None:
+                mvrm2_cfg = kwargs['front_connect_back_mvrm_cfg']
+                if i in mvrm2_cfg.train.extract_feat_layers:
+                    print(f'front_connect_back MVRM - {i} EXTRACTING FRONT-CONNECT-BACK LQ LATENT')     
+                    if mvrm2_cfg.train.concat_feat: 
+                        mvrm_output[('extract_feat', i)] = torch.cat([local_x, x], dim=-1)   # b v n+1 2d
+                    else:
+                        mvrm_output[('extract_feat', i)] = x     # b v n+1 d
+                    if mvrm2_cfg.train.break_and_return_feat and len(mvrm2_cfg.train.extract_feat_layers) == 1:
+                        return None, None, mvrm_output
+                
+            
 
 
             # collect feat layers for DPT Head
@@ -412,15 +439,24 @@ class DinoVisionTransformer(nn.Module):
                 # print(f'DPT head {i}')
                 out_x = torch.cat([local_x, x], dim=-1) if self.cat_token else x
                 # Restore original view order if reordering was applied
-                if x.shape[1] >= THRESH_FOR_REF_SELECTION and self.alt_start != -1 and 'b_idx' in locals():
+                if x.shape[1] >= THRESH_FOR_REF_SELECTION and self.alt_start != -1 and 'b_idx' in locals() and i >= ref_view_start_idx:   # only restore order for layers after reference view selection
                     # print(f'{i} ref selection revert before passing to DPT')
                     out_x = restore_original_order(out_x, b_idx)
                 output.append((out_x[:, :, 0], out_x))      # appends (camera_tkn, full_tkn)
             if i in export_feat_layers:
+                # print(f'Aux feat {i}')
+                
+                # # Restore original view order if reordering was applied
+                # if x.shape[1] >= THRESH_FOR_REF_SELECTION and self.alt_start != -1 and 'b_idx' in locals() and i >= ref_view_start_idx:   # only restore order for layers after reference view selection
+                #     print(f'{i} ref selection revert before passing to AUX')
+                #     print('b_idx: ', b_idx)
+                #     # Apply restore_original_order for export_feat_layers as well
+                #     aux_x = restore_original_order(x, b_idx)
+                
                 aux_output.append(x)
         
         # breakpoint()
-        return output, aux_output, mvrm_output
+        return output, aux_output, mvrm_output, b_idx
 
     def process_attention(self, x, block, attn_type="global", pos=None, attn_mask=None):
         
@@ -456,7 +492,7 @@ class DinoVisionTransformer(nn.Module):
         export_feat_layers: List[int] = [],
         **kwargs,
     ) -> Tuple[Union[torch.Tensor, Tuple[torch.Tensor]]]:
-        outputs, aux_outputs, mvrm_output = self._get_intermediate_layers_not_chunked(
+        outputs, aux_outputs, mvrm_output, ref_b_idx = self._get_intermediate_layers_not_chunked(
             x, n, export_feat_layers=export_feat_layers, **kwargs
         )
         '''
@@ -470,7 +506,7 @@ class DinoVisionTransformer(nn.Module):
         # MVRM output
         if kwargs['mode'] == 'train':
             if kwargs['mvrm_cfg'].break_and_return_feat:
-                return None, None, mvrm_output
+                return None, None, mvrm_output, ref_b_idx
 
 
 
@@ -510,7 +546,7 @@ class DinoVisionTransformer(nn.Module):
         #         mvrm_output['extract_feat'] = outputs[0]  # b v n 2d (where frame_attn+global_attn) (b 1 972 3072)
     
 
-        return tuple(zip(outputs, camera_tokens)), aux_outputs, mvrm_output
+        return tuple(zip(outputs, camera_tokens)), aux_outputs, mvrm_output, ref_b_idx
 
 
 def vit_small(patch_size=16, num_register_tokens=0, depth=12, **kwargs):

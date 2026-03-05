@@ -144,6 +144,24 @@ class Evaluator:
 
             # if torch.__version__ >= "2.0":
             #     self.denoiser = torch.compile(self.denoiser)
+        
+        elif full_cfg.MVRM_EVAL.eval_method == 'w_mvrm_front_back' or full_cfg.MVRM_EVAL.eval_method == 'w_mvrm_front_connect_back':
+
+            time_dist_shift = math.sqrt(full_cfg.misc.time_dist_shift_dim / full_cfg.misc.time_dist_shift_base)
+            # load Transport 
+            transport = create_transport(**full_cfg.transport.params, time_dist_shift=time_dist_shift,)
+            transport_sampler = Sampler(transport)
+            # load sampler 
+            self.eval_sampler = initialize.load_sampler(full_cfg, transport_sampler)
+            # load denoiser 
+            self.denoiser: Stage2ModelProtocol = instantiate_from_config(full_cfg.denoiser)  
+            self.denoiser = self.denoiser.eval()
+            
+            # load denoiser2 
+            self.denoiser2: Stage2ModelProtocol = instantiate_from_config(full_cfg.denoiser2)  
+            self.denoiser2 = self.denoiser2.eval()
+            
+            
                 
         else:
             self.eval_sampler = None 
@@ -219,6 +237,12 @@ class Evaluator:
         
         if self.full_cfg.MVRM_EVAL.eval_method == 'w_mvrm':
             self.denoiser = self.denoiser.to(device)
+            self.denoiser2 = None
+
+        elif self.full_cfg.MVRM_EVAL.eval_method == 'w_mvrm_front_back' or self.full_cfg.MVRM_EVAL.eval_method == 'w_mvrm_front_connect_back':
+            self.denoiser = self.denoiser.to(device) 
+            self.denoiser2 = self.denoiser2.to(device)
+
         
 
         for data, scene in tqdm(tasks, desc=f"Inference (GPU {self.gpu_id})"):
@@ -246,6 +270,7 @@ class Evaluator:
                     ref_view_strategy=self.ref_view_strategy,
                     eval_sampler=self.eval_sampler,
                     denoiser=self.denoiser,
+                    denoiser2 = self.denoiser2,
                     noise_generator=noise_generator,
                     cfg=self.full_cfg,
                     scene_info = (data,scene),
@@ -265,6 +290,7 @@ class Evaluator:
                     ref_view_strategy=self.ref_view_strategy,
                     eval_sampler=self.eval_sampler,
                     denoiser=self.denoiser,
+                    denoiser2 = self.denoiser2,
                     noise_generator=noise_generator,
                     cfg=self.full_cfg,
                     scene_info = (data,scene),

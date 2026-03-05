@@ -110,6 +110,8 @@ class DepthAnything3Net(nn.Module):
         mvrm_cfg=None,
         mvrm_result=None,
         mode=None,
+        ref_b_idx=None,
+        front_connect_back_mvrm_cfg=None
     ) -> Dict[str, torch.Tensor]:
         """
         Forward pass through the network.
@@ -136,14 +138,14 @@ class DepthAnything3Net(nn.Module):
 
 
         # dinov2 backbone
-        feats, aux_feats, mvrm_output = self.backbone(
-            x, cam_token=cam_token, export_feat_layers=export_feat_layers, ref_view_strategy=ref_view_strategy, mvrm_cfg=mvrm_cfg, mvrm_result=mvrm_result, mode=mode
+        feats, aux_feats, mvrm_output, ref_b_idx = self.backbone(
+            x, cam_token=cam_token, export_feat_layers=export_feat_layers, ref_view_strategy=ref_view_strategy, mvrm_cfg=mvrm_cfg, mvrm_result=mvrm_result, mode=mode, ref_b_idx=ref_b_idx, front_connect_back_mvrm_cfg=front_connect_back_mvrm_cfg
         )
         
         # MVRM 
         if mode == 'train':
             if mvrm_cfg.break_and_return_feat:
-                return None, mvrm_output
+                return None, mvrm_output, ref_b_idx
         
         
         '''
@@ -176,6 +178,7 @@ class DepthAnything3Net(nn.Module):
         output = self._process_mono_sky_estimation(output)    
         # Extract auxiliary features if requested
         output.aux = self._extract_auxiliary_features(aux_feats, export_feat_layers, H, W)
+        output.ref_b_idx = ref_b_idx
         return output, mvrm_output
     
 

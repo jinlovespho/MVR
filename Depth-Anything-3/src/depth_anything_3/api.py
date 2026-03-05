@@ -42,9 +42,14 @@ from torchvision.utils import save_image
 
 from mvr.utils.featsim_utils import *
 from mvr.utils.metric_utils import *
-from RAE.src.utils.vis_utils import vis_all
+from mvr.utils.freq_utils import *
+from mvr.utils.pca_utils import *
 
+from RAE.src.utils.vis_utils import vis_all
 from RAE.src.vis_cam_pose import plot_cam_trajectory
+
+
+
 
 
 torch.backends.cudnn.benchmark = False
@@ -120,6 +125,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         mvrm_cfg=None,
         mvrm_result=None,
         mode=None,
+        ref_b_idx=None,
+        front_connect_back_mvrm_cfg=None
     ) -> dict[str, torch.Tensor]:
         """
         Forward pass through the model.
@@ -141,7 +148,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         with torch.no_grad():
             with torch.autocast(device_type=image.device.type, dtype=autocast_dtype):
                 return self.model(
-                    image, extrinsics, intrinsics, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg, mvrm_result, mode
+                    image, extrinsics, intrinsics, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg, mvrm_result, mode, ref_b_idx, front_connect_back_mvrm_cfg
                     )
 
     def inference(
@@ -171,6 +178,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         export_kwargs: Optional[dict] = {},
         eval_sampler=None,
         denoiser=None,
+        denoiser2=None,
         noise_generator=None,
         cfg=None,
         scene_info=None,
@@ -254,31 +262,16 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         b, v, c, model_H, model_W = imgs.shape
 
 
-        # Apply MVRM restoration
+
+
+        # Apply W_MVRM restoration
         if cfg.MVRM_EVAL.eval_method == 'w_mvrm':       
             print('-'*70)      
             print('APPLYING MVRM O')
             print('-'*70)
             
             export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]
-            # (W_MVRM) HQ FORWARD PASS 
-            print("HQ FORWARD PASS")
-            hq_encoder_out, hq_mvrm_out = self._run_model_forward(
-                                            imgs, 
-                                            ex_t_norm, 
-                                            in_t, 
-                                            export_feat_layers, 
-                                            infer_gs, 
-                                            use_ray_pose, 
-                                            ref_view_strategy, 
-                                            mvrm_cfg=cfg.mvrm.train, 
-                                            mvrm_result=None, 
-                                            mode='train'
-                                        )
-            hq_pred_pose_enc = hq_encoder_out.pose_enc      # 1 v 9
-            hq_pred_pose = hq_encoder_out['extrinsics']     # 1 v 3 4
-            hq_latent = hq_mvrm_out['extract_feat']         # b v 973 3072
-            hq_depth = hq_encoder_out.depth.unsqueeze(2)    # 1 v 1 h w
+            
             
             # (W_MVRM) LQ FORWARD PASS
             print("LQ FORWARD PASS")
@@ -292,13 +285,42 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                                             ref_view_strategy, 
                                             mvrm_cfg=cfg.mvrm.train, 
                                             mvrm_result=None, 
-                                            mode='train'
+                                            mode='train',
+                                            ref_b_idx=None
                                         )
-            lq_pred_pose_enc = lq_encoder_out.pose_enc      # 1 v 9
+            # lq_pred_pose_enc = lq_encoder_out.pose_enc      # 1 v 9
             lq_pred_pose = lq_encoder_out['extrinsics']     # 1 v 3 4
-            lq_latent = lq_mvrm_out['extract_feat']         # b v n+1 d
+            lq_ref_b_idx = lq_encoder_out.ref_b_idx
+            # safety check
+            for key in lq_mvrm_out.keys():
+                assert key[-1] in cfg.mvrm.train.extract_feat_layers, f"Extracted MVRM feature layer {key[-1]} not in config extract_feat_layers {cfg.mvrm.train.extract_feat_layers}"
+            first_extract_layer_idx = cfg.mvrm.train.extract_feat_layers[0]
+            lq_latent = lq_mvrm_out[('extract_feat', first_extract_layer_idx)]         # b v n+1 d
             lq_depth = lq_encoder_out.depth.unsqueeze(2)     # 1 v 1 h w
 
+            
+            # (W_MVRM) HQ FORWARD PASS 
+            print("HQ FORWARD PASS")
+            hq_encoder_out, hq_mvrm_out = self._run_model_forward(
+                                            imgs, 
+                                            ex_t_norm, 
+                                            in_t, 
+                                            export_feat_layers, 
+                                            infer_gs, 
+                                            use_ray_pose, 
+                                            ref_view_strategy, 
+                                            mvrm_cfg=cfg.mvrm.train, 
+                                            mvrm_result=None, 
+                                            mode='train',
+                                            ref_b_idx=lq_ref_b_idx
+                                            # ref_b_idx=None
+                                        )
+            # hq_pred_pose_enc = hq_encoder_out.pose_enc      # 1 v 9
+            hq_pred_pose = hq_encoder_out['extrinsics']     # 1 v 3 4
+            hq_latent = hq_mvrm_out[('extract_feat', cfg.mvrm.train.extract_feat_layers[0])]         # b v n+1 d
+            hq_depth = hq_encoder_out.depth.unsqueeze(2)    # 1 v 1 h w
+            
+            
             # generate pure noise
             noise_generator.manual_seed(42)
             pure_noise = torch.randn(lq_latent.shape, generator=noise_generator, device=imgs.device, dtype=torch.float32)
@@ -314,9 +336,39 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             with torch.no_grad():
                 with torch.autocast(device_type=imgs.device.type, dtype=autocast_dtype):                
                     restored_samples = eval_sampler(xt, denoiser.forward, **model_kwargs)[-1]     # b v n d
+            
+
             mvrm_result={}
-            mvrm_result['restored_latent'] = restored_samples
-            # mvrm_result['restored_latent'] = hq_latent
+            # OURS
+            mvrm_result[('restored_latent', first_extract_layer_idx)] = restored_samples
+            # CHECK UPPER BOUND
+            # mvrm_result[('restored_latent', first_extract_layer_idx)] = hq_latent
+            
+            
+
+            
+            # REPLACE_W = 'hq_cam_tkn'
+            REPLACE_W = 'lq_cam_tkn'
+            
+            if REPLACE_W == 'hq_cam_tkn':
+                print("replacing with HQ CAMERA TOKEN")
+                restored_samples[:,:,0] = hq_latent[:,:,0]   # replace the first token with the hq camera token
+                
+            elif REPLACE_W == 'hq_patch_tkn':
+                print("replacing with HQ PATCH TOKEN")
+                restored_samples[:,:,1:] = hq_latent[:,:,1:]   # replace the patch tokens with the hq patch tokens
+                
+            elif REPLACE_W == 'lq_cam_tkn': 
+                print("replacing with LQ CAM TOKEN")
+                restored_samples[:,:,0] = lq_latent[:,:,0]   # replace the first token with the lq camera token
+                
+            elif REPLACE_W == 'lq_patch_tkn':
+                print("replacing with LQ PATCH TOKEN")
+                restored_samples[:,:,1:] = lq_latent[:,:,1:]   # replace the patch tokens with the lq patch tokens
+            
+            
+            
+            
             
             # (W_MVRM) RES FORWARD PASS
             print("RES FORWARD PASS")
@@ -333,6 +385,195 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                                             mode='val'
                                         )
             res_pred_pose_enc = raw_output.pose_enc      # 1 v 9
+            res_pred_pose = raw_output['extrinsics']     # 1 v 3 4
+            res_depth = raw_output.depth.unsqueeze(2)    # 1 v 1 h w
+            
+            scene = scene.replace('/', '_') if '/' in scene else scene
+            
+            # from torchvision.utils import save_image
+            # save_image(imgs.squeeze(0), 'img.jpg', normalize=True)
+            # save_image(lq_imgs.squeeze(0), 'img_lq.jpg', normalize=True)
+            
+            
+
+
+            vis_save_root = os.path.join(cfg.workspace.work_dir, 'pho_vis_results', data, pose_setting)
+            vis_all(
+                vis_save_root=vis_save_root,
+                scene=scene,
+                hq_img=imgs[0],
+                lq_img=lq_imgs[0],
+                hq_depth=hq_depth[0],
+                lq_depth=lq_depth[0],
+                res_depth=res_depth[0],
+            )
+            metric_save_root = os.path.join(cfg.workspace.work_dir, 'pho_metric_results', data, pose_setting)
+            metric_all(
+                metric_save_root=metric_save_root,
+                scene=scene,
+                poses = (hq_pred_pose[0], lq_pred_pose[0],res_pred_pose[0]),
+                depths = (hq_depth, lq_depth, res_depth)
+            )
+            featsim_log = featsim_all(hq_encoder_out, lq_encoder_out, raw_output)
+            featsim_save_root = os.path.join(cfg.workspace.work_dir, 'pho_featsim_results', data, pose_setting)
+            plot_three_similarity_panels(
+                featsim_log,
+                save_path=f"{featsim_save_root}/{scene}_sim_all_combined.png"
+            )
+            cam_save_root = os.path.join(cfg.workspace.work_dir, 'pho_cam_traj_results', data, pose_setting)
+            plot_cam_trajectory(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/{scene}.png")
+
+
+            freq_save_root = os.path.join(cfg.workspace.work_dir, 'pho_freq_results', data, pose_setting)
+            plot_freq_analysis_per_view(
+                hq_out=hq_encoder_out,
+                lq_out=lq_encoder_out,
+                res_out=raw_output,
+                save_root=freq_save_root,
+                scene=scene,
+                patch_grid=(model_H//14, model_W//14),
+                avg_embedding=True
+            )
+            
+            pca2_save_root = os.path.join(cfg.workspace.work_dir, 'pho_pca2_results', data, pose_setting)
+            plot_pca2_analysis_per_view(
+                hq_out=hq_encoder_out,
+                lq_out=lq_encoder_out,
+                res_out=raw_output,
+                save_root=pca2_save_root,
+                scene=scene,
+                patch_grid=(model_H//14, model_W//14),
+                device='cuda'
+            )
+
+            pca3_save_root = os.path.join(cfg.workspace.work_dir, 'pho_pca3_results', data, pose_setting)
+            plot_pca3_analysis_per_view(
+                hq_out=hq_encoder_out,
+                lq_out=lq_encoder_out,
+                res_out=raw_output,
+                save_root=pca3_save_root,
+                scene=scene,
+                patch_grid=(model_H//14, model_W//14),
+                device='cuda'
+            )
+            # breakpoint()
+            
+            
+
+        elif cfg.MVRM_EVAL.eval_method == 'w_mvrm_front_back':       
+            print('-'*70)      
+            print('APPLYING MVRM_FRONT_BACK O')
+            print('-'*70)
+            
+            export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]
+            
+
+            # (W_MVRM FRONT BACK) LQ FORWARD PASS
+            print("LQ FORWARD PASS (EXTRACTING MVRM FRONT BACK FEATS)")
+            lq_encoder_out, lq_mvrm_out = self._run_model_forward(
+                                            lq_imgs, 
+                                            ex_t_norm, 
+                                            in_t, 
+                                            export_feat_layers, 
+                                            infer_gs, 
+                                            use_ray_pose, 
+                                            ref_view_strategy, 
+                                            mvrm_cfg=cfg.mvrm.train, 
+                                            mvrm_result=None, 
+                                            mode='train',
+                                            ref_b_idx=None
+                                        )
+            # lq_pred_pose_enc = lq_encoder_out.pose_enc      # 1 v 9
+            lq_pred_pose = lq_encoder_out['extrinsics']     # 1 v 3 4
+            lq_ref_b_idx = lq_encoder_out.ref_b_idx
+            # safety check
+            for key in lq_mvrm_out.keys():
+                assert key[-1] in cfg.mvrm.train.extract_feat_layers, f"Extracted MVRM feature layer {key[-1]} not in config extract_feat_layers {cfg.mvrm.train.extract_feat_layers}"
+            first_extract_layer_idx = cfg.mvrm.train.extract_feat_layers[0]
+            second_extract_layer_idx = cfg.mvrm.train.extract_feat_layers[1]
+            lq_latent_mvrm1 = lq_mvrm_out[('extract_feat', first_extract_layer_idx)]         # b v n+1 d
+            lq_depth = lq_encoder_out.depth.unsqueeze(2)     # 1 v 1 h w
+                        
+
+
+
+
+            # (W_MVRM_FRONT_BACK) HQ FORWARD PASS 
+            print("HQ FORWARD PASS")
+            hq_encoder_out, _ = self._run_model_forward(
+                                            imgs, 
+                                            ex_t_norm, 
+                                            in_t, 
+                                            export_feat_layers, 
+                                            infer_gs, 
+                                            use_ray_pose, 
+                                            ref_view_strategy, 
+                                            mvrm_cfg=cfg.mvrm.train, 
+                                            mvrm_result=None, 
+                                            mode='train',
+                                            ref_b_idx=lq_ref_b_idx
+                                        )
+            # hq_pred_pose_enc = hq_encoder_out.pose_enc      # 1 v 9
+            hq_pred_pose = hq_encoder_out['extrinsics']     # 1 v 3 4
+            # hq_latent = hq_mvrm_out['extract_feat']         # b v 973 3072
+            hq_depth = hq_encoder_out.depth.unsqueeze(2)    # 1 v 1 h w
+            
+            
+
+            
+            # generate pure noise
+            noise_generator.manual_seed(42)
+            pure_noise1 = torch.randn(lq_latent_mvrm1.shape, generator=noise_generator, device=imgs.device, dtype=torch.float32)
+            # lq_latent condition method
+            if cfg.mvrm.lq_latent_cond == 'addition':
+                xt = pure_noise1 + lq_latent_mvrm1
+            model_kwargs={
+                'model_img_size': (model_H, model_W)
+            }
+            autocast_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+            with torch.no_grad():
+                with torch.autocast(device_type=imgs.device.type, dtype=autocast_dtype):                
+                    restored_samples_mvrm1 = eval_sampler(xt, denoiser.forward, **model_kwargs)[-1]     # b v n d
+            mvrm_result={}
+            mvrm_result[('restored_latent', first_extract_layer_idx)] = restored_samples_mvrm1
+            # mvrm_result['restored_latent'] = hq_latent
+            
+            
+  
+            lq_latent_mvrm2 = lq_mvrm_out[('extract_feat', second_extract_layer_idx)]         # b v n+1 d
+            # generate pure noise
+            noise_generator.manual_seed(42)
+            pure_noise2 = torch.randn(lq_latent_mvrm2.shape, generator=noise_generator, device=imgs.device, dtype=torch.float32)
+            # lq_latent condition method
+            if cfg.mvrm.lq_latent_cond == 'addition':
+                xt = pure_noise2 + lq_latent_mvrm2
+            model_kwargs={
+                'model_img_size': (model_H, model_W)
+            }
+            autocast_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+            with torch.no_grad():
+                with torch.autocast(device_type=imgs.device.type, dtype=autocast_dtype):                
+                    restored_samples_mvrm2 = eval_sampler(xt, denoiser2.forward, **model_kwargs)[-1]     # b v n d
+
+            mvrm_result[('restored_latent', second_extract_layer_idx)] = restored_samples_mvrm2
+            # mvrm_result['restored_latent'] = hq_latent
+            
+
+            # (W_MVRM_FRONT_BACK) RES FORWARD PASS
+            print("RES FORWARD PASS")
+            raw_output, _ = self._run_model_forward(
+                                            lq_imgs, 
+                                            ex_t_norm, 
+                                            in_t, 
+                                            export_feat_layers, 
+                                            infer_gs, 
+                                            use_ray_pose, 
+                                            ref_view_strategy, 
+                                            mvrm_cfg=cfg.mvrm.val, 
+                                            mvrm_result=mvrm_result, 
+                                            mode='val'
+                                        )
+            # res_pred_pose_enc = raw_output.pose_enc      # 1 v 9
             res_pred_pose = raw_output['extrinsics']     # 1 v 3 4
             res_depth = raw_output.depth.unsqueeze(2)    # 1 v 1 h w
             
@@ -369,6 +610,191 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             cam_save_root = os.path.join(cfg.workspace.work_dir, 'pho_cam_traj_results', data, pose_setting)
             plot_cam_trajectory(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/{scene}.png")
      
+     
+     
+
+
+
+
+
+
+        elif cfg.MVRM_EVAL.eval_method == 'w_mvrm_front_connect_back':       
+            print('-'*70)      
+            print('APPLYING W_MVRM_FRONT_CONNECT_BACK O')
+            print('-'*70)
+            
+            export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]
+            
+
+
+            # (W_MVRM FRONT_CONNECT_BACK) LQ FORWARD PASS
+            print("LQ FORWARD PASS (MVRM FRONT_CONNECT_BACK FEATS)")
+            lq_encoder_out, lq_mvrm_out = self._run_model_forward(
+                                            lq_imgs, 
+                                            ex_t_norm, 
+                                            in_t, 
+                                            export_feat_layers, 
+                                            infer_gs, 
+                                            use_ray_pose, 
+                                            ref_view_strategy, 
+                                            mvrm_cfg=cfg.mvrm.train, 
+                                            mvrm_result=None, 
+                                            mode='train',
+                                            ref_b_idx=None
+                                        )
+            # lq_pred_pose_enc = lq_encoder_out.pose_enc      # 1 v 9
+            lq_pred_pose = lq_encoder_out['extrinsics']     # 1 v 3 4
+            lq_ref_b_idx = lq_encoder_out.ref_b_idx
+            lq_latent_mvrm1 = lq_mvrm_out[('extract_feat', cfg.mvrm.train.extract_feat_layers[0])]         # b v n+1 d
+            lq_depth = lq_encoder_out.depth.unsqueeze(2)     # 1 v 1 h w
+                        
+
+
+            # (W_MVRM FRONT_CONNECT_BACK) HQ FORWARD PASS 
+            print("HQ FORWARD PASS (MVRM FRONT_CONNECT_BACK FEATS)")
+            hq_encoder_out, _ = self._run_model_forward(
+                                            imgs, 
+                                            ex_t_norm, 
+                                            in_t, 
+                                            export_feat_layers, 
+                                            infer_gs, 
+                                            use_ray_pose, 
+                                            ref_view_strategy, 
+                                            mvrm_cfg=cfg.mvrm.train, 
+                                            mvrm_result=None, 
+                                            mode='train',
+                                            ref_b_idx=lq_ref_b_idx
+                                        )
+            # hq_pred_pose_enc = hq_encoder_out.pose_enc      # 1 v 9
+            hq_pred_pose = hq_encoder_out['extrinsics']     # 1 v 3 4
+            # hq_latent = hq_mvrm_out['extract_feat']         # b v 973 3072
+            hq_depth = hq_encoder_out.depth.unsqueeze(2)    # 1 v 1 h w
+            
+            
+
+            
+            # generate pure noise
+            noise_generator.manual_seed(42)
+            pure_noise1 = torch.randn(lq_latent_mvrm1.shape, generator=noise_generator, device=imgs.device, dtype=torch.float32)
+            # lq_latent condition method
+            if cfg.mvrm.lq_latent_cond == 'addition':
+                xt = pure_noise1 + lq_latent_mvrm1
+            model_kwargs={
+                'model_img_size': (model_H, model_W)
+            }
+            autocast_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+            with torch.no_grad():
+                with torch.autocast(device_type=imgs.device.type, dtype=autocast_dtype):                
+                    restored_samples_mvrm1 = eval_sampler(xt, denoiser.forward, **model_kwargs)[-1]     # b v n d
+            mvrm_result={}
+            mvrm_result[('restored_latent', cfg.mvrm.train.extract_feat_layers[0])] = restored_samples_mvrm1
+            # mvrm_result['restored_latent'] = hq_latent
+            
+
+
+            # (W_MVRM FRONT_CONNECT_BACK) LQ2 FORWARD PASS
+            print("LQ2 FORWARD PASS (MVRM FRONT_CONNECT_BACK FEATS)")
+            lq_encoder_out2, lq_mvrm_out2 = self._run_model_forward(
+                                            lq_imgs, 
+                                            ex_t_norm, 
+                                            in_t, 
+                                            export_feat_layers, 
+                                            infer_gs, 
+                                            use_ray_pose, 
+                                            ref_view_strategy, 
+                                            mvrm_cfg=cfg.mvrm.val, 
+                                            mvrm_result=mvrm_result, 
+                                            mode='val',
+                                            ref_b_idx=None,
+                                            front_connect_back_mvrm_cfg = cfg.mvrm2
+                                        )
+
+            # lq_pred_pose_enc = lq_encoder_out.pose_enc      # 1 v 9
+            lq_pred_pose2 = lq_encoder_out2['extrinsics']     # 1 v 3 4
+            lq_ref_b_idx2 = lq_encoder_out2.ref_b_idx
+            lq_latent_mvrm2 = lq_mvrm_out2[('extract_feat', cfg.mvrm2.train.extract_feat_layers[0])]         # b v n+1 d
+            lq_depth2 = lq_encoder_out2.depth.unsqueeze(2)     # 1 v 1 h w
+            
+            
+            
+            # generate pure noise
+            noise_generator.manual_seed(42)
+            pure_noise2 = torch.randn(lq_latent_mvrm2.shape, generator=noise_generator, device=imgs.device, dtype=torch.float32)
+            # lq_latent condition method
+            if cfg.mvrm.lq_latent_cond == 'addition':
+                xt = pure_noise2 + lq_latent_mvrm2
+            model_kwargs={
+                'model_img_size': (model_H, model_W)
+            }
+            autocast_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+            with torch.no_grad():
+                with torch.autocast(device_type=imgs.device.type, dtype=autocast_dtype):                
+                    restored_samples_mvrm2 = eval_sampler(xt, denoiser2.forward, **model_kwargs)[-1]     # b v n d
+
+            mvrm_result[('restored_latent', cfg.mvrm2.train.extract_feat_layers[0])] = restored_samples_mvrm2
+            # mvrm_result['restored_latent'] = hq_latent
+            
+
+            # (W_MVRM FRONT_CONNECT_BACK) RES FORWARD PASS
+            print("RES FORWARD PASS (MVRM FRONT_CONNECT_BACK FEATS)")
+            raw_output, _ = self._run_model_forward(
+                                            lq_imgs, 
+                                            ex_t_norm, 
+                                            in_t, 
+                                            export_feat_layers, 
+                                            infer_gs, 
+                                            use_ray_pose, 
+                                            ref_view_strategy, 
+                                            mvrm_cfg=cfg.mvrm2.val, 
+                                            mvrm_result=mvrm_result, 
+                                            mode='val'
+                                        )
+            # res_pred_pose_enc = raw_output.pose_enc      # 1 v 9
+            res_pred_pose = raw_output['extrinsics']     # 1 v 3 4
+            res_depth = raw_output.depth.unsqueeze(2)    # 1 v 1 h w
+            
+            scene = scene.replace('/', '_') if '/' in scene else scene
+            
+            # from torchvision.utils import save_image
+            # save_image(imgs.squeeze(0), 'img.jpg', normalize=True)
+            # save_image(lq_imgs.squeeze(0), 'img_lq.jpg', normalize=True)
+
+
+            vis_save_root = os.path.join(cfg.workspace.work_dir, 'pho_vis_results', data, pose_setting)
+            vis_all(
+                vis_save_root=vis_save_root,
+                scene=scene,
+                hq_img=imgs[0],
+                lq_img=lq_imgs[0],
+                hq_depth=hq_depth[0],
+                lq_depth=lq_depth[0],
+                res_depth=res_depth[0],
+            )
+            metric_save_root = os.path.join(cfg.workspace.work_dir, 'pho_metric_results', data, pose_setting)
+            metric_all(
+                metric_save_root=metric_save_root,
+                scene=scene,
+                poses = (hq_pred_pose[0], lq_pred_pose[0],res_pred_pose[0]),
+                depths = (hq_depth, lq_depth, res_depth)
+            )
+            featsim_log = featsim_all(hq_encoder_out, lq_encoder_out, raw_output)
+            featsim_save_root = os.path.join(cfg.workspace.work_dir, 'pho_featsim_results', data, pose_setting)
+            plot_three_similarity_panels(
+                featsim_log,
+                save_path=f"{featsim_save_root}/{scene}_sim_all_combined.png"
+            )
+            cam_save_root = os.path.join(cfg.workspace.work_dir, 'pho_cam_traj_results', data, pose_setting)
+            plot_cam_trajectory(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/{scene}.png")
+     
+            
+
+
+
+
+
+
+
+            
             
             
             
@@ -775,6 +1201,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         mvrm_cfg=None,
         mvrm_result=None,
         mode=None,
+        ref_b_idx=None,
+        front_connect_back_mvrm_cfg=None
     ) -> dict[str, torch.Tensor]:
         """Run model forward pass."""
         device = imgs.device
@@ -787,7 +1215,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             torch.cuda.synchronize(device)
         start_time = time.time()
         feat_layers = list(export_feat_layers) if export_feat_layers is not None else None
-        output, mvrm_out = self.forward(imgs, ex_t, in_t, feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg, mvrm_result, mode)
+        output, mvrm_out = self.forward(imgs, ex_t, in_t, feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg, mvrm_result, mode, ref_b_idx, front_connect_back_mvrm_cfg)
         if need_sync:
             torch.cuda.synchronize(device)
         end_time = time.time()

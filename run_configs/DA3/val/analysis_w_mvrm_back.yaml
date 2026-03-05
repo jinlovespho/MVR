@@ -1,0 +1,206 @@
+# DepthAnything3 Benchmark Evaluation Configuration
+# 
+# This config can be loaded and overridden via command line.
+# Example: python -m depth_anything_3.bench.evaluator --model /path/to/model --work_dir /path/to/workspace
+#
+# See depth_anything_3.cfg for config utility functions.
+
+
+# ==============================================================================
+# MVRM Configuration
+# ==============================================================================
+MVRM_EVAL:
+  # [wo_mvrm_HQ, wo_mvrm_LQ, wo_mvrm_IR, w_mvrm]
+  eval_method: w_mvrm
+  load_lq: true
+  load_res: true
+
+
+# ==============================================================================
+# Denoiser Configuration
+# ==============================================================================
+denoiser:
+  model: DiTwDDTHeadMVRM_Multiview
+  target: RAE.src.stage2.models.DDT_MVRM_multiview.DiTwDDTHeadMVRM_Multiview
+  params:
+    # input_size: [27, 36]  # feat_H, feat_W
+    input_size: 
+    patch_size: 1
+    in_channels: 1536
+    hidden_size: [1536, 3072]
+    depth: [28, 2]
+    num_heads: [16, 16]
+    mlp_ratio: 4.0
+    class_dropout_prob:
+    num_classes: 
+    use_qknorm: true 
+    use_swiglu: true
+    use_rope: true
+    use_rmsnorm: true
+    wo_shift: false
+    use_pos_embed: false
+    use_global_residual: false
+  # ckpt: NVIDIA_SERVER/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-mvrm__bs8-maxview8-accum1__lr-2e-04__msg-lqkernel-50__global-17__ddp/checkpoints/ep-0025000.pt
+  # ckpt: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/JIHYE_CKPT/lqkernel50_48k/ep-0048000.pt
+  # ckpt: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/JIHYE_CKPT/lqkernel100_48k/ep-0048000.pt
+
+
+  # NVIDIA2 (lqkernel100,200)
+  # ckpt: NVIDIA_SERVER_CKPT/NVIDIA2/lqkernel100/ep-0025000.pt
+  # ckpt: NVIDIA_SERVER_CKPT/NVIDIA2/lqkernel200/ep-0025000.pt
+
+
+  # JIHYE2 (lqkernel50,100,200-74k)
+  # ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel50/kernel50_0074000.pt
+  # ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel100/kernel100_0074000.pt
+  # ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel200/kernel200_0074000.pt
+
+  # JIHYE3 (lqkernel200 - 118k)
+  # ckpt: /media/data1/MV_Restoration/JIHYE3_CKPT/ep-0118000_g17_200.pt
+
+
+  ckpt: /media/data1/MV_Restoration/JIHYE3_CKPT/ep-0117000_g31_200.pt
+
+
+
+
+
+mvrm:
+  lq_latent_cond: addition    # [addition, concat]
+  train:
+    # DPT Head input feats = [19, 27, 33, 39]
+    # extract_feat_layers: [17]
+    extract_feat_layers: [31]
+    concat_feat: False
+    break_and_return_feat: false
+  val:
+    # restore_feat_layers: [17]
+    restore_feat_layers: [31]
+    concat_feat: False 
+    skip_and_input_feat: false
+
+transport:
+  params:
+    path_type: 'Linear'
+    prediction: 'velocity'
+    loss_weight: null
+    time_dist_type: 'logit-normal_0_1'
+sampler:
+  mode: ODE
+  params:
+    sampling_method: 'euler'
+    num_steps: 50
+    atol: 1.0e-6
+    rtol: 1.0e-3
+    reverse: false
+misc:
+  latent_size: 
+  num_classes: 
+  time_dist_shift_dim: 1492992  # 1536*27*36
+  time_dist_shift_base: 4096
+
+# ==============================================================================
+# Model Configuration
+# ==============================================================================
+model:
+  # Path to model checkpoint or HuggingFace model ID
+  path: depth-anything/DA3-GIANT-1.1
+
+# ==============================================================================
+# Workspace Configuration
+# ==============================================================================
+workspace:
+  # Working directory for outputs (model results, metrics, etc.)
+
+
+  ## W_MVRM_BACK - JIHYE2 - LQKERNEL200 - MAXVIEW50
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINALFINAL/da3_giant/w_mvrm_back/JIHYE2_lqkernel200_74k/filtered_cam_blur_100/eval_full_50_saddle
+
+
+
+
+
+
+# ==============================================================================
+# Evaluation Configuration
+# ==============================================================================
+eval:
+  # Datasets to evaluate
+  # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
+  datasets:
+    - 7scenes
+    - scannetpp
+    - hiroom
+    - dtu
+    - dtu64
+    - eth3d
+
+  # Evaluation modes
+  # Options: pose, recon_unposed, recon_posed, view_syn
+  modes:
+    - pose
+    - recon_unposed
+    # - recon_posed
+
+  # Reference view selection strategy for inference
+  # Options: first, saddle_balanced, auto, mid
+  # ref_view_strategy: "first"
+  ref_view_strategy: "saddle_balanced"
+
+  # Specific scenes to evaluate (null = all scenes)
+  # Example: [courtyard, relief] for eth3d
+  scenes: []
+
+  # Maximum number of frames per scene (for sampling)
+  # If a scene has more frames, randomly sample to this limit.
+  # Set to -1 to disable sampling.
+  # max_frames: 100
+  max_frames: 50
+  # max_frames: 10
+  # max_frames: 5
+  # max_frames: 1
+
+  # Only run evaluation (skip inference)
+  # eval_only: true
+  eval_only: false
+
+  # Only print saved metrics (skip inference and evaluation)
+  print_only: false
+
+# ==============================================================================
+# Inference Configuration
+# ==============================================================================
+inference:
+  # Number of parallel workers for TSDF fusion
+  num_fusion_workers: 2
+
+  # Enable debug mode with verbose output
+  # debug: false
+  debug: true
+
+# ==============================================================================
+# Preset Configurations
+# ==============================================================================
+# These can be activated via command line: --preset full_eval
+
+presets:
+  # Full evaluation on all 6 datasets
+  full_eval:
+    datasets: [eth3d, 7scenes, scannetpp, hiroom, dtu, dtu64]
+    modes: [pose, recon_unposed, recon_posed]
+
+  # Pose-only evaluation
+  pose_only:
+    datasets: [eth3d, 7scenes, scannetpp, hiroom, dtu64]
+    modes: [pose]
+
+  # Reconstruction-only evaluation (5 datasets, excluding dtu64)
+  recon_only:
+    datasets: [eth3d, 7scenes, scannetpp, hiroom, dtu]
+    modes: [recon_unposed, recon_posed]
+
+  # Quick test (single scene per dataset)
+  quick_test:
+    datasets: [eth3d]
+    modes: [pose, recon_unposed]
+    scenes: [courtyard]
