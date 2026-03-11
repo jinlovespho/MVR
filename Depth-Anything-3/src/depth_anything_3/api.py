@@ -325,15 +325,34 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             # lq_latent condition method
             if cfg.mvrm.lq_latent_cond == 'addition':
                 xt = pure_noise + lq_latent
+                # CFG
+                if cfg.mvrm.val.guidance.use_cfg:
+                    xt_uncond = pure_noise
+                    xt = torch.cat([xt_uncond, xt], dim=0)
+                
             elif cfg.mvrm.lq_latent_cond == 'concat':
-                xt = torch.concat([pure_noise, lq_latent], dim=1)
+                xt = torch.concat([pure_noise, lq_latent], dim=3)
+                # CFG
+                if cfg.mvrm.val.guidance.use_cfg:
+                    xt_uncond = torch.concat([pure_noise, torch.zeros_like(lq_latent)], dim=3)
+                    xt = torch.cat([xt_uncond, xt], dim=0)
+            
+
             model_kwargs={
-                'model_img_size': (model_H, model_W)
+                'model_img_size': (model_H, model_W),
+                'guidance': cfg.mvrm.val.guidance
             }
             autocast_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
             with torch.no_grad():
-                with torch.autocast(device_type=imgs.device.type, dtype=autocast_dtype):                
-                    restored_samples = eval_sampler(xt, denoiser.forward, **model_kwargs)[-1]     # b v n d
+                with torch.autocast(device_type=imgs.device.type, dtype=autocast_dtype):         
+                    restored_samples = eval_sampler(xt, denoiser.forward, **model_kwargs)[-1]     # b v n d # eval_sampler: class ode def sample() function
+            
+
+            # CFG
+            if cfg.mvrm.val.guidance.use_cfg:   
+                # get the conditional restored sample
+                restored_samples = restored_samples[1:]
+                print('USING CFG!!')
             
 
             mvrm_result={}

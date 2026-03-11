@@ -25,7 +25,7 @@ for KERNEL_SIZE in [100, 300, 500]:
     for scene in tqdm(scenes):
         images = glob.glob(f'{scene}/merge_dslr_iphone/images/iphone/*')
         deg_scene_save_path = '/'.join(images[0].split('/')[:-1])
-        deg_scene_save_path = deg_scene_save_path.replace('clean', f'cam_blur_{KERNEL_SIZE}_resize')
+        deg_scene_save_path = deg_scene_save_path.replace('clean', f'cam_blur_{KERNEL_SIZE}_resize_640')
         os.makedirs(deg_scene_save_path, exist_ok=True)
 
         for image in images:
@@ -36,7 +36,7 @@ for KERNEL_SIZE in [100, 300, 500]:
             orig_size = img.size
             resized_img = resize_long_side(img, 640)
             blurred = kernel.applyTo(resized_img, keep_image_dim=True)
-            blurred = blurred.resize(orig_size, Image.BICUBIC)
+            # blurred = blurred.resize(orig_size, Image.BICUBIC)
             blurred.save(f'{deg_scene_save_path}/{img_id}.jpg')
 
 print('CAM BLUR FINISH: scannetpp')

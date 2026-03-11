@@ -294,7 +294,7 @@ def load_sampler(cfg, transport_sampler):
     sampler_params = cfg.sampler.params
     
     if sampler_mode == "ODE":
-        eval_sampler = transport_sampler.sample_ode(**sampler_params)
+        eval_sampler = transport_sampler.sample_ode(**sampler_params)   # return _ode.sample from transport.py sample_ode()
     elif sampler_mode == "SDE":
         eval_sampler = transport_sampler.sample_sde(**sampler_params)
     else:

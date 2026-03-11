@@ -261,12 +261,15 @@ class Evaluator:
             scene_data = self._sample_frames(scene_data, scene)
             
 
-
-
             # for img_path in scene_data.lq_image_files:
-            #     # new_path = img_path.replace("/filtered_cam_blur_100_resize/", "/only50_filtered_cam_blur_100_resize/")
-            #     # new_path = img_path.replace("/filtered_cam_blur_300_resize/", "/only50_filtered_cam_blur_300_resize/")
-            #     # new_path = img_path.replace("/filtered_cam_blur_500_resize/", "/only50_filtered_cam_blur_500_resize/")
+            #     # new_path = img_path.replace("/cam_blur_100_resize_640/", "/filtered_cam_blur_100_resize_640/")
+            #     # new_path = img_path.replace("/cam_blur_300_resize_640/", "/filtered_cam_blur_300_resize_640/")
+            #     # new_path = img_path.replace("/cam_blur_500_resize_640/", "/filtered_cam_blur_500_resize_640/")
+                
+            #     # new_path = img_path.replace("/cam_blur_400/", "/filtered_cam_blur_400/")
+            #     # new_path = img_path.replace("/cam_blur_500/", "/filtered_cam_blur_500/")
+            #     new_path = img_path.replace("/cam_blur_600/", "/filtered_cam_blur_600/")
+                
             #     new_dir = os.path.dirname(new_path)
             #     os.makedirs(new_dir, exist_ok=True)
             #     # Copy image
@@ -359,6 +362,12 @@ class Evaluator:
             for data, result in self._eval_pose():
                 summary[f"{data}_pose"] = result
 
+        if "depth" in self.modes:
+            print(f"\n{'='*60}")
+            print(f"📊 Evaluating DEPTH for all datasets...")
+            print(f"{'='*60}")
+            summary.update(self._eval_depth(mode="depth"))
+            
         if "recon_unposed" in self.modes:
             print(f"\n{'='*60}")
             print(f"📊 Evaluating RECON_UNPOSED for all datasets...")
@@ -372,12 +381,6 @@ class Evaluator:
             print(f"{'='*60}")
             for data, result in self._eval_reconstruction("recon_posed"):
                 summary[f"{data}_recon_posed"] = result
-        
-        if "depth" in self.modes:
-            print(f"\n{'='*60}")
-            print(f"📊 Evaluating DEPTH for all datasets...")
-            print(f"{'='*60}")
-            summary.update(self._eval_depth(mode="depth"))
 
         if "view_syn" in self.modes:
             print(f"\n{'='*60}")
@@ -1000,6 +1003,9 @@ class Evaluator:
         # Create new scene_data with sampled frames
         sampled = Dict()
         
+        # breakpoint()
+        
+        
         
         # PHO
         sampled.lq_image_files = [scene_data.lq_image_files[i] for i in sampled_indices]
@@ -1008,6 +1014,10 @@ class Evaluator:
         sampled.image_files = [scene_data.image_files[i] for i in sampled_indices]
         sampled.extrinsics = scene_data.extrinsics[sampled_indices]
         sampled.intrinsics = scene_data.intrinsics[sampled_indices]
+
+
+
+
 
         # Copy aux data, sampling lists if needed
         sampled.aux = Dict()

@@ -104,6 +104,42 @@ class ode:
         self.rtol = rtol
         self.sampler_type = sampler_type
 
+
+    def sample(self, x, model, **model_kwargs):
+        # breakpoint()
+        device = x[0].device if isinstance(x, tuple) else x.device
+
+        def _fn(t, x):
+            t_batch = torch.ones(
+                x[0].size(0) if isinstance(x, tuple) else x.size(0),
+                device=device
+            ) * t
+            return self.drift(x, t_batch, model, **model_kwargs)
+
+        t = self.t.to(device)
+
+        x_curr = x
+
+        for i in range(len(t) - 1):
+            t_pair = torch.tensor([t[i], t[i+1]], device=device)
+            x_curr = odeint(
+                _fn,
+                x_curr,
+                t_pair,
+                method=self.sampler_type,
+                atol=self.atol,
+                rtol=self.rtol,
+            )[-1]
+            
+            # PHO4 (ON)
+            # add safety clamp
+            x_curr = torch.nan_to_num(x_curr, nan=0.0, posinf=1e4, neginf=-1e4)
+            x_curr = torch.clamp(x_curr, -1e4, 1e4)
+
+
+        return x_curr.unsqueeze(0)
+
+
     # def sample(self, x, model, **model_kwargs) -> tuple[th.Tensor]:
         
     #     # breakpoint()
@@ -167,35 +203,3 @@ class ode:
     #         return x_curr.unsqueeze(0)
     
 
-
-    def sample(self, x, model, **model_kwargs):
-        device = x[0].device if isinstance(x, tuple) else x.device
-
-        def _fn(t, x):
-            t_batch = torch.ones(
-                x[0].size(0) if isinstance(x, tuple) else x.size(0),
-                device=device
-            ) * t
-            return self.drift(x, t_batch, model, **model_kwargs)
-
-        t = self.t.to(device)
-
-        x_curr = x
-
-        for i in range(len(t) - 1):
-            t_pair = torch.tensor([t[i], t[i+1]], device=device)
-            x_curr = odeint(
-                _fn,
-                x_curr,
-                t_pair,
-                method=self.sampler_type,
-                atol=self.atol,
-                rtol=self.rtol,
-            )[-1]
-            
-            # PHO4 (ON)
-            # add safety clamp
-            x_curr = torch.nan_to_num(x_curr, nan=0.0, posinf=1e4, neginf=-1e4)
-            x_curr = torch.clamp(x_curr, -1e4, 1e4)
-
-        return x_curr.unsqueeze(0)

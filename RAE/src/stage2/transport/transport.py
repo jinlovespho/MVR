@@ -396,16 +396,33 @@ class Transport:
             return (-drift_mean + drift_var * score)
         
         def velocity_ode(x, t, model, **model_kwargs):
-            # breakpoint()
-            model_output = model(x, t, **model_kwargs)
+
+            
+            if model_kwargs['guidance'].use_cfg:
+                cfg_scale = model_kwargs['guidance'].cfg_scale
+
+                if cfg_scale > 1.0:
+
+                    model_out = model(x, t, **model_kwargs)
+                    
+                    v_uncond, v_cond = model_out.chunk(2, dim=0)
+
+                    v_guided = v_uncond + cfg_scale * (v_cond - v_uncond)
+
+                    return torch.cat([v_guided, v_guided], dim=0)
+
+            else:
+                model_output = model(x, t, **model_kwargs)
+                
+                    
             return model_output
 
-        if self.model_type == ModelType.NOISE:
+        if self.model_type == ModelType.NOISE:  # f
             drift_fn = noise_ode
-        elif self.model_type == ModelType.SCORE:
+        elif self.model_type == ModelType.SCORE:    # f
             drift_fn = score_ode
-        else:
-            drift_fn = velocity_ode
+        else:   # t
+            drift_fn = velocity_ode #
         
         def body_fn(x, t, model, **model_kwargs):
             model_output = drift_fn(x, t, model, **model_kwargs)
@@ -578,7 +595,7 @@ class Sampler:
         - atol: absolute error tolerance for the solver
         - rtol: relative error tolerance for the solver
         - reverse: whether solving the ODE in reverse (data to noise); default to False
-        """
+        """ 
         if reverse:
             drift = lambda x, t, model, **kwargs: self.drift(x, torch.ones_like(t) * (1 - t), model, **kwargs)
         else:

@@ -30,7 +30,7 @@ for KERNEL_SIZE in [100, 300, 500]:
         images = glob.glob(f'{scene}/image/*')
         
         deg_scene_save_path = '/'.join(images[0].split('/')[:-1])
-        deg_scene_save_path = deg_scene_save_path.replace('clean', f'cam_blur_{KERNEL_SIZE}_resize')
+        deg_scene_save_path = deg_scene_save_path.replace('clean', f'cam_blur_{KERNEL_SIZE}_resize_640')
         os.makedirs(deg_scene_save_path, exist_ok=True)
         
         for image in images:
@@ -48,7 +48,7 @@ for KERNEL_SIZE in [100, 300, 500]:
 
             blurred = kernel.applyTo(tmp_path, keep_image_dim=True)
 
-            blurred = blurred.resize(orig_size, Image.BICUBIC)
+            # blurred = blurred.resize(orig_size, Image.BICUBIC)
 
             blurred.save(f'{deg_scene_save_path}/{img_id}.jpg')
 

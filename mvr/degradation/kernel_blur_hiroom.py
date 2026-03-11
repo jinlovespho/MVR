@@ -3,8 +3,6 @@ import sys
 sys.path.append(os.getcwd())
 from motionblur.motionblur import Kernel 
 import glob 
-from torchvision.transforms.functional import to_tensor
-from torchvision.utils import save_image 
 from tqdm import tqdm
 
 
@@ -14,7 +12,7 @@ scenes = glob.glob(f'{hq_root_path}/data/20241230/*')
 
 BLUR_INTENSITY=0.1
 # for KERNEL_SIZE in [100, 300]:
-for KERNEL_SIZE in [50, 500]:
+for KERNEL_SIZE in [400, 600]:
 
     print('Applying kernel: ', KERNEL_SIZE)
     for scene in tqdm(scenes):

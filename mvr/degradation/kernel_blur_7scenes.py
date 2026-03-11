@@ -2,9 +2,7 @@ import os
 import sys
 sys.path.append(os.getcwd())
 from motionblur.motionblur import Kernel 
-import glob 
-from torchvision.transforms.functional import to_tensor
-from torchvision.utils import save_image 
+import glob  
 from tqdm import tqdm
 from PIL import Image
 
@@ -14,7 +12,7 @@ scenes = [scene for scene in scenes if 'meshes' not in scene]
 
 
 BLUR_INTENSITY=0.1
-for KERNEL_SIZE in [50, 100, 300, 500]:
+for KERNEL_SIZE in [400, 600]:
 
     print('Applying kernel: ', KERNEL_SIZE)
     for scene in tqdm(scenes):
