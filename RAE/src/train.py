@@ -238,7 +238,8 @@ def main():
             with torch.no_grad():
                 hq_encoder_out, hq_mvrm_out = models['encoder'](
                                                     image=train_hq_views, 
-                                                    export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39], 
+                                                    # export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39], 
+                                                    export_feat_layers=[], 
                                                     mvrm_cfg=full_cfg.mvrm.train, 
                                                     mode='train'
                                                     )
@@ -247,7 +248,8 @@ def main():
             hq_encoder_out = processors['encoder_output_processor'](hq_encoder_out)
             train_hq_pred_depth_np = hq_encoder_out.depth                  # b v 378 504
             train_hq_pred_depth = torch.from_numpy(train_hq_pred_depth_np).to(device) 
-            hq_latent = hq_mvrm_out['extract_feat']
+            # hq_latent = hq_mvrm_out['extract_feat']
+            hq_latent = hq_mvrm_out[('extract_feat', full_cfg.mvrm.train.extract_feat_layers[0])]
             
             
             
@@ -255,7 +257,8 @@ def main():
             with torch.no_grad():
                 lq_encoder_out, lq_mvrm_out = models['encoder'](
                                                     image=train_lq_views, 
-                                                    export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39], 
+                                                    # export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39], 
+                                                    export_feat_layers=[], 
                                                     mvrm_cfg=full_cfg.mvrm.train, 
                                                     mode='train'
                                                     )
@@ -264,7 +267,8 @@ def main():
             lq_encoder_out = processors['encoder_output_processor'](lq_encoder_out)
             train_lq_pred_depth_np = lq_encoder_out.depth                  # b v 378 504
             train_lq_pred_depth = torch.from_numpy(train_lq_pred_depth_np).to(device) 
-            lq_latent = lq_mvrm_out['extract_feat']      # b v 973 3072
+            # lq_latent = lq_mvrm_out['extract_feat']      # b v 973 3072
+            lq_latent = lq_mvrm_out[('extract_feat', full_cfg.mvrm.train.extract_feat_layers[0])]
             assert lq_latent.shape == hq_latent.shape 
             
 
@@ -728,7 +732,8 @@ def main():
                     val_lq_encoder_out = processors['encoder_output_processor'](val_lq_encoder_out)
                     val_lq_pred_depth_np = val_lq_encoder_out.depth     # num_view h w
                     val_lq_pred_depth = torch.from_numpy(val_lq_pred_depth_np).to(device) 
-                    val_lq_latent = val_lq_mvrm_out['extract_feat']      # b v 973 3072
+                    # val_lq_latent = val_lq_mvrm_out['extract_feat']      # b v 973 3072
+                    val_lq_latent = val_lq_mvrm_out[('extract_feat',full_cfg.mvrm.train.extract_feat_layers[0])]      # b v 973 3072
 
 
                     val_noise_generator.manual_seed(global_seed)
@@ -753,7 +758,8 @@ def main():
 
 
                     mvrm_result={}
-                    mvrm_result['restored_latent'] = restored_samples
+                    # mvrm_result['restored_latent'] = restored_samples
+                    mvrm_result[('restored_latent', full_cfg.mvrm.train.extract_feat_layers[0])] = restored_samples
 
 
                     with torch.no_grad():

@@ -46,7 +46,9 @@ from mvr.utils.freq_utils import *
 from mvr.utils.pca_utils import *
 
 from RAE.src.utils.vis_utils import vis_all
-from RAE.src.vis_cam_pose import plot_cam_trajectory, plot_cam_trajectory_fair
+from RAE.src.vis_cam_pose import plot_cam_trajectory
+
+from einops import rearrange
 
 
 
@@ -262,6 +264,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         b, v, c, model_H, model_W = imgs.shape
 
 
+
+
         # Apply W_MVRM restoration
         if cfg.MVRM_EVAL.eval_method == 'w_mvrm':       
             print('-'*70)      
@@ -269,6 +273,17 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             print('-'*70)
             
             export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]
+            
+            
+            
+            
+            # PERFORM SINGLE VIEW INFERENCE
+            print('start - before rearrange lq_imgs.shape: ', lq_imgs.shape)
+            lq_imgs = rearrange(lq_imgs, 'b v c h w -> v b c h w')
+            imgs = rearrange(imgs, 'b v c h w -> v b c h w')
+            print('start - after rearrange lq_imgs.shape: ', lq_imgs.shape)
+            
+            
             
             
             # (W_MVRM) LQ FORWARD PASS
@@ -295,6 +310,10 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             first_extract_layer_idx = cfg.mvrm.train.extract_feat_layers[0]
             lq_latent = lq_mvrm_out[('extract_feat', first_extract_layer_idx)]         # b v n+1 d
             lq_depth = lq_encoder_out.depth.unsqueeze(2)     # 1 v 1 h w
+            
+            
+            breakpoint()
+
 
 
             # (W_MVRM) HQ FORWARD PASS 
@@ -388,6 +407,43 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             
             scene = scene.replace('/', '_') if '/' in scene else scene
             
+            # from torchvision.utils import save_image
+            # save_image(imgs.squeeze(0), 'img.jpg', normalize=True)
+            # save_image(lq_imgs.squeeze(0), 'img_lq.jpg', normalize=True)
+            
+            
+            
+            # MANUAL CODING 
+            print('before rearrange depth.shape: ', raw_output['depth'].shape)
+            raw_output['depth'] = rearrange(raw_output['depth'], 'b c h w -> c b h w')
+            print('after rearrange depth.shape: ', raw_output['depth'].shape)
+            raw_output['depth_conf'] = rearrange(raw_output['depth'], 'b c h w -> c b h w')
+            raw_output['extrinsics'] = rearrange(raw_output['extrinsics'], 'b v c1 c2 -> v b c1 c2')
+            raw_output['pose_enc'] = rearrange(raw_output['pose_enc'], 'b v c -> v b c') 
+            for key, val in raw_output['aux'].items():
+                raw_output['aux'][key] = rearrange(val, 'b v n d -> v b n d')
+
+
+            print('end - before rearrange lq_imgs.shape: ', lq_imgs.shape)
+            lq_imgs = rearrange(lq_imgs, 'b v c h w -> v b c h w')
+            imgs = rearrange(imgs, 'b v c h w -> v b c h w')
+            print('end - after rearrange lq_imgs.shape: ', lq_imgs.shape)
+
+
+            lq_depth = rearrange(lq_depth, 'b v c h w -> v b c h w')
+            hq_depth = rearrange(hq_depth, 'b v c h w -> v b c h w')
+            res_depth = rearrange(res_depth, 'b v c h w -> v b c h w')
+                        
+            lq_pred_pose = rearrange(lq_pred_pose, 'b v c1 c2 -> v b c1 c2')
+            hq_pred_pose = rearrange(hq_pred_pose, 'b v c1 c2 -> v b c1 c2')
+            res_pred_pose = rearrange(res_pred_pose, 'b v c1 c2 -> v b c1 c2')
+
+
+            # IT HAS TO HAVE THIS SHAPE
+            # lq_depth: 1 50 1 378 504
+            # lq_pred_pose: 1 50 3 4
+            
+
 
             vis_save_root = os.path.join(cfg.workspace.work_dir, 'pho_vis_results', data, pose_setting)
             vis_all(
@@ -414,8 +470,6 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             )
             cam_save_root = os.path.join(cfg.workspace.work_dir, 'pho_cam_traj_results', data, pose_setting)
             plot_cam_trajectory(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/{scene}.png")
-            plot_cam_trajectory_fair(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/fair_{scene}.png")
-
 
 
             # freq_save_root = os.path.join(cfg.workspace.work_dir, 'pho_freq_results', data, pose_setting)
@@ -450,7 +504,6 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             #     patch_grid=(model_H//14, model_W//14),
             #     device='cuda'
             # )
-            
             # breakpoint()
             
             
@@ -800,27 +853,6 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             print('-'*70)
             
             export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]
-
-
-            # (WO_MVRM_IR) LQ FORWARD PASS
-            print("LQ FORWARD PASS")
-            lq_encoder_out, _ = self._run_model_forward(
-                                            lq_imgs, 
-                                            ex_t_norm, 
-                                            in_t, 
-                                            export_feat_layers, 
-                                            infer_gs, 
-                                            use_ray_pose, 
-                                            ref_view_strategy, 
-                                            mvrm_cfg=None, 
-                                            mvrm_result=None, 
-                                            mode=None,
-                                            ref_b_idx=None
-                                        )
-            lq_pred_pose = lq_encoder_out['extrinsics']     # 1 v 3 4
-            lq_depth = lq_encoder_out.depth.unsqueeze(2)     # 1 v 1 h w
-            lq_ref_b_idx = lq_encoder_out.ref_b_idx
-            
             
             # (WO_MVRM_IR) HQ FORWARD PASS
             print("HQ FORWARD PASS")
@@ -834,14 +866,27 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                                             ref_view_strategy, 
                                             mvrm_cfg=None, 
                                             mvrm_result=None, 
-                                            mode=None,
-                                            ref_b_idx=lq_ref_b_idx
-                                            # ref_b_idx=None
+                                            mode=None
                                         )
             hq_pred_pose = hq_encoder_out['extrinsics']     # 1 v 3 4
             hq_depth = hq_encoder_out.depth.unsqueeze(2)    # 1 v 1 h w
             
-
+            # (WO_MVRM_IR) LQ FORWARD PASS
+            print("LQ FORWARD PASS")
+            lq_encoder_out, _ = self._run_model_forward(
+                                            lq_imgs, 
+                                            ex_t_norm, 
+                                            in_t, 
+                                            export_feat_layers, 
+                                            infer_gs, 
+                                            use_ray_pose, 
+                                            ref_view_strategy, 
+                                            mvrm_cfg=None, 
+                                            mvrm_result=None, 
+                                            mode=None
+                                        )
+            lq_pred_pose = lq_encoder_out['extrinsics']     # 1 v 3 4
+            lq_depth = lq_encoder_out.depth.unsqueeze(2)     # 1 v 1 h w
 
             # (WO_MVRM_IR) IR IMG FORWARD PASS
             print("IR IMG FORWARD PASS")
@@ -899,29 +944,6 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
 
             export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]
             
-            
-
-            # (WO_MVRM_LQ) LQ FORWARD PASS
-            print("LQ FORWARD PASS")
-            lq_encoder_out, _ = self._run_model_forward(
-                                            lq_imgs, 
-                                            ex_t_norm, 
-                                            in_t, 
-                                            export_feat_layers, 
-                                            infer_gs, 
-                                            use_ray_pose, 
-                                            ref_view_strategy, 
-                                            mvrm_cfg=None, 
-                                            mvrm_result=None, 
-                                            mode=None,
-                                            ref_b_idx=None
-                                        )
-            # lq_pred_pose = lq_encoder_out['extrinsics']     # 1 v 3 4
-            # lq_depth = lq_encoder_out.depth.unsqueeze(2)     # 1 v 1 h w
-            lq_ref_b_idx = lq_encoder_out.ref_b_idx
-            
-            
-            
             # (WO_MVRM_LQ) HQ FORWARD PASS
             print("HQ FORWARD PASS")
             hq_encoder_out, _ = self._run_model_forward(
@@ -934,13 +956,10 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                                             ref_view_strategy, 
                                             mvrm_cfg=None, 
                                             mvrm_result=None, 
-                                            mode=None,
-                                            ref_b_idx=lq_ref_b_idx
-                                            # ref_b_idx=None
+                                            mode=None
                                         )
             hq_pred_pose = hq_encoder_out['extrinsics']     # 1 v 3 4
             hq_depth = hq_encoder_out.depth.unsqueeze(2)    # 1 v 1 h w
-            
             
             # (WO_MVRM_LQ) LQ FORWARD PASS
             print("LQ FORWARD PASS")
@@ -958,7 +977,6 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                                         )
             res_pred_pose = raw_output['extrinsics']     # 1 v 3 4
             res_depth = raw_output.depth.unsqueeze(2)    # 1 v 1 h w
-            
             
             # same for lq
             lq_encoder_out=raw_output

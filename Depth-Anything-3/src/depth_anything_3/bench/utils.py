@@ -322,8 +322,10 @@ def compute_pose(pred_se3: torch.Tensor, gt_se3: torch.Tensor) -> Dict:
         obtaining the extrinsic matrix as Ti<-0: TiT0^-1
         
     '''
+
     pred_se3 = align_to_first_camera(pred_se3)
     gt_se3 = align_to_first_camera(gt_se3)
+    print(f"Aligned Pred SE3:\n{pred_se3.mean(axis=0)}\nAligned GT SE3:\n{gt_se3.mean(axis=0)}")
 
     rel_rangle_deg, rel_tangle_deg = se3_to_relative_pose_error(pred_se3, gt_se3, len(pred_se3))
     rError = rel_rangle_deg.cpu().numpy()
@@ -350,7 +352,6 @@ def align_to_first_camera(camera_poses: torch.Tensor) -> torch.Tensor:
     first_cam_extrinsic_inv = closed_form_inverse_se3(camera_poses[0][None])
     aligned_poses = torch.matmul(camera_poses, first_cam_extrinsic_inv)
     return aligned_poses
-
 
 def rotation_angle(
     rot_gt: torch.Tensor, rot_pred: torch.Tensor, batch_size: int = None, eps: float = 1e-15

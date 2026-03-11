@@ -18,6 +18,41 @@ def to_4x4(se3_3x4: torch.Tensor):
     return torch.cat([se3_3x4, bottom], dim=1)
 
 
+def get_centers_from_pose(T):
+    """
+    T: (V,4,4)
+    returns camera centers (V,3)
+    """
+    R = T[..., :3, :3]
+    t = T[..., :3, 3]
+    C = -torch.matmul(R.transpose(-1, -2), t.unsqueeze(-1)).squeeze(-1)
+    return C
+
+
+def apply_sim3_to_pose(poses, R_align, scale, t_align):
+    """
+    poses: (V,4,4) torch
+    R_align: (3,3) numpy
+    t_align: (3,) numpy
+    scale: scalar
+    """
+
+    R_align = torch.from_numpy(R_align).to(poses.device).float()
+    t_align = torch.from_numpy(t_align).to(poses.device).float()
+
+    R = poses[..., :3, :3]
+    t = poses[..., :3, 3]
+
+    R_new = R_align @ R
+    t_new = scale * (R_align @ t.T).T + t_align
+
+    poses_new = poses.clone()
+    poses_new[..., :3, :3] = R_new
+    poses_new[..., :3, 3] = t_new
+
+    return poses_new
+
+
 # -----------------------------------------------------------
 # Depth Metrics
 # -----------------------------------------------------------
@@ -81,6 +116,44 @@ def metric_all(metric_save_root, scene, poses, depths):
     hq_pose = to_4x4(hq_pose)
     lq_pose = to_4x4(lq_pose)
     res_pose = to_4x4(res_pose)
+    
+
+
+    # NEWLY ADDED # NEWLY ADDED# NEWLY ADDED# NEWLY ADDED# NEWLY ADDED# NEWLY ADDED
+    # ---- Extract centers
+    lq_centers = get_centers_from_pose(lq_pose).cpu().numpy()
+    res_centers = get_centers_from_pose(res_pose).cpu().numpy()
+
+    # ---- Sim3 align res -> lq
+    res_centers_aligned, R_align = sim3_align(res_centers, lq_centers)
+
+    # Recover scale + translation
+    scale = np.linalg.norm(lq_centers - lq_centers.mean(0)) / (
+            np.linalg.norm(res_centers - res_centers.mean(0)) + 1e-8
+    )
+
+    t_align = lq_centers.mean(0) - scale * (R_align @ res_centers.mean(0))
+
+    # Apply transform to full SE3
+    # res_pose = apply_sim3_to_pose(res_pose, R_align, scale, t_align)
+    
+
+    # align camera centers only
+    res_centers = get_centers_from_pose(res_pose)
+
+    res_centers_aligned = torch.from_numpy(res_centers_aligned).to(res_pose.device).float()
+
+    # convert aligned centers back to translation
+    R = res_pose[..., :3, :3]
+    C = res_centers_aligned
+    t_new = -(R @ C.unsqueeze(-1)).squeeze(-1)
+    res_pose[..., :3, 3] = t_new
+    
+    # NEWLY ADDED # NEWLY ADDED# NEWLY ADDED# NEWLY ADDED# NEWLY ADDED# NEWLY ADDED
+
+
+
+
 
     pose_metric_lq = compute_pose(lq_pose, hq_pose)
     pose_metric_res = compute_pose(res_pose, hq_pose)
@@ -129,4 +202,36 @@ def metric_all(metric_save_root, scene, poses, depths):
     print(f"[Saved metrics] {save_path}")
     
     
-    
+
+def sim3_align(pred, gt):
+    """
+    Align pred trajectory to gt trajectory using Sim3
+    pred, gt: (V,3) numpy arrays
+    Returns:
+        pred_aligned (V,3)
+        R (3,3) rotation used for alignment
+    """
+
+    pred_mean = pred.mean(axis=0)
+    gt_mean = gt.mean(axis=0)
+
+    pred_centered = pred - pred_mean
+    gt_centered = gt - gt_mean
+
+    # Scale
+    scale = np.linalg.norm(gt_centered) / (np.linalg.norm(pred_centered) + 1e-8)
+    pred_centered *= scale
+
+    # Rotation (Umeyama)
+    H = pred_centered.T @ gt_centered
+    U, _, Vt = np.linalg.svd(H)
+    R = Vt.T @ U.T
+
+    if np.linalg.det(R) < 0:
+        Vt[-1, :] *= -1
+        R = Vt.T @ U.T
+
+    pred_aligned = (R @ pred_centered.T).T + gt_mean
+
+    return pred_aligned, R
+

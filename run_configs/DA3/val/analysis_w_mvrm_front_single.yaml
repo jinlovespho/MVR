@@ -53,7 +53,7 @@ denoiser:
   # JIHYE2 (lqkernel50,100,200-74k)
   # ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel50/kernel50_0074000.pt
   # ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel100/kernel100_0074000.pt
-  # ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel200/kernel200_0074000.pt
+  ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel200/kernel200_0074000.pt
 
   # JIHYE3 (lqkernel200 - 118k)
   # ckpt: /media/data1/MV_Restoration/JIHYE3_CKPT/ep-0118000_g17_200.pt
@@ -63,26 +63,19 @@ denoiser:
 
 
 
-  # LAST LAYER
-  ckpt: /media/data1/MV_Restoration/NVIDIA6_CKPT/ep-0084000.pt
-
-
-
 
 
 mvrm:
   lq_latent_cond: addition    # [addition, concat]
   train:
     # DPT Head input feats = [19, 27, 33, 39]
-    # extract_feat_layers: [17]
+    extract_feat_layers: [17]
     # extract_feat_layers: [31]
-    extract_feat_layers: [39]
     concat_feat: False
     break_and_return_feat: false
   val:
-    # restore_feat_layers: [17]
+    restore_feat_layers: [17]
     # restore_feat_layers: [31]
-    restore_feat_layers: [39]
     concat_feat: False 
     skip_and_input_feat: false
 
@@ -181,8 +174,6 @@ workspace:
 
 
 
-
-
   ## W_MVRM - JIHYE2 - LQKERNEL200 - MAXVIEW50 (RETRY)
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINALFINAL/da3_giant/w_mvrm_front/JIHYE2_lqkernel200_74k/filtered_cam_blur_50/eval_full_50_saddle
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINALFINAL/da3_giant/w_mvrm_front/JIHYE2_lqkernel200_74k/filtered_cam_blur_100/eval_full_50_saddle
@@ -243,10 +234,18 @@ workspace:
   # HQ
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINALFINAL/da3_giant/wo_mvrm_HQ/filtered_clean/eval_full_50_saddle
 
-  # LAST LAYER
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINALFINAL/da3_giant/w_mvrm_LAST_LAYER/filtered_cam_blur_100/eval_full_50_saddle
-  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINALFINAL/da3_giant/w_mvrm_LAST_LAYER/filtered_cam_blur_100/eval_full_10_saddle
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/je_test/da3_giant/w_mvrm_LAST_LAYER/filtered_cam_blur_100/eval_full_50_saddle
+  
+  
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_DEPTH/da3_giant/w_mvrm_front/JIHYE2_lqkernel200_74k/filtered_cam_blur_50/eval_full_50_saddle/single_view_inference
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_DEPTH/da3_giant/w_mvrm_front/JIHYE2_lqkernel200_74k/filtered_cam_blur_50/eval_full_5_saddle/single_view_inference
+
+
+
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_TMP
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINALFINAL/da3_giant/w_mvrm/JIHYE2_lqkernel200_74k/filtered_cam_blur_50/eval_full_10_saddle
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINALFINAL/da3_giant/w_mvrm/JIHYE2_lqkernel200_74k/filtered_cam_blur_100/eval_full_10_saddle
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS_FINALFINAL/da3_giant/w_mvrm/JIHYE2_lqkernel200_74k/filtered_cam_blur_300/eval_full_10_saddle
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_ANALYSIS/da3_giant/w_mvrm/JIHYE2_lqkernel200_74k/filtered_cam_blur_300/eval_full_5
 
 
 
@@ -261,8 +260,8 @@ eval:
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
     - 7scenes
-    # - scannetpp
-    # - hiroom
+    - scannetpp
+    - hiroom
     # - dtu
     # - dtu64
     # - eth3d
@@ -270,7 +269,7 @@ eval:
   # Evaluation modes
   # Options: pose, recon_unposed, recon_posed, view_syn
   modes:
-    - pose
+    # - pose
     # - recon_unposed
     # - recon_posed
     - depth
@@ -278,8 +277,8 @@ eval:
 
   # Reference view selection strategy for inference
   # Options: first, saddle_balanced, auto, mid
-  # ref_view_strategy: "first"
-  ref_view_strategy: "saddle_balanced"
+  ref_view_strategy: "first"
+  # ref_view_strategy: "saddle_balanced"
 
   # Specific scenes to evaluate (null = all scenes)
   # Example: [courtyard, relief] for eth3d
@@ -295,8 +294,8 @@ eval:
   # max_frames: 1
 
   # Only run evaluation (skip inference)
-  # eval_only: true
-  eval_only: false
+  eval_only: true
+  # eval_only: false
 
   # Only print saved metrics (skip inference and evaluation)
   print_only: false

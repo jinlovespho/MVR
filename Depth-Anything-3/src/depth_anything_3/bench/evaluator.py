@@ -37,13 +37,18 @@ from depth_anything_3.bench.print_metrics import MetricsPrinter
 from depth_anything_3.utils.parallel_utils import parallel_execution
 from depth_anything_3.bench.registries import MV_REGISTRY
 from depth_anything_3.utils.constants import EVAL_REF_VIEW_STRATEGY
-
+from PIL import Image
 
 import math
 from RAE.src.stage2.transport import create_transport, Sampler
 from RAE.src import initialize
 from RAE.src.stage2.models import Stage2ModelProtocol
 from RAE.src.utils.model_utils import instantiate_from_config
+from depth_anything_3.bench.depth_metrics import (
+    DepthEvalConfig,
+    compute_depth_metrics,
+    resize_depth_nearest
+)
 
 
 class Evaluator:
@@ -62,7 +67,7 @@ class Evaluator:
         evaluator.print_metrics()
     """
 
-    VALID_MODES = {"pose", "recon_unposed", "recon_posed", "view_syn"}
+    VALID_MODES = {"pose", "recon_unposed", "recon_posed", "view_syn", 'depth'}
 
     def __init__(
         self,
@@ -208,7 +213,7 @@ class Evaluator:
             model_path: Model path (unused, kept for API compatibility)
         """
         
-        need_unposed = {"pose", "recon_unposed"} & self.modes
+        need_unposed = {"pose", "recon_unposed", "depth"} & self.modes
         need_posed = {"recon_posed", "view_syn"} & self.modes
         export_format = "mini_npz-glb" if self.debug else "mini_npz"    # mini_npz
 
@@ -242,6 +247,10 @@ class Evaluator:
         elif self.full_cfg.MVRM_EVAL.eval_method == 'w_mvrm_front_back' or self.full_cfg.MVRM_EVAL.eval_method == 'w_mvrm_front_connect_back':
             self.denoiser = self.denoiser.to(device) 
             self.denoiser2 = self.denoiser2.to(device)
+        
+        else:
+            self.denoiser = None 
+            self.denoiser2 = None
 
         
 
@@ -250,6 +259,21 @@ class Evaluator:
             dataset = self.datasets[data]
             scene_data = dataset.get_data(scene)
             scene_data = self._sample_frames(scene_data, scene)
+            
+
+
+
+            # for img_path in scene_data.lq_image_files:
+            #     # new_path = img_path.replace("/filtered_cam_blur_100_resize/", "/only50_filtered_cam_blur_100_resize/")
+            #     # new_path = img_path.replace("/filtered_cam_blur_300_resize/", "/only50_filtered_cam_blur_300_resize/")
+            #     # new_path = img_path.replace("/filtered_cam_blur_500_resize/", "/only50_filtered_cam_blur_500_resize/")
+            #     new_dir = os.path.dirname(new_path)
+            #     os.makedirs(new_dir, exist_ok=True)
+            #     # Copy image
+            #     shutil.copy2(img_path, new_path)  # copy2 preserves metadata
+            # continue 
+
+
             
             # for img_path in scene_data.image_files:
             #     new_path = img_path.replace("/clean/", "/filtered_clean/")
@@ -260,8 +284,17 @@ class Evaluator:
             #     os.makedirs(new_dir, exist_ok=True)
             #     # Copy image
             #     shutil.copy2(img_path, new_path)  # copy2 preserves metadata
+            # continue 
+            
+            if self.full_cfg.model.use_ray_pose:
+                print('=========== USING RAY POSE ===========')
+            else:
+                print('=========== USING CAMERA POSE ===========')
+            
+            
 
             if need_unposed:    # t
+                print('------------ UNPOSED!! ------------ ')
                 export_dir = self._export_dir(data, scene, posed=False)
                 api.inference(
                     scene_data,
@@ -274,12 +307,14 @@ class Evaluator:
                     noise_generator=noise_generator,
                     cfg=self.full_cfg,
                     scene_info = (data,scene),
-                    use_pose=False
+                    use_pose=False,
+                    use_ray_pose = self.full_cfg.model.use_ray_pose,
                 )
                 # breakpoint()
                 self._save_gt_meta(export_dir, scene_data)
 
             if need_posed:
+                print('------------ POSED!! ------------ ')
                 export_dir = self._export_dir(data, scene, posed=True)
                 api.inference(
                     scene_data,
@@ -294,10 +329,13 @@ class Evaluator:
                     noise_generator=noise_generator,
                     cfg=self.full_cfg,
                     scene_info = (data,scene),
-                    use_pose=True
+                    use_pose=True,
+                    use_ray_pose = self.full_cfg.model.use_ray_pose
                 )
                 self._save_gt_meta(export_dir, scene_data)
 
+        # breakpoint()
+        
             
     def eval(self) -> TDict[str, dict]:
         """
@@ -334,12 +372,418 @@ class Evaluator:
             print(f"{'='*60}")
             for data, result in self._eval_reconstruction("recon_posed"):
                 summary[f"{data}_recon_posed"] = result
+        
+        if "depth" in self.modes:
+            print(f"\n{'='*60}")
+            print(f"📊 Evaluating DEPTH for all datasets...")
+            print(f"{'='*60}")
+            summary.update(self._eval_depth(mode="depth"))
 
         if "view_syn" in self.modes:
-            # TODO: Add view synthesis metrics here when available
-            pass
+            print(f"\n{'='*60}")
+            print(f"📊 Evaluating VIEW_SYN for all datasets...")
+            print(f"{'='*60}")
+            summary.update(self._eval_view_syn())
 
         return summary
+
+    def _eval_depth(self, mode: str) -> dict[str, dict]:
+        assert mode in {"depth"} 
+        os.makedirs(self._metric_dir, exist_ok=True)
+
+        depth_datasets = [d for d in self.datas if d != "dtu64"]
+        eval_datasets = [d for d in depth_datasets]
+
+        cfg = DepthEvalConfig(delta_thresholds=(1.25, 1.25**2, 1.25**3))
+
+        all_metrics: dict[str, dict] = {}
+        for data in eval_datasets:
+            dataset = self.datasets[data]
+            dataset_results = {}
+
+            scenes = self._get_scenes(dataset)
+            success = 0
+            for scene in scenes:
+                try:
+                    out_dir = self._export_dir(data, scene, posed=False)
+                    result_path = os.path.join(out_dir, "exports", "mini_npz", "results.npz")
+                    if not os.path.exists(result_path):
+                        raise FileNotFoundError(result_path)
+
+                    pred_npz = np.load(result_path)
+                    if "depth" not in pred_npz:
+                        raise KeyError("results.npz missing 'depth'")
+                    pred_depths = pred_npz["depth"]  # (N,H,W)
+
+                    full_gt_data = dataset.get_data(scene)
+                    scene_data = self._sample_frames(full_gt_data, scene) 
+
+                    sampled_files = [str(p) for p in scene_data.image_files]
+                    image_indices = [full_gt_data.image_files.index(f) for f in sampled_files]
+
+                    per_img_metrics = []
+                    for i, img_idx in enumerate(image_indices[: pred_depths.shape[0]]):
+                        pred_depth = pred_depths[i].astype(np.float32)
+
+                        gt_depth, gt_valid = self._load_gt_depth_and_mask(
+                            data=data,
+                            dataset=dataset,
+                            scene=scene,
+                            full_gt_data=full_gt_data,
+                            img_idx=img_idx,
+                        )
+
+                        pred_depth = resize_depth_nearest(pred_depth, gt_depth.shape[:2])
+
+                        m = compute_depth_metrics(pred_depth, gt_depth, gt_valid, cfg=cfg)
+                        if not m:
+                            continue
+                        per_img_metrics.append(m)
+
+                    if not per_img_metrics:
+                        raise RuntimeError("No valid GT depth pixels for evaluation.")
+
+                    scene_metrics = self._mean_of_dicts(per_img_metrics)
+                    scene_metrics["num_views"] = float(len(per_img_metrics))
+                    scene_metrics["num_eval_imgs"] = float(len(per_img_metrics))
+
+                    dataset_results[scene] = scene_metrics
+                    success += 1
+                except Exception as e:
+                    if self.debug:
+                        print(f"[WARN] depth eval failed for {data}/{scene}: {e}")
+
+            if success == 0:
+                continue
+
+            scene_vals = [v for k, v in dataset_results.items() if k != "mean"]
+            dataset_results["mean"] = self._mean_of_dicts(scene_vals)
+            dataset_results["success_rate"] = float(success) / float(len(scenes)) * 100.0
+            dataset_results["_meta"] = {
+                "mode": mode,
+                "delta_thresholds": list(cfg.delta_thresholds),
+                "note": "Depth metrics are abs_rel, sq_rel, rmse, rmse_log, d1, d2, d3, "
+                        "averaged per sampled image then per-scene.",
+            }
+
+            out_path = os.path.join(self._metric_dir, f"{data}_{mode}.json")
+            self._dump_json(out_path, dataset_results)
+            all_metrics[f"{data}_{mode}"] = dataset_results
+
+        return all_metrics
+
+    def _eval_view_syn(self) -> dict[str, dict]:
+        """
+        Evaluate view synthesis quality using image-space metrics when rendered outputs are available.
+
+        Requires per-view rendered RGBs saved in exports/npz/results.npz under key "image".
+        If not present, the scene is skipped.
+        """
+        import cv2
+        import imageio.v2 as imageio
+
+        os.makedirs(self._metric_dir, exist_ok=True)
+
+        all_metrics: dict[str, dict] = {}
+        for data in self.datas:
+            dataset = self.datasets[data]
+            scenes = self._get_scenes(dataset)
+            dataset_results: dict[str, dict] = {}
+            success = 0
+
+            for scene in scenes:
+                try:
+                    export_dir = self._export_dir(data, scene, posed=True)
+                    result_path = os.path.join(export_dir, "exports", "npz", "results.npz")
+                    if not os.path.exists(result_path):
+                        raise FileNotFoundError(result_path)
+
+                    pred_npz = np.load(result_path, allow_pickle=True)
+                    if "image" not in pred_npz:
+                        raise KeyError("results.npz missing 'image'")
+
+                    pred_imgs = pred_npz["image"]  # (N,H,W,3) uint8
+                    if pred_imgs.ndim != 4 or pred_imgs.shape[-1] != 3:
+                        raise ValueError(f"Invalid 'image' shape: {pred_imgs.shape}")
+
+                    gt_files = self._get_gt_image_files_for_eval(dataset, scene, export_dir)
+                    if not gt_files:
+                        raise RuntimeError("No GT image files found for evaluation.")
+
+                    num_views = min(len(gt_files), pred_imgs.shape[0])
+                    if num_views == 0:
+                        raise RuntimeError("No overlapping views for evaluation.")
+
+                    pred_imgs = pred_imgs[:num_views]
+                    gt_imgs = self._load_rgb_images(
+                        gt_files[:num_views],
+                        target_hw=pred_imgs.shape[1:3],
+                        reader=imageio.imread,
+                        resize_fn=lambda img, hw: cv2.resize(
+                            img, (hw[1], hw[0]), interpolation=cv2.INTER_AREA
+                        ),
+                    )
+
+                    metrics = self._compute_view_syn_metrics(pred_imgs, gt_imgs)
+                    metrics["num_views"] = float(num_views)
+                    dataset_results[scene] = metrics
+                    success += 1
+                except Exception as e:
+                    if self.debug:
+                        print(f"[WARN] view_syn eval failed for {data}/{scene}: {e}")
+
+            if success == 0:
+                continue
+
+            scene_vals = [v for k, v in dataset_results.items() if k != "mean"]
+            dataset_results["mean"] = self._mean_of_dicts(scene_vals)
+            dataset_results["success_rate"] = float(success) / float(len(scenes)) * 100.0
+            dataset_results["_meta"] = {
+                "mode": "view_syn",
+                "metrics": ["psnr", "ssim", "lpips", "mse"],
+                "note": "Uses rendered RGBs from exports/npz/results.npz (key: image) and GT image files.",
+            }
+
+            out_path = os.path.join(self._metric_dir, f"{data}_view_syn.json")
+            self._dump_json(out_path, dataset_results)
+            all_metrics[f"{data}_view_syn"] = dataset_results
+
+        return all_metrics
+
+    def _get_gt_image_files_for_eval(self, dataset, scene: str, export_dir: str) -> list[str]:
+        """Return GT image file paths, respecting sampled frames if gt_meta exists."""
+        gt_meta_path = os.path.join(export_dir, "exports", "gt_meta.npz")
+        if os.path.exists(gt_meta_path):
+            gt_meta = np.load(gt_meta_path, allow_pickle=True)
+            if "image_files" in gt_meta:
+                return [str(p) for p in gt_meta["image_files"]]
+
+        full_gt_data = dataset.get_data(scene)
+        if hasattr(full_gt_data, "image_files"):
+            return list(full_gt_data.image_files)
+        return []
+
+    @staticmethod
+    def _load_rgb_images(
+        paths: list[str],
+        target_hw: tuple[int, int],
+        reader,
+        resize_fn,
+    ) -> np.ndarray:
+        """Load RGB images, normalize to 3 channels, and resize to target_hw."""
+        imgs = []
+        for path in paths:
+            img = reader(path)
+            if img.ndim == 2:
+                img = np.stack([img, img, img], axis=-1)
+            elif img.shape[-1] == 4:
+                img = img[..., :3]
+            if img.shape[0] != target_hw[0] or img.shape[1] != target_hw[1]:
+                img = resize_fn(img, target_hw)
+            imgs.append(img)
+        return np.stack(imgs, axis=0)
+
+    def _compute_view_syn_metrics(self, pred_imgs: np.ndarray, gt_imgs: np.ndarray) -> dict[str, float]:
+        """Compute fast image-space metrics between predicted and GT RGBs."""
+        pred = pred_imgs.astype(np.float32) / 255.0
+        gt = gt_imgs.astype(np.float32) / 255.0
+
+        diff = pred - gt
+        mse = np.mean(diff * diff, axis=(1, 2, 3))
+        psnr = -10.0 * np.log10(np.maximum(mse, 1e-10))
+
+        metrics = {
+            "psnr": float(np.mean(psnr)) if psnr.size else float("nan"),
+            "mse": float(np.mean(mse)) if mse.size else float("nan"),
+            "ssim": self._compute_ssim(pred, gt),
+            "lpips": self._compute_lpips(pred, gt),
+        }
+        return metrics
+
+    @staticmethod
+    def _compute_ssim(pred: np.ndarray, gt: np.ndarray) -> float:
+        try:
+            from skimage.metrics import structural_similarity
+        except Exception:
+            return float("nan")
+
+        if pred.shape[0] == 0:
+            return float("nan")
+
+        ssim_vals = []
+        for p, g in zip(pred, gt):
+            val = structural_similarity(
+                g,
+                p,
+                win_size=11,
+                gaussian_weights=True,
+                channel_axis=2,
+                data_range=1.0,
+            )
+            ssim_vals.append(val)
+        return float(np.mean(ssim_vals)) if ssim_vals else float("nan")
+
+    @classmethod
+    def _get_lpips_model(cls, device: torch.device):
+        if not hasattr(cls, "_lpips_cache"):
+            cls._lpips_cache = {}
+        key = str(device)
+        model = cls._lpips_cache.get(key)
+        if model is None:
+            from lpips import LPIPS
+
+            model = LPIPS(net="vgg").to(device).eval()
+            cls._lpips_cache[key] = model
+        return model
+
+    def _compute_lpips(self, pred: np.ndarray, gt: np.ndarray) -> float:
+        try:
+            import torch
+        except Exception:
+            return float("nan")
+
+        if not torch.cuda.is_available():
+            return float("nan")
+
+        if pred.shape[0] == 0:
+            return float("nan")
+
+        device = torch.device(f"cuda:{self.gpu_id}" if torch.cuda.is_available() else "cpu")
+        try:
+            model = self._get_lpips_model(device)
+        except Exception:
+            return float("nan")
+
+        pred_t = torch.from_numpy(pred).permute(0, 3, 1, 2).to(device)
+        gt_t = torch.from_numpy(gt).permute(0, 3, 1, 2).to(device)
+
+        batch_size = 8
+        vals = []
+        with torch.no_grad():
+            for i in range(0, pred_t.shape[0], batch_size):
+                p = pred_t[i : i + batch_size]
+                g = gt_t[i : i + batch_size]
+                val = model(g, p, normalize=True)
+                vals.append(val.view(-1))
+
+        if not vals:
+            return float("nan")
+        return float(torch.cat(vals, dim=0).mean().item())
+
+    def _read_pfm(self, path):
+        with open(path, "rb") as f:
+            header = f.readline().decode().rstrip()
+            color = header == "PF"
+
+            width, height = map(int, f.readline().decode().split())
+            scale = float(f.readline().decode().rstrip())
+
+            endian = "<" if scale < 0 else ">"
+            data = np.fromfile(f, endian + "f")
+
+            shape = (height, width, 3) if color else (height, width)
+            data = np.reshape(data, shape)
+            data = np.flipud(data)
+
+            return data
+        
+    def _load_gt_depth_and_mask(self, data: str, dataset, scene: str, full_gt_data, img_idx: int):
+        """Load GT depth (meters) and a boolean valid mask (True = valid)."""
+        import cv2
+        import imageio
+
+        data = data.lower()
+
+        if data == "eth3d":
+            img_path = full_gt_data.image_files[img_idx]
+            img_name = os.path.basename(img_path)
+
+            scene_dir = os.path.join(dataset.data_root, scene)
+            gt_depth_path = os.path.join(scene_dir, "ground_truth_depth", "dslr_images", img_name)
+            mask_name = os.path.splitext(img_name)[0] + ".png"
+            mask_candidates = [
+                os.path.join(scene_dir, "masks_for_images", "dslr_images", mask_name),
+                os.path.join(scene_dir, "ground_truth_masks", "dslr_images", img_name),
+            ]
+            gt_mask_path = next((p for p in mask_candidates if os.path.exists(p)), None)
+
+            if hasattr(full_gt_data, "aux") and hasattr(full_gt_data.aux, "heights"):
+                orig_h = int(full_gt_data.aux.heights[img_idx])
+                orig_w = int(full_gt_data.aux.widths[img_idx])
+            else:
+                im = cv2.imread(img_path)
+                if im is None:
+                    raise FileNotFoundError(f"Failed to read image for size: {img_path}")
+                orig_h, orig_w = im.shape[:2]
+
+            gt_depth = np.fromfile(gt_depth_path, dtype=np.float32).reshape(orig_h, orig_w)
+            invalid_from_depth = (gt_depth == 0) | (~np.isfinite(gt_depth))
+
+            gt_mask = cv2.imread(gt_mask_path, cv2.IMREAD_UNCHANGED) if gt_mask_path else None
+
+            if gt_mask is None:
+                invalid_from_mask = np.zeros_like(invalid_from_depth)
+            else:
+                invalid_from_mask = gt_mask == 1
+
+            valid = (~invalid_from_depth) & (~invalid_from_mask)
+            return gt_depth.astype(np.float32), valid.astype(bool)
+
+        if data == "dtu":
+            img_file = full_gt_data.image_files[img_idx]
+            img_num = int(img_file.split('/')[-1].split('_')[1])
+            depth_name = f"depth_map_{img_num:04d}.pfm"
+            mask_name = f"depth_visual_{img_num:04d}.png"
+
+            gt_depth_path = os.path.join(dataset.data_root, "depth_raw", "Depths", scene, depth_name)
+            gt_depth = self._read_pfm(gt_depth_path).astype(np.float32)
+            mask_path = os.path.join(dataset.data_root, "depth_raw", "Depths", scene, mask_name)
+            # breakpoint()
+            mask = Image.open(mask_path)
+            mask = np.array(mask, dtype=np.float32)
+            valid_mask = mask > 10
+
+            invalid_from_depth = (gt_depth <= 0) | (~np.isfinite(gt_depth))
+            valid = valid_mask & (~invalid_from_depth)
+
+            return gt_depth, valid.astype(bool)
+        
+        aux = getattr(full_gt_data, "aux", None)
+        if aux is None or not hasattr(aux, "gt_depth_files"):
+            raise RuntimeError(f"Dataset '{data}' does not expose gt_depth_files for depth eval.")
+
+        depth_path = aux.gt_depth_files[img_idx]
+        # breakpoint()
+
+        if data == "7scenes":
+            raw = imageio.imread(depth_path).astype(np.float32)
+            invalid = raw == 65535
+            gt_depth = raw / 1000.0
+            gt_depth[invalid] = 0.0
+            valid = gt_depth > 0
+            return gt_depth.astype(np.float32), valid.astype(bool)
+
+        if data == "hiroom":
+            raw = imageio.imread(depth_path).astype(np.float32)
+            gt_depth = raw / 65535.0 * 100.0
+            valid = gt_depth > 0
+            if hasattr(aux, "aliasing_mask_files"):
+                alias_path = aux.aliasing_mask_files[img_idx]
+                if alias_path and os.path.exists(alias_path):
+                    alias = imageio.imread(alias_path)
+                    valid &= alias == 0
+            return gt_depth.astype(np.float32), valid.astype(bool)
+
+        if data == "scannetpp":
+            raw = imageio.imread(depth_path).astype(np.float32)
+            gt_depth = raw / 1000.0
+            valid = (gt_depth > 0) & np.isfinite(gt_depth)
+            return gt_depth.astype(np.float32), valid.astype(bool)
+
+        raw = imageio.imread(depth_path).astype(np.float32)
+        gt_depth = raw / 1000.0
+        valid = (gt_depth > 0) & np.isfinite(gt_depth)
+        return gt_depth.astype(np.float32), valid.astype(bool)
 
     def print_metrics(self, metrics: TDict[str, dict] = None) -> None:
         """
@@ -374,7 +818,6 @@ class Evaluator:
                     print(f"[ERROR] CWD: {os.getcwd()}")
                     print(f"[ERROR] Please run inference first (remove --eval_only)")
                     continue
-                
                 try:
                     # Use saved GT meta (handles frame sampling correctly)
                     gt_meta = self._load_gt_meta(export_dir)                            # get gt_meta used for evaluation (handles frame sampling)
@@ -901,4 +1344,3 @@ Examples:
         if not is_worker:
             metrics = evaluator.eval()
             evaluator.print_metrics(metrics)
-

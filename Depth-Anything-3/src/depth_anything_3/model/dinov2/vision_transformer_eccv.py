@@ -361,15 +361,11 @@ class DinoVisionTransformer(nn.Module):
                 x = reorder_by_reference(x, b_idx)
                 local_x = reorder_by_reference(local_x, b_idx)
 
-
-            
-
             if self.alt_start != -1 and i == self.alt_start:
                 # print(f'{i} add camera token')
                 if kwargs.get("cam_token", None) is not None:  
                     logger.info("Using camera conditions provided by the user")
                     cam_token = kwargs.get("cam_token")
-                    use_gt_cam_tkn = True
                 else:
                     # self.camera_token: 1 2 1536
                     # the first frame gets one part of self.camera_token[:, :1]
@@ -378,8 +374,6 @@ class DinoVisionTransformer(nn.Module):
                     ref_token = self.camera_token[:, :1].expand(B, -1, -1)
                     src_token = self.camera_token[:, 1:].expand(B, S - 1, -1)
                     cam_token = torch.cat([ref_token, src_token], dim=1)
-                    use_gt_cam_tkn = False
-                    
                 x[:, :, 0] = cam_token  # overrides the cls_token with cam_token
 
 
@@ -420,12 +414,8 @@ class DinoVisionTransformer(nn.Module):
                         x = restored_latent[..., 1536:]
                         local_x = restored_latent[..., :1536]
                     else:
-                        if use_gt_cam_tkn:
-                            # restored_latent[:,:,0] = local_x[:,:,0]
-                            x = restored_latent
-                        else:
-                            # restored_latent[:,:,0] = local_x[:,:,0]
-                            x = restored_latent
+                        x = restored_latent
+            
             
             
             # W_MVRM_FRONT_CONNECT_BACK
@@ -465,18 +455,8 @@ class DinoVisionTransformer(nn.Module):
                 aux_output.append(x)
         
         # breakpoint()
-        # return output, aux_output, mvrm_output, None
-        
-        
-        # return output, aux_output, mvrm_output, b_idx
-        if use_gt_cam_tkn:
-            return output, aux_output, mvrm_output, None 
-        else:
-            return output, aux_output, mvrm_output, b_idx
-        
-        
-        
-        
+        return output, aux_output, mvrm_output, b_idx
+
     def process_attention(self, x, block, attn_type="global", pos=None, attn_mask=None):
         
         # PHO DEBUG
