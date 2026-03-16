@@ -177,8 +177,19 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_RAY_POSE/da3_giant/w_mvrm_FRONT_cfg1/filtered_cam_blur_500_resize_640/eval_full_50_saddle
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_RAY_POSE/da3_giant/w_mvrm_FRONT_cfg1/filtered_cam_blur_400/eval_full_50_saddle
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_RAY_POSE/da3_giant/w_mvrm_FRONT_cfg1/filtered_cam_blur_500/eval_full_50_saddle
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_RAY_POSE/da3_giant/w_mvrm_FRONT_cfg1/filtered_cam_blur_600/eval_full_50_saddle
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_RAY_POSE/da3_giant/w_mvrm_FRONT_cfg1/filtered_cam_blur_600/eval_full_50_saddle
 
+
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_RAY_POSE/da3_giant/w_mvrm_FRONT_cfg1/filtered_cam_blur_100_resize_640_QUAL/eval_full_50_saddle
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_RAY_POSE/da3_giant/w_mvrm_FRONT_cfg1/filtered_cam_blur_300_resize_640_QUAL/eval_full_50_saddle
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_RAY_POSE/da3_giant/w_mvrm_FRONT_cfg1/filtered_cam_blur_500_resize_640_QUAL/eval_full_50_saddle
+
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_RAY_POSE/da3_giant/w_mvrm_FRONT_cfg1/filtered_cam_blur_400_QUAL/eval_full_50_saddle
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_RAY_POSE/da3_giant/w_mvrm_FRONT_cfg1/filtered_cam_blur_500_QUAL/eval_full_50_saddle
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_RAY_POSE/da3_giant/w_mvrm_FRONT_cfg1/filtered_cam_blur_600_QUAL/eval_full_50_saddle
+
+
+  work_dir: /mnt/dataset1/MV_Restoration_NIPS26/NIPS26_RESULTS/debug/da3_giant/w_mvrm_FRONT_cfg1/filtered_cam_blur_300/eval_full_10_saddle
 
 
 
@@ -207,7 +218,7 @@ eval:
   modes:
     - pose
     - depth
-    # - recon_unposed
+    - recon_unposed
     # - recon_posed
     
 
@@ -224,8 +235,8 @@ eval:
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
   # max_frames: 100
-  max_frames: 50
-  # max_frames: 10
+  # max_frames: 50
+  max_frames: 10
   # max_frames: 5
   # max_frames: 1
 

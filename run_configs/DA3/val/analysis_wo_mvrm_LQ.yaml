@@ -100,7 +100,10 @@ workspace:
   ## WO_MVRM - BASELINE - MAXVIEW50 (resized degradation)
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_RAY_POSE/da3_giant/wo_mvrm_LQ/filtered_cam_blur_100_resize/eval_full_50_saddle
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_RAY_POSE/da3_giant/wo_mvrm_LQ/filtered_cam_blur_300_resize/eval_full_50_saddle
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_RAY_POSE/da3_giant/wo_mvrm_LQ/filtered_cam_blur_500_resize/eval_full_50_saddle
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_RAY_POSE/da3_giant/wo_mvrm_LQ/filtered_cam_blur_500_resize/eval_full_50_saddle
+
+
+  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_tmp
 
 
   

@@ -317,6 +317,7 @@ class DinoVisionTransformer(nn.Module):
         
         
         ref_view_start_idx=1000
+        b_idx = None
         for i, blk in enumerate(self.blocks):
 
 

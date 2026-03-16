@@ -274,7 +274,8 @@ class Transport:
             xt = xt + xcond
         elif cfg.mvrm.lq_latent_cond == 'concat':
             xt = torch.concat([xt, xcond], dim=2)   # channel concat
-
+        
+        
         # mvrm forward pass 
         model_output = model(xt, t, model_img_size) # b v n+11 d
         assert model_output.shape == xt.shape 
@@ -397,7 +398,6 @@ class Transport:
         
         def velocity_ode(x, t, model, **model_kwargs):
 
-            
             if model_kwargs['guidance'].use_cfg:
                 cfg_scale = model_kwargs['guidance'].cfg_scale
 

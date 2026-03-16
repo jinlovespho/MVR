@@ -46,8 +46,7 @@ from mvr.utils.freq_utils import *
 from mvr.utils.pca_utils import *
 
 from RAE.src.utils.vis_utils import vis_all
-from RAE.src.vis_cam_pose import plot_cam_trajectory, plot_cam_trajectory_fair
-
+from RAE.src.vis_cam_pose import plot_cam_trajectory, plot_cam_trajectory_fair, plot_all_cam_trajectory_fair
 
 
 
@@ -270,7 +269,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             
             export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]
             
-            
+
             # (W_MVRM) LQ FORWARD PASS
             print("LQ FORWARD PASS")
             lq_encoder_out, lq_mvrm_out = self._run_model_forward(
@@ -295,6 +294,36 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             first_extract_layer_idx = cfg.mvrm.train.extract_feat_layers[0]
             lq_latent = lq_mvrm_out[('extract_feat', first_extract_layer_idx)]         # b v n+1 d
             lq_depth = lq_encoder_out.depth.unsqueeze(2)     # 1 v 1 h w
+
+
+
+
+
+
+            # (W_MVRM) QUAL_RESTORMER FORWARD PASS
+            print("QUAL_RESTORMER FORWARD PASS")
+            ir_encoder_out, _ = self._run_model_forward(
+                                            res_imgs, 
+                                            ex_t_norm, 
+                                            in_t, 
+                                            export_feat_layers, 
+                                            infer_gs, 
+                                            use_ray_pose, 
+                                            ref_view_strategy, 
+                                            mvrm_cfg=cfg.mvrm.train, 
+                                            mvrm_result=None, 
+                                            mode=None, 
+                                            ref_b_idx=lq_ref_b_idx
+                                        )
+            # lq_pred_pose_enc = lq_encoder_out.pose_enc      # 1 v 9
+            ir_pred_pose = ir_encoder_out['extrinsics']     # 1 v 3 4
+            # ir_ref_b_idx = ir_encoder_out.ref_b_idx
+            # safety check
+            ir_depth = ir_encoder_out.depth.unsqueeze(2)     # 1 v 1 h w
+
+
+
+
 
 
             # (W_MVRM) HQ FORWARD PASS 
@@ -435,7 +464,17 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             plot_cam_trajectory(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/{scene}.png")
             plot_cam_trajectory_fair(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/fair_{scene}.png")
 
-
+            plot_all_cam_trajectory_fair(
+                hq_pred_pose[0], 
+                lq_pred_pose[0],
+                ir_pred_pose[0],
+                res_pred_pose[0],  
+                labels = ['HQ (GT)', 'LQ', 'Restormer', 'CoRe3D (Ours)'],
+                line_widths = [3, 2, 2, 2],
+                colors = ['g', 'r', 'm', 'b'],
+                visualize_direction=False, 
+                save_path=f"{cam_save_root}/all_fair_{scene}.png"
+            )
 
             # freq_save_root = os.path.join(cfg.workspace.work_dir, 'pho_freq_results', data, pose_setting)
             # plot_freq_analysis_per_view(
@@ -906,7 +945,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             )
             cam_save_root = os.path.join(cfg.workspace.work_dir, 'pho_cam_traj_results', data, pose_setting)
             plot_cam_trajectory(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/{scene}.png")
-     
+            plot_cam_trajectory_fair(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/fair_{scene}.png")
 
 
 

@@ -6,6 +6,9 @@ import glob
 from tqdm import tqdm
 from PIL import Image
 
+
+
+
 hq_root_path = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/clean/7scenes/7Scenes'
 scenes = glob.glob(f'{hq_root_path}/*')
 scenes = [scene for scene in scenes if 'meshes' not in scene]

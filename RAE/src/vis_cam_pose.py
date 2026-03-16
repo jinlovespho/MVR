@@ -19,6 +19,306 @@ def to_4x4(se3_3x4: torch.Tensor):
 
 
 
+# def plot_all_cam_trajectory_fair(
+#     pose1,
+#     pose2,
+#     pose3,
+#     pose4,
+#     labels,
+#     save_path,
+#     only_pred=False,
+#     visualize_direction=True,
+#     arrow_len_3d=0.15,
+#     arrow_scale_2d=25
+# ):
+
+#     os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+#     poses = [pose1, pose2, pose3, pose4]
+
+#     # Colorblind-friendly palette
+#     colors = ['#2ca02c', '#d62728', '#1f77b4', '#9467bd']
+
+#     centers = []
+#     directions = []
+
+#     # ----------------------------
+#     # Preprocess poses
+#     # ----------------------------
+#     for pose in poses:
+
+#         pose = torch.tensor(pose) if not isinstance(pose, torch.Tensor) else pose
+#         pose = to_4x4(pose)
+#         pose = align_to_first_camera(pose)
+
+#         c, d = extract_view_directions(pose)
+
+#         centers.append(c.cpu().numpy())
+#         directions.append(d.cpu().numpy())
+
+#     # ----------------------------
+#     # Plotting setup
+#     # ----------------------------
+#     plt.rcParams.update({
+#         "font.size": 13,
+#         "axes.labelsize": 13,
+#         "legend.fontsize": 11,
+#         "figure.dpi": 300
+#     })
+
+#     fig = plt.figure(figsize=(16,7))
+#     step = max(len(centers[0]) // 40, 1)
+
+#     # ============================
+#     # 3D Trajectory
+#     # ============================
+#     ax1 = fig.add_subplot(121, projection='3d')
+
+#     for i, (c, d) in enumerate(zip(centers, directions)):
+
+#         if only_pred and i == 0:
+#             continue
+
+#         ax1.plot(
+#             c[:,0], c[:,1], c[:,2],
+#             color=colors[i],
+#             linewidth=3,
+#             label=labels[i],
+#             alpha=0.95
+#         )
+
+#         # small markers every few frames
+#         ax1.scatter(
+#             c[::10,0], c[::10,1], c[::10,2],
+#             color=colors[i],
+#             s=10,
+#             alpha=0.6
+#         )
+
+#         if visualize_direction:
+#             ax1.quiver(
+#                 c[::step,0], c[::step,1], c[::step,2],
+#                 d[::step,0], d[::step,1], d[::step,2],
+#                 length=arrow_len_3d,
+#                 color=colors[i],
+#                 normalize=True,
+#                 alpha=0.6
+#             )
+
+#     # Start marker
+#     ax1.scatter(
+#         centers[0][0,0], centers[0][0,1], centers[0][0,2],
+#         color='black',
+#         s=120,
+#         marker='o',
+#         label='Start',
+#         zorder=10
+#     )
+
+#     # End marker
+#     ax1.scatter(
+#         centers[0][-1,0], centers[0][-1,1], centers[0][-1,2],
+#         color='black',
+#         s=120,
+#         marker='X',
+#         label='End',
+#         zorder=10
+#     )
+
+#     ax1.set_title("3D Camera Trajectory", pad=10)
+
+#     # nicer camera view
+#     ax1.view_init(elev=30, azim=-60)
+
+#     ax1.set_box_aspect([1,1,1])
+#     ax1.grid(True, alpha=0.3)
+
+#     ax1.legend(frameon=True)
+
+#     # ============================
+#     # Top-down view
+#     # ============================
+#     ax2 = fig.add_subplot(122)
+
+#     for i, (c, d) in enumerate(zip(centers, directions)):
+
+#         if only_pred and i == 0:
+#             continue
+
+#         ax2.plot(
+#             c[:,0], c[:,2],
+#             color=colors[i],
+#             linewidth=3,
+#             label=labels[i],
+#             alpha=0.95
+#         )
+
+#         ax2.scatter(
+#             c[::10,0], c[::10,2],
+#             color=colors[i],
+#             s=12,
+#             alpha=0.6
+#         )
+
+#         if visualize_direction:
+#             ax2.quiver(
+#                 c[::step,0], c[::step,2],
+#                 d[::step,0], d[::step,2],
+#                 color=colors[i],
+#                 scale=arrow_scale_2d,
+#                 alpha=0.6
+#             )
+
+#     # start / end
+#     ax2.scatter(
+#         centers[0][0,0], centers[0][0,2],
+#         color='black',
+#         s=120,
+#         marker='o'
+#     )
+
+#     ax2.scatter(
+#         centers[0][-1,0], centers[0][-1,2],
+#         color='black',
+#         s=120,
+#         marker='X'
+#     )
+
+#     ax2.set_title("Top-down View")
+
+#     ax2.set_aspect('equal')
+#     ax2.grid(True, alpha=0.3)
+
+#     ax2.legend(frameon=True)
+
+#     plt.tight_layout()
+#     plt.savefig(save_path, bbox_inches='tight')
+#     plt.close()
+
+
+
+def plot_all_cam_trajectory_fair(
+    pose1,
+    pose2,
+    pose3,
+    pose4,
+    labels,
+    line_widths,
+    colors,
+    save_path,
+    only_pred=False,
+    visualize_direction=True,
+    arrow_len_3d=0.2,
+    arrow_scale_2d=20
+):
+
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+    poses = [pose1, pose2, pose3, pose4]
+    labels = labels
+    colors = colors
+    styles = ['-o', ':o', '--x', '-.^']
+
+    centers = []
+    directions = []
+
+    # ----------------------------
+    # Preprocess poses
+    # ----------------------------
+    for pose in poses:
+
+        pose = torch.tensor(pose) if not isinstance(pose, torch.Tensor) else pose
+        pose = to_4x4(pose)
+        pose = align_to_first_camera(pose)
+
+        c, d = extract_view_directions(pose)
+
+        centers.append(c.cpu().numpy())
+        directions.append(d.cpu().numpy())
+
+    # ----------------------------
+    # Plotting
+    # ----------------------------
+    fig = plt.figure(figsize=(20, 10))
+    step = max(len(centers[0]) // 50, 1)
+
+    # 3D plot
+    ax1 = fig.add_subplot(121, projection='3d')
+
+    for i, (c, d) in enumerate(zip(centers, directions)):
+
+        if only_pred and i == 0:
+            continue
+
+        ax1.plot(
+            c[:,0], c[:,1], c[:,2],
+            styles[i],
+            color=colors[i],
+            label=labels[i],
+            markersize=5,
+            linewidth=line_widths[i]
+        )
+
+        if visualize_direction:
+            ax1.quiver(
+                c[::step,0], c[::step,1], c[::step,2],
+                d[::step,0], d[::step,1], d[::step,2],
+                length=arrow_len_3d,
+                color=colors[i],
+                normalize=True
+            )
+
+    # start point
+    ax1.scatter(
+        centers[0][0,0], centers[0][0,1], centers[0][0,2],
+        color='black', s=100, label='Start', zorder=10
+    )
+
+    ax1.set_title("3D Camera Trajectory")
+    ax1.legend()
+
+    # ----------------------------
+    # Top-down plot
+    # ----------------------------
+    ax2 = fig.add_subplot(122)
+
+    for i, (c, d) in enumerate(zip(centers, directions)):
+
+        if only_pred and i == 0:
+            continue
+
+        ax2.plot(
+            c[:,0], c[:,2],
+            styles[i],
+            color=colors[i],
+            label=labels[i],
+            markersize=5,
+            linewidth=line_widths[i]
+        )
+
+        if visualize_direction:
+            ax2.quiver(
+                c[::step,0], c[::step,2],
+                d[::step,0], d[::step,2],
+                color=colors[i],
+                scale=arrow_scale_2d
+            )
+
+    ax2.scatter(centers[0][0,0], centers[0][0,2], color='black', s=80)
+
+    ax2.set_title("Top-down View")
+    ax2.set_aspect('equal')
+    ax2.legend()
+
+    plt.tight_layout()
+    plt.savefig(save_path)
+    plt.close()
+
+
+
+
+
+
 def plot_cam_trajectory_fair(
     hq_pred_pose,
     lq_pred_pose,
