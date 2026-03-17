@@ -29,6 +29,7 @@ denoiser:
     in_channels: 1536
     hidden_size: [1536, 3072]
     depth: [28, 2]
+    # depth: [22, 4]
     num_heads: [16, 16]
     mlp_ratio: 4.0
     class_dropout_prob:
@@ -53,7 +54,7 @@ denoiser:
   # JIHYE2 (lqkernel50,100,200-74k)
   # ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel50/kernel50_0074000.pt
   # ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel100/kernel100_0074000.pt
-  ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel200/kernel200_0074000.pt
+  # ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel200/kernel200_0074000.pt
 
 
   # JIHYE3 (lqkernel200 - 118k)
@@ -67,6 +68,19 @@ denoiser:
   # LAST LAYER
   # ckpt: /media/data1/MV_Restoration/NVIDIA6_CKPT/ep-0087000.pt
 
+
+
+  ## ddt-enc28-1536-dec2-3072__WRONG
+  # ckpt: result_train/nips26/multi_view/260317/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel200__ema95__hyp1__ddt-enc28-1536-dec2-3072__WRONG/checkpoints/ep-0005000.pt
+  
+  ## ddt-enc28-1536-dec2-3072
+  ckpt: result_train/nips26/multi_view/260317/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel200__ema95__hyp1__ddt-enc28-1536-dec2-3072/checkpoints/ep-0005000.pt
+  
+  ## ddt-enc22-1536-dec4-3072__WRONG
+  # ckpt: result_train/nips26/multi_view/260317/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel200__ema95__hyp1__ddt-enc22-1536-dec4-3072__WRONG/checkpoints/ep-0005000.pt
+  
+  ## ddt-enc22-1536-dec4-3072
+  # ckpt: result_train/nips26/multi_view/260317/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel200__ema95__hyp1__ddt-enc22-1536-dec4-3072/checkpoints/ep-0005000.pt
 
 
 
@@ -123,7 +137,8 @@ misc:
 model:
   # Path to model checkpoint or HuggingFace model ID
   path: depth-anything/DA3-GIANT-1.1
-  use_ray_pose: true
+  # use_ray_pose: true
+  use_ray_pose: false
 
 # ==============================================================================
 # Workspace Configuration
@@ -189,9 +204,26 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_RAY_POSE/da3_giant/w_mvrm_FRONT_cfg1/filtered_cam_blur_600_QUAL/eval_full_50_saddle
 
 
-  work_dir: /mnt/dataset1/MV_Restoration_NIPS26/NIPS26_RESULTS/debug/da3_giant/w_mvrm_FRONT_cfg1/filtered_cam_blur_300/eval_full_10_saddle
+  # work_dir: /mnt/dataset1/MV_Restoration_NIPS26/NIPS26_RESULTS/debug/da3_giant/w_mvrm_FRONT_cfg1/filtered_cam_blur_300/eval_full_10_saddle
 
 
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-1536-dec2-3072__WRONG/filtered_cam_blur_100/cam_saddle_maxview10
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-1536-dec2-3072__WRONG/filtered_cam_blur_100/cam_saddle_maxview50
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-1536-dec2-3072/filtered_cam_blur_100/cam_saddle_maxview10
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-1536-dec2-3072/filtered_cam_blur_100/cam_saddle_maxview50
+  
+  
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc22-1536-dec4-3072__WRONG/filtered_cam_blur_100/cam_saddle_maxview10
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc22-1536-dec4-3072__WRONG/filtered_cam_blur_100/cam_saddle_maxview50
+  
+  
+  
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc22-1536-dec4-3072/filtered_cam_blur_100/cam_saddle_maxview10
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc22-1536-dec4-3072/filtered_cam_blur_100/cam_saddle_maxview50
+
+  
 
 
 
@@ -235,8 +267,8 @@ eval:
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
   # max_frames: 100
-  # max_frames: 50
-  max_frames: 10
+  max_frames: 50
+  # max_frames: 10
   # max_frames: 5
   # max_frames: 1
 

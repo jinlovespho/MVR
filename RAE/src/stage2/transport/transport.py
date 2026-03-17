@@ -266,10 +266,19 @@ class Transport:
         # ut: gt velocity at t 
         
 
-        t, x0, x1 = self.sample(x1)     # b v n+1 d     
+        t, x0, x1 = self.sample(x1)     # b v n+1 d
         t, xt, ut = self.path_sampler.plan(t, x0, x1)
-        
-        # lq_latent conditioning method 
+
+
+        # CFG training: randomly zero out lq conditioning so the model learns unconditional denoising
+        lq_drop_prob = cfg.training.guidance.get('lq_drop', 0.0)
+        if lq_drop_prob > 0.0:
+            should_drop = torch.rand(b, device=x1.device) < lq_drop_prob  # (b,) bool
+            xcond = xcond.clone()
+            xcond[should_drop] = 0.0
+
+
+        # lq_latent conditioning method
         if cfg.mvrm.lq_latent_cond == 'addition':
             xt = xt + xcond
         elif cfg.mvrm.lq_latent_cond == 'concat':

@@ -23,6 +23,7 @@ class PhoHypersim(Dataset):
         self.mode = mode 
         self.data = {}
         
+        self.num_eval_img = data_cfg.get('num_eval_img', -1)
 
         self.process_res = data_cfg.get('process_res', 504)
         self.patch_size = data_cfg.get('patch_size', 14)
@@ -31,15 +32,22 @@ class PhoHypersim(Dataset):
         # train/val/test annotations
         with open(data_cfg.ann_path) as f:
             anns = list(csv.DictReader(f))  # len: 82,900
-        train_anns = [ann for ann in anns if ann['split_partition_name']=='train']      # 59,543        
-        train_scenes = set([ann['scene_name'] for ann in anns if ann['split_partition_name'] == 'train'])
+            
+            
+        if mode == 'train':
+            sampled_anns = [ann for ann in anns if ann['split_partition_name']=='train']      # 59,543        
+            sampled_scenes = set([ann['scene_name'] for ann in anns if ann['split_partition_name'] == 'train'])
+        
+        elif mode == 'val':
+            sampled_anns = [ann for ann in anns if ann['split_partition_name']=='val']      # 59,543        
+            sampled_scenes = set([ann['scene_name'] for ann in anns if ann['split_partition_name'] == 'val'])
         
 
         # camera annotations (for view_sel)
         cam_ori_paths = sorted(glob.glob(f'{data_cfg.hq_root_path}/*/_detail/cam_*/camera_keyframe_orientations.hdf5')) # camera rotation
         cam_pos_paths = sorted(glob.glob(f'{data_cfg.hq_root_path}/*/_detail/cam_*/camera_keyframe_positions.hdf5'))    # camera translation
-        cam_ori_paths = sorted([path for path in cam_ori_paths if path.split('/')[-4] in train_scenes])
-        cam_pos_paths = sorted([path for path in cam_pos_paths if path.split('/')[-4] in train_scenes])
+        cam_ori_paths = sorted([path for path in cam_ori_paths if path.split('/')[-4] in sampled_scenes])
+        cam_pos_paths = sorted([path for path in cam_pos_paths if path.split('/')[-4] in sampled_scenes])
         assert len(cam_ori_paths) == len(cam_pos_paths)
 
 
@@ -96,17 +104,22 @@ class PhoHypersim(Dataset):
 
 
         # HQ 
-        train_hq_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_final_hdf5/frame.{int(ann['frame_id']):04}.color.hdf5" for ann in train_anns])
+        hq_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_final_hdf5/frame.{int(ann['frame_id']):04}.color.hdf5" for ann in sampled_anns])
 
 
         # depth 
-        train_depth_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_geometry_hdf5/frame.{int(ann['frame_id']):04}.depth_meters.hdf5" for ann in train_anns])
+        depth_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_geometry_hdf5/frame.{int(ann['frame_id']):04}.depth_meters.hdf5" for ann in sampled_anns])
 
-
-        if mode == 'train':
-            self.data['hq_img'] = sorted([path for path in train_hq_paths if os.path.exists(path)])
-            self.data['gt_depth'] = sorted([path for path in train_depth_paths if os.path.exists(path)])
-
+  
+        self.data['hq_img'] = sorted([path for path in hq_paths if os.path.exists(path)])
+        self.data['gt_depth'] = sorted([path for path in depth_paths if os.path.exists(path)])
+      
+      
+        # for validation
+        if self.num_eval_img != -1:                                                                              
+            self.data['hq_img']   = self.data['hq_img'][:self.num_eval_img]                                      
+            self.data['gt_depth'] = self.data['gt_depth'][:self.num_eval_img]
+              
 
         # ----------------------------------------
         # build index mapping: global idx <-> camera frame idx
@@ -393,33 +406,27 @@ class PhoHypersim(Dataset):
         lq_view_id=[]
         lq_view_list=[]
         
-        if self.mode == 'train':
-            hq_views = [self.data['hq_img'][i] for i in frame_ids]
-            for hq_view in hq_views:
-                volume = hq_view.split('/')[-4].split('_')[-2]
-                scene = hq_view.split('/')[-4].split('_')[-1]
-                camera = hq_view.split('/')[-2].split('_')[-3]
-                view_id = hq_view.split('/')[-1].split('.')[-3]
-                lq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
-                img_pil = self.convert_hdf5_img(hq_view)
-                
-                
-                KERNEL_SIZE = self.data_cfg.lq_kernel_size
-                BLUR_INTENSITY=0.1
-                kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
-                blurred = kernel.applyTo(img_pil, keep_image_dim=True)
-                blurred = np.array(blurred)
-                lq_view_list.append(self.resize(blurred))
-            outputs['lq_ids'] = lq_view_id 
-            outputs['lq_views'] = lq_view_list
 
-        elif self.mode == 'val':
-            outputs['lq_ids'] = [self.lq_ids[i] for i in frame_ids]
-            outputs['lq_views'] = [self.lq_imgs[i] for i in frame_ids]
+        hq_views = [self.data['hq_img'][i] for i in frame_ids]
+        for hq_view in hq_views:
+            volume = hq_view.split('/')[-4].split('_')[-2]
+            scene = hq_view.split('/')[-4].split('_')[-1]
+            camera = hq_view.split('/')[-2].split('_')[-3]
+            view_id = hq_view.split('/')[-1].split('.')[-3]
+            lq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
+            img_pil = self.convert_hdf5_img(hq_view)
             
-        
+            
+            KERNEL_SIZE = self.data_cfg.lq_kernel_size
+            BLUR_INTENSITY=0.1
+            kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
+            blurred = kernel.applyTo(img_pil, keep_image_dim=True)
+            blurred = np.array(blurred)
+            lq_view_list.append(self.resize(blurred))
+        outputs['lq_ids'] = lq_view_id 
+        outputs['lq_views'] = lq_view_list
 
-        
+
         # # -------------------------
         # #       process depth
         # # -------------------------

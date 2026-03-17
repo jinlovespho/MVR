@@ -325,7 +325,7 @@ def compute_pose(pred_se3: torch.Tensor, gt_se3: torch.Tensor) -> Dict:
 
     pred_se3 = align_to_first_camera(pred_se3)
     gt_se3 = align_to_first_camera(gt_se3)
-    print(f"Aligned Pred SE3:\n{pred_se3.mean(axis=0)}\nAligned GT SE3:\n{gt_se3.mean(axis=0)}")
+    # print(f"Aligned Pred SE3:\n{pred_se3.mean(axis=0)}\nAligned GT SE3:\n{gt_se3.mean(axis=0)}")
 
     rel_rangle_deg, rel_tangle_deg = se3_to_relative_pose_error(pred_se3, gt_se3, len(pred_se3))
     rError = rel_rangle_deg.cpu().numpy()

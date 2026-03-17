@@ -205,7 +205,7 @@ def load_val_data(
         datasets.append(eth3d_ds)
         
     val_ds = PhoConcatDataset(datasets, cfg, mode='val')
-    val_sampler = PhoSampler(val_ds, shuffle=False)
+    val_sampler = PhoSampler(val_ds, shuffle=True)
     val_batchsampler = PhoBatchSampler(sampler=val_sampler, batch_size=batch_size, max_num_input_view=cfg.data.val.max_num_input_view)
     val_loader = DataLoader(val_ds, batch_sampler=val_batchsampler, num_workers=cfg.training.num_workers, pin_memory=True, drop_last=False, collate_fn=multiview_collate_fn)
     return val_loader, val_sampler

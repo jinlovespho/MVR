@@ -338,7 +338,15 @@ def featsim_all(hq_encoder_out, lq_encoder_out, raw_output):
         hq_feat = hq_encoder_out.aux[feat_layer_key]  # (V, 1+N, D)
         lq_feat = lq_encoder_out.aux[feat_layer_key]  # (V, 1+N, D)
         res_feat = raw_output.aux[feat_layer_key]    # (V, 1+N, D)
-
+        
+        
+        if len(hq_feat.shape) == 4 and hq_feat.shape[0] == 1:
+            # If shape is (1, V, 1+N, D), squeeze the batch dimension
+            hq_feat = hq_feat.squeeze(0)  # (V, 1+N, D)
+            lq_feat = lq_feat.squeeze(0)  # (V, 1+N, D)
+            res_feat = res_feat.squeeze(0)  # (V, 1+N, D)
+            
+        
         # tokens
         cam_tkn_hq = hq_feat[:, 0:1]    # (V, 1, D)
         cam_tkn_lq = lq_feat[:, 0:1]

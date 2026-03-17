@@ -94,7 +94,7 @@ def compute_depth_metrics(pred, gt, eps=1e-6):
 # -----------------------------------------------------------
 # Main Metric Function
 # -----------------------------------------------------------
-def metric_all(metric_save_root, scene, poses, depths):
+def metric_all(metric_save_root, scene, poses, depths, return_metric=False):
     """
     poses = (hq_pose, lq_pose, res_pose)
         each: (V,3,4) or (V,4,4)
@@ -200,6 +200,15 @@ def metric_all(metric_save_root, scene, poses, depths):
             f.write(f"  {k}: {v:.6f}\n")
 
     print(f"[Saved metrics] {save_path}")
+
+    if return_metric:
+        return {
+            "pose_lq": pose_metric_lq,
+            "pose_res": pose_metric_res,
+            "depth_lq": depth_metric_lq,
+            "depth_res": depth_metric_res,
+        }
+
     
     
 
