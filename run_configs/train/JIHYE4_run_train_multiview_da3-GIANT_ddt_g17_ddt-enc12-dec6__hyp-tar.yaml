@@ -33,11 +33,11 @@ stage_2:
     # hidden_size: [1536, 3072]
     # depth: [28, 2]
 
-    hidden_size: [1536, 3072]
-    depth: [22, 4]
-
     # hidden_size: [1536, 3072]
-    # depth: [12, 6]
+    # depth: [22, 4]
+
+    hidden_size: [1536, 3072]
+    depth: [12, 6]
 
 
 
@@ -52,10 +52,6 @@ stage_2:
     wo_shift: false
     use_pos_embed: false
     use_global_residual: false
-  # ckpt: 
-  # ckpt: NVIDIA_SERVER/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-mvrm__bs8-maxview8-accum1__lr-2e-04__msg-lqkernel-50__global-17__ddp/checkpoints/ep-0025000.pt
-  # ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel100/kernel100_0074000.pt
-  # ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel200/kernel200_0074000.pt
   ckpt: 
 
 
@@ -96,7 +92,7 @@ training:
   precision: fp32
   epochs: 10
  
-  global_batch_size: 1
+  global_batch_size: 4
   grad_accum_steps: 1
   ema_decay: 0.9995
   # ema_decay: 0.9999
@@ -104,11 +100,11 @@ training:
   shuffle: true
   log_interval: 1
 
-  ckpt_step_interval: 5000   # 5k
+  ckpt_step_interval: 1000   # 1k
 
   vis:
-    train_depth_every: 1000   # 1k
-    val_depth_every: 1000
+    train_depth_every: -1
+    val_depth_every: -1
 
 
   clip_grad: 1.0
@@ -132,31 +128,24 @@ training:
 
 
 log:
-  result_root_dir: result_train/nips26/multi_view/260317
+  result_root_dir: result_train/nips26/multi_view/JIHYE4/g17__ddt-enc12-dec6__hyp-tar
   tracker:
-    name: wandb
+    name: 
     wandb:
-      key: e32eed0c2509bf898b850b0065ab62345005fb73
-      entity: jinlovespho
-      # project: eccv26_mv_restoration
-      project: nips26_mvr
-      
-      ## 260317
-      msg: 'lqkernel200__ema95__hyp1__ddt-enc22-1536-dec4-3072__lqdrop01'
+      key: 
+      entity: 
+      project: 
+      msg: 'jihye4_lqkernel200__ema95__hyp1tar1__ddt-enc12-1536-dec6-3072__lqdrop01'
       
       
       
-          
-    
-
+        
 
 data:
   train:
     image_size: 512 
     max_num_input_view: 8
-    list: [hypersim,]
-    # list: [tartanair,]
-    # list: [hypersim, tartanair,]
+    list: [hypersim, tartanair]
     
     hypersim:
       ann_path: metadata_images_split_scene_v1.csv
@@ -185,39 +174,28 @@ data:
 
 
   val:
-    image_size: 512 
-    max_num_input_view: 6
-    # list: []
-    # list: [eth3d]
-    list: [hypersim]
-
-
+    image_size: 
+    max_num_input_view: 
+    list: []
     eth3d:
-      num_eval_img: 5
-      # eval_scene: [courtyard]
-      # eval_scene: [courtyard,  electro,  facade,  kicker,  office,  playground]
-      eval_scene: [courtyard, delivery_area,  electro,  facade,  kicker,  office,  pipes,  playground,  relief,  relief_2,  terrains]
+      num_eval_img: 
+      eval_scene: 
       ann_path:
-      hq_root_path: /mnt/dataset1/MV_Restoration/da3_benchmark_dataset/clean/eth3d
-      lq_root_path: /mnt/dataset1/MV_Restoration/da3_benchmark_dataset/cam_blur_300/eth3d
+      hq_root_path: 
+      lq_root_path: 
       view_selection:
-        strategy: near_random
-        expand_ratio: 2
-    
-    
+        strategy: 
+        expand_ratio:
     hypersim:
-      num_eval_img: 8
-      ann_path: metadata_images_split_scene_v1.csv
-      hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data
-      lq_kernel_size: 200
+      num_eval_img: 
+      ann_path: 
+      hq_root_path:
+      lq_kernel_size: 
       view_selection:
-        # [random, near_random, near_camera]
-        # strategy: random
-        # strategy: near_random
-        strategy: near_camera
-        expand_ratio: 2
-      process_res: 504
-      patch_size: 14
+        strategy: 
+        expand_ratio: 
+      process_res: 
+      patch_size:
 
 
 

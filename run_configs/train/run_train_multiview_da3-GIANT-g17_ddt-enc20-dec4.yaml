@@ -33,11 +33,11 @@ stage_2:
     # hidden_size: [1536, 3072]
     # depth: [28, 2]
 
-    # hidden_size: [1536, 3072]
-    # depth: [22, 4]
-
     hidden_size: [1536, 3072]
-    depth: [12, 6]
+    depth: [20, 4]
+
+    # hidden_size: [1536, 3072]
+    # depth: [12, 6]
 
 
 
@@ -142,7 +142,8 @@ log:
       project: nips26_mvr
       
       ## 260317
-      msg: 'lqkernel200__ema95__hyp1__ddt-enc12-1536-dec6-3072__lqdrop01_re'
+      # msg: 'lqkernel200__ema95__hyp1__ddt-enc22-1536-dec4-3072__lqdrop01_re'
+      msg: 'lqkernel200__ema95__hyp1__ddt-enc20-1536-dec4-3072__lqdrop01_re'
       
       
       
@@ -192,7 +193,6 @@ data:
     list: [hypersim]
 
 
-
     eth3d:
       num_eval_img: 5
       # eval_scene: [courtyard]
@@ -205,7 +205,6 @@ data:
         strategy: near_random
         expand_ratio: 2
     
-
     
     hypersim:
       num_eval_img: 10
@@ -220,7 +219,6 @@ data:
         expand_ratio: 2
       process_res: 504
       patch_size: 14
-
 
 
 

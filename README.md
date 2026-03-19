@@ -141,6 +141,28 @@ bash bash run_scripts/train/JIHYE3_run_train_multiview_da3-GIANT_ddt_g31_lqkerne
 ---
 
 
+
+# 🔥 Training (260319)
+
+### 1. Training bash script 
+```bash
+## (Exp1). encoder_layer:12 / decoder_layer:6 / hypersim + tartanair
+bash run_scripts/train/JIHYE4_run_train_multiview_da3-GIANT_ddt_g17_ddt-enc12-dec6__hyp-tar.sh
+
+## (Exp2). encoder_layer:12 / decoder_layer:6 / hypersim
+bash run_scripts/train/JIHYE4_run_train_multiview_da3-GIANT_ddt_g17_ddt-enc12-dec6__hyp.sh 
+
+## (Exp3). encoder_layer:20 / decoder_layer:4 / hypersim + tartanair
+bash run_scripts/train/JIHYE4_run_train_multiview_da3-GIANT_ddt_g17_ddt-enc20-dec4__hyp-tar.sh 
+```
+
+### 2. Training config yaml file
+- Config yaml file for [(Exp1)](run_configs/train/JIHYE4_run_train_multiview_da3-GIANT_ddt_g17_ddt-enc12-dec6__hyp-tar.yaml)
+- Config yaml file for [(Exp2)](run_configs/train/JIHYE4_run_train_multiview_da3-GIANT_ddt_g17_ddt-enc12-dec6__hyp.yaml)
+- Config yaml file for [(Exp3)](run_configs/train/JIHYE4_run_train_multiview_da3-GIANT_ddt_g17_ddt-enc20-dec4__hyp-tar.yaml)
+---
+
+
 <!-- # 🚀 Inference Demo
 ### Demo Script 
 Download the released UniT weight from [google drive](https://drive.google.com/drive/folders/1JJOdEgM-rdu9GYGifG4kFxKF66JMeagR?usp=drive_link), and set the corresponding path in the demo [configuration file](run_configs/val/val_unit_demo.yaml). Then, run the script below to perform text-aware image restoration on low-quality image samples. The results will be saved in result_val/ by default.

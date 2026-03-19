@@ -74,7 +74,7 @@ denoiser:
   # ckpt: result_train/nips26/multi_view/260317/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel200__ema95__hyp1__ddt-enc28-1536-dec2-3072__WRONG/checkpoints/ep-0005000.pt
   
   ## ddt-enc28-1536-dec2-3072
-  ckpt: result_train/nips26/multi_view/260317/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel200__ema95__hyp1__ddt-enc28-1536-dec2-3072/checkpoints/ep-0005000.pt
+  # ckpt: result_train/nips26/multi_view/260317/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel200__ema95__hyp1__ddt-enc28-1536-dec2-3072/checkpoints/ep-0005000.pt
   
   ## ddt-enc22-1536-dec4-3072__WRONG
   # ckpt: result_train/nips26/multi_view/260317/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel200__ema95__hyp1__ddt-enc22-1536-dec4-3072__WRONG/checkpoints/ep-0005000.pt

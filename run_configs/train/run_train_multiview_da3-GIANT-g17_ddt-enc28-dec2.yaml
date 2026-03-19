@@ -132,7 +132,7 @@ training:
 
 
 log:
-  result_root_dir: result_train/nips26/multi_view/260317
+  result_root_dir: result_train/nips26/multi_view/260318
   tracker:
     name: wandb
     wandb:
@@ -142,7 +142,7 @@ log:
       project: nips26_mvr
       
       ## 260317
-      msg: 'lqkernel200__ema95__hyp1__ddt-enc28-1536-dec2-3072__lqdrop01'
+      msg: 'lqkernel200__ema95__hyp1__ddt-enc28-1536-dec2-3072__lqdrop01_re'
       
       
       
@@ -206,7 +206,7 @@ data:
     
     
     hypersim:
-      num_eval_img: 8
+      num_eval_img: 10
       ann_path: metadata_images_split_scene_v1.csv
       hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data
       lq_kernel_size: 200

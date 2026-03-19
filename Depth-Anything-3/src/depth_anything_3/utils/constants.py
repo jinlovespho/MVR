@@ -50,8 +50,8 @@ DA3_CLEAN_ROOT_PATH = f"/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/clean
 # =============================================================================
 
 # DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_50'
-# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100'
-DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_300'
+DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100'
+# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_300'
 
 
 # DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/cam_blur_100_resize'
@@ -87,7 +87,7 @@ DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered
 
 # RESTORMER 
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_50'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_100'
+DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_100'
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_300'
 
 # RESTORMER (resized degradation)
@@ -95,7 +95,7 @@ DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/only50_filtered_cam_blur_500_resize'
 
 # RESTORMER 
-DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_100_resize_640'
+# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_100_resize_640'
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_300_resize_640'
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_500_resize_640'
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_400'
