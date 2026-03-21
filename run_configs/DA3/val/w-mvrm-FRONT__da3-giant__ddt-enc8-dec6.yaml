@@ -139,8 +139,9 @@ workspace:
 
   ## CFG: 1.0 (maxview10) (ray_pose)
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_50/ray_saddle_maxview10_cfg1
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
+
 
   ## CFG: 2.0 (maxview10) (ray_pose)
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_50/ray_saddle_maxview10_cfg2

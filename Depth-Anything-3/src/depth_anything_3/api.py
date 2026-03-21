@@ -324,8 +324,6 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
 
 
 
-
-
             # (W_MVRM) HQ FORWARD PASS 
             print("HQ FORWARD PASS")
             hq_encoder_out, hq_mvrm_out = self._run_model_forward(

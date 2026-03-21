@@ -707,6 +707,7 @@ def main():
             # validation
             if rank==0 and (len(full_cfg.data.val.list) != 0) and (training_cfg.vis.val_depth_every > 0)and (global_train_step % training_cfg.vis.val_depth_every) == 0:
 
+                val_featsim_metrics = {}
 
                 val_lq_metrics = {
                     "pose_auc30": [],
@@ -850,7 +851,7 @@ def main():
 
                     pose_setting = 'unposed'
                     data = 'hypersim'
-                    scene = f"step{global_train_step:07}_{val_batch['lq_ids'][0][0]}"
+                    scene = f"{val_batch['lq_ids'][0][0]}_step{global_train_step:07}"
                     
                     
                     imgs = val_hq_views 
@@ -884,6 +885,39 @@ def main():
                                         return_metric=True
                                     )
                     featsim_log = featsim_all(val_hq_encoder_out, val_lq_encoder_out, val_encoder_out)
+                    for layer_idx, layer_dict in featsim_log.items():
+
+                        # initialize per layer
+                        if layer_idx not in val_featsim_metrics:
+                            val_featsim_metrics[layer_idx] = {
+                                "all_hq_lq": [],
+                                "all_hq_res": [],
+                                "cam_hq_lq": [],
+                                "cam_hq_res": [],
+                                "patch_hq_lq_mean": [],
+                                "patch_hq_res_mean": [],
+                            }
+
+                        val_featsim_metrics[layer_idx]["all_hq_lq"].append(
+                            layer_dict["all_tokens"]["hq_vs_lq_mean"]
+                        )
+                        val_featsim_metrics[layer_idx]["all_hq_res"].append(
+                            layer_dict["all_tokens"]["hq_vs_res_mean"]
+                        )
+
+                        val_featsim_metrics[layer_idx]["cam_hq_lq"].append(
+                            layer_dict["camera_token"]["hq_vs_lq_mean"]
+                        )
+                        val_featsim_metrics[layer_idx]["cam_hq_res"].append(
+                            layer_dict["camera_token"]["hq_vs_res_mean"]
+                        )
+
+                        val_featsim_metrics[layer_idx]["patch_hq_lq_mean"].append(
+                            layer_dict["patch_tokens"]["hq_vs_lq"]["mean"]
+                        )
+                        val_featsim_metrics[layer_idx]["patch_hq_res_mean"].append(
+                            layer_dict["patch_tokens"]["hq_vs_res"]["mean"]
+                        )
                     featsim_save_root = os.path.join(experiment_dir, 'pho_featsim_results', data, pose_setting)
                     plot_three_similarity_panels(
                         featsim_log,
@@ -918,6 +952,16 @@ def main():
 
                 if rank == 0 and full_cfg.log.tracker.name == 'wandb':
 
+
+                    # flatten featsim logs
+                    featsim_wandb_log = {}
+
+                    for layer_idx, metrics in val_featsim_metrics.items():
+                        for key, values in metrics.items():
+                            featsim_wandb_log[f"val_featsim/layer_{layer_idx}/{key}"] = sum(values) / len(values)
+
+
+
                     wandb_utils.log({
 
                         # LQ pose metrics
@@ -947,10 +991,13 @@ def main():
                         "val_metric_res_depth/d1": sum(val_res_metrics['depth_d1']) / len(val_loader),
                         "val_metric_res_depth/d2": sum(val_res_metrics['depth_d2']) / len(val_loader),
                         "val_metric_res_depth/d3": sum(val_res_metrics['depth_d3']) / len(val_loader),
+                        
+                        **featsim_wandb_log,
 
-                        }, step=global_train_step)
+                    }, step=global_train_step)
 
                                     
+                    # breakpoint()
                     # # ------------------------------------------
                     # # VISUALIZE + METRICS (VALIDATION)
                     # # ------------------------------------------

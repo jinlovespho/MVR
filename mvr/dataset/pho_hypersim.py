@@ -408,17 +408,20 @@ class PhoHypersim(Dataset):
         
 
         hq_views = [self.data['hq_img'][i] for i in frame_ids]
-        for hq_view in hq_views:
+        for global_i, hq_view in zip(frame_ids, hq_views):
             volume = hq_view.split('/')[-4].split('_')[-2]
             scene = hq_view.split('/')[-4].split('_')[-1]
             camera = hq_view.split('/')[-2].split('_')[-3]
             view_id = hq_view.split('/')[-1].split('.')[-3]
             lq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
             img_pil = self.convert_hdf5_img(hq_view)
-            
-            
+
+
             KERNEL_SIZE = self.data_cfg.lq_kernel_size
             BLUR_INTENSITY=0.1
+            if self.mode == 'val':
+                np.random.seed(int(global_i))
+                random.seed(int(global_i))
             kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
             blurred = kernel.applyTo(img_pil, keep_image_dim=True)
             blurred = np.array(blurred)

@@ -44,8 +44,12 @@ denoiser:
     wo_shift: false
     use_pos_embed: false
     use_global_residual: false
-  ckpt: result_train/nips26/multi_view/260318/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel200__ema95__hyp1__ddt-enc20-1536-dec4-3072__lqdrop01_re/checkpoints/ep-0015000.pt
   
+  ## hypersim-enc20-dec4
+  # ckpt: result_train/nips26/multi_view/260318/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel200__ema95__hyp1__ddt-enc20-1536-dec4-3072__lqdrop01_re/checkpoints/ep-0015000.pt
+  
+  ## hypersim-tartanair-enc20-dec4
+  ckpt: result_train/nips26/multi_view/260319/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel200__ema95__hyp1tar1__ddt-enc20-dec4__lqdrop01/checkpoints/ep-0015000.pt
 
 
 mvrm:
@@ -137,7 +141,7 @@ workspace:
 
   ## CFG: 1.0 (maxview10) (ray_pose)
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc20-dec4/a100_ckpt15k/filtered_cam_blur_50/ray_saddle_maxview10_cfg1
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc20-dec4/a100_ckpt15k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc20-dec4/a100_ckpt15k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc20-dec4/a100_ckpt15k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
 
   ## CFG: 2.0 (maxview10) (ray_pose)
@@ -147,6 +151,8 @@ workspace:
 
 
 
+  # hypersim-tartanair 
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc20-dec4__hyp-tar/a100_ckpt15k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
 
 
 

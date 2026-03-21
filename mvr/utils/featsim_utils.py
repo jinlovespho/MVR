@@ -338,23 +338,16 @@ def featsim_all(hq_encoder_out, lq_encoder_out, raw_output):
         hq_feat = hq_encoder_out.aux[feat_layer_key]  # (b, V, 1+N, D)
         lq_feat = lq_encoder_out.aux[feat_layer_key]  # (b, V, 1+N, D)
         res_feat = raw_output.aux[feat_layer_key]    # (b, V, 1+N, D)
-        
-        
-        # if len(hq_feat.shape) == 4 and hq_feat.shape[0] == 1:
-        #     # If shape is (1, V, 1+N, D), squeeze the batch dimension
-        #     hq_feat = hq_feat.squeeze(0)  # (V, 1+N, D)
-        #     lq_feat = lq_feat.squeeze(0)  # (V, 1+N, D)
-        #     res_feat = res_feat.squeeze(0)  # (V, 1+N, D)
-            
+
         
         # tokens
-        cam_tkn_hq = hq_feat[:, 0:1]    # (V, 1, D)
-        cam_tkn_lq = lq_feat[:, 0:1]
-        cam_tkn_res = res_feat[:, 0:1]
+        cam_tkn_hq = hq_feat[:, :, 0:1]    # (b, V, 1, D)
+        cam_tkn_lq = lq_feat[:, :, 0:1]
+        cam_tkn_res = res_feat[:, :, 0:1]
 
-        patch_tkn_hq = hq_feat[:, 1:]   # (V, N, D)
-        patch_tkn_lq = lq_feat[:, 1:]
-        patch_tkn_res = res_feat[:, 1:]
+        patch_tkn_hq = hq_feat[:, :, 1:]   # (b, V, N, D)
+        patch_tkn_lq = lq_feat[:, :, 1:]
+        patch_tkn_res = res_feat[:, :, 1:]
 
         # --- overall (all tokens)
         all_hq_lq = cosine_sim_mean(hq_feat, lq_feat)
@@ -367,6 +360,7 @@ def featsim_all(hq_encoder_out, lq_encoder_out, raw_output):
         # --- patch token similarity stats (over V*N tokens)
         patch_hq_lq_stats = cosine_sim_stats(patch_tkn_hq, patch_tkn_lq)
         patch_hq_res_stats = cosine_sim_stats(patch_tkn_hq, patch_tkn_res)
+        
 
         sim_log[layer_idx] = {
             "all_tokens": {
@@ -382,14 +376,6 @@ def featsim_all(hq_encoder_out, lq_encoder_out, raw_output):
                 "hq_vs_res": patch_hq_res_stats,
             }
         }
-
-        # # optional: quick print
-        # print(
-        #     f"[layer {layer_idx}] "
-        #     f"all(hq,lq)={all_hq_lq:.4f} all(hq,res)={all_hq_res:.4f} | "
-        #     f"cam(hq,lq)={cam_hq_lq:.4f} cam(hq,res)={cam_hq_res:.4f} | "
-        #     f"patch_mean(hq,lq)={patch_hq_lq_stats['mean']:.4f} patch_mean(hq,res)={patch_hq_res_stats['mean']:.4f}"
-        # )
     
     return sim_log
 
