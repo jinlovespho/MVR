@@ -1,0 +1,211 @@
+# DepthAnything3 Benchmark Evaluation Configuration
+# 
+# This config can be loaded and overridden via command line.
+# Example: python -m depth_anything_3.bench.evaluator --model /path/to/model --work_dir /path/to/workspace
+#
+# See depth_anything_3.cfg for config utility functions.
+
+
+# ==============================================================================
+# MVRM Configuration
+# ==============================================================================
+MVRM_EVAL:
+  # [wo_mvrm_HQ, wo_mvrm_LQ, wo_mvrm_IR, w_mvrm]
+  eval_method: w_mvrm
+  load_lq: true
+  load_res: true
+
+
+# ==============================================================================
+# Denoiser Configuration
+# ==============================================================================
+denoiser:
+  model: DiTwDDTHeadMVRM_Multiview
+  target: RAE.src.stage2.models.DDT_MVRM_multiview.DiTwDDTHeadMVRM_Multiview
+  params:
+    # input_size: [27, 36]  # feat_H, feat_W
+    input_size: 
+    patch_size: 1
+    in_channels: 1536
+    hidden_size: [1536, 3072]
+    
+    # depth: [28, 2]
+    depth: [12, 6]
+    
+    num_heads: [16, 16]
+    mlp_ratio: 4.0
+    class_dropout_prob:
+    num_classes: 
+    use_qknorm: true 
+    use_swiglu: true
+    use_rope: true
+    use_rmsnorm: true
+    wo_shift: false
+    use_pos_embed: false
+    use_global_residual: false
+  
+  ## hypersim-enc12-dec6-ckpt15k
+  # ckpt: result_train/nips26/multi_view/260318/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel200__ema95__hyp1__ddt-enc12-1536-dec6-3072__lqdrop01_re/checkpoints/ep-0015000.pt
+  
+  ## hypersim-tartanair-enc12-dec6-ckpt15k
+  # ckpt: result_train/nips26/multi_view/260319/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel200__ema95__hyp1tar1__ddt-enc12-dec6__lqdrop01/checkpoints/ep-0015000.pt
+
+  ## hypersim-tartanair-enc12-dec6-ckpt25k
+  ckpt: /mnt/dataset1/jinlovespho/eccv26/MVR/result_train/nips26/multi_view/260320/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs3-maxview8-accum1__lr-2e-04__msg-lqkernel200__ema95__hyp1tar1__ddt-enc12-dec6__lqdrop01__resume-15k/checkpoints/ep-0025000.pt
+
+
+mvrm:
+  lq_latent_cond: addition    # [addition, concat]
+  train:
+    # DPT Head input feats = [19, 27, 33, 39]
+    extract_feat_layers: [17]
+    # extract_feat_layers: [31]
+    # extract_feat_layers: [39]
+    concat_feat: False
+    break_and_return_feat: false
+  val:
+    restore_feat_layers: [17]
+    # restore_feat_layers: [31]
+    # restore_feat_layers: [39]
+    concat_feat: False 
+    skip_and_input_feat: false
+    guidance:
+      use_cfg: false
+      cfg_scale: 1.0
+
+      # use_cfg: true
+      # cfg_scale: 2.0
+
+      # use_cfg: true
+      # cfg_scale: 4.0
+
+
+transport:
+  params:
+    path_type: 'Linear'
+    prediction: 'velocity'
+    loss_weight: null
+    time_dist_type: 'logit-normal_0_1'
+sampler:
+  mode: ODE
+  params:
+    sampling_method: 'euler'
+    num_steps: 50
+    atol: 1.0e-6
+    rtol: 1.0e-3
+    reverse: false
+misc:
+  latent_size: 
+  num_classes: 
+  time_dist_shift_dim: 1492992  # 1536*27*36
+  time_dist_shift_base: 4096
+
+# ==============================================================================
+# Model Configuration
+# ==============================================================================
+model:
+  # Path to model checkpoint or HuggingFace model ID
+  path: depth-anything/DA3-GIANT-1.1
+  use_ray_pose: true
+  # use_ray_pose: false
+
+
+# ==============================================================================
+# Workspace Configuration
+# ==============================================================================
+workspace:
+  # Working directory for outputs (model results, metrics, etc.)
+
+  # JAE - 260321
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/jae_val/da3_giant/w_mvrm_FRONT/ddt-enc12-dec6__hyp-tar/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
+
+
+
+
+
+# ==============================================================================
+# Evaluation Configuration
+# ==============================================================================
+eval:
+  # Datasets to evaluate
+  # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
+  datasets:
+    - 7scenes
+    - scannetpp
+    - hiroom
+    - eth3d
+    - dtu
+    - dtu64
+
+
+  # Evaluation modes
+  # Options: pose, recon_unposed, recon_posed, view_syn
+  modes:
+    - pose
+    - depth
+    # - recon_unposed
+    # - recon_posed
+    
+
+  # Reference view selection strategy for inference
+  # Options: first, saddle_balanced, auto, mid
+  # ref_view_strategy: "first"
+  ref_view_strategy: "saddle_balanced"
+
+  # Specific scenes to evaluate (null = all scenes)
+  # Example: [courtyard, relief] for eth3d
+  scenes: []
+
+  # Maximum number of frames per scene (for sampling)
+  # If a scene has more frames, randomly sample to this limit.
+  # Set to -1 to disable sampling.
+  # max_frames: 100
+  # max_frames: 50
+  max_frames: 10
+  # max_frames: 5
+  # max_frames: 1
+
+  # Only run evaluation (skip inference)
+  # eval_only: true
+  eval_only: false
+
+  # Only print saved metrics (skip inference and evaluation)
+  print_only: false
+
+# ==============================================================================
+# Inference Configuration
+# ==============================================================================
+inference:
+  # Number of parallel workers for TSDF fusion
+  num_fusion_workers: 2
+
+  # Enable debug mode with verbose output
+  debug: false
+  # debug: true
+
+# ==============================================================================
+# Preset Configurations
+# ==============================================================================
+# These can be activated via command line: --preset full_eval
+
+presets:
+  # Full evaluation on all 6 datasets
+  full_eval:
+    datasets: [eth3d, 7scenes, scannetpp, hiroom, dtu, dtu64]
+    modes: [pose, recon_unposed, recon_posed]
+
+  # Pose-only evaluation
+  pose_only:
+    datasets: [eth3d, 7scenes, scannetpp, hiroom, dtu64]
+    modes: [pose]
+
+  # Reconstruction-only evaluation (5 datasets, excluding dtu64)
+  recon_only:
+    datasets: [eth3d, 7scenes, scannetpp, hiroom, dtu]
+    modes: [recon_unposed, recon_posed]
+
+  # Quick test (single scene per dataset)
+  quick_test:
+    datasets: [eth3d]
+    modes: [pose, recon_unposed]
+    scenes: [courtyard]
