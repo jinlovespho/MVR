@@ -98,7 +98,11 @@ workspace:
 
 
   # 260321 
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/wo_mvrm_LQ/filtered_cam_blur_100/ray_saddle_maxview50
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/wo_mvrm_LQ/filtered_cam_blur_100/ray_saddle_maxview50
+
+
+  # 260323 
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/wo_mvrm_LQ/filtered_cam_blur_300/ray_saddle_maxview50
 
 
 

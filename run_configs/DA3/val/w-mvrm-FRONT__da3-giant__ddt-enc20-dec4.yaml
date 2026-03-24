@@ -152,7 +152,16 @@ workspace:
 
 
   # hypersim-tartanair 
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc20-dec4__hyp-tar/a100_ckpt15k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc20-dec4__hyp-tar/a100_ckpt15k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
+
+  # 260321 
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc20-dec4__hyp-tar/a100_ckpt15k/filtered_cam_blur_100/ray_saddle_maxview50_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc20-dec4/a100_ckpt15k/filtered_cam_blur_100/ray_saddle_maxview50_cfg1
+
+
+  # 260323 
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc20-dec4/a100_ckpt15k/filtered_cam_blur_300/ray_saddle_maxview50_cfg1
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc20-dec4__hyp-tar/a100_ckpt15k/filtered_cam_blur_300/ray_saddle_maxview50_cfg1
 
 
 
@@ -194,8 +203,8 @@ eval:
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
   # max_frames: 100
-  # max_frames: 50
-  max_frames: 10
+  max_frames: 50
+  # max_frames: 10
   # max_frames: 5
   # max_frames: 1
 
@@ -214,8 +223,8 @@ inference:
   num_fusion_workers: 2
 
   # Enable debug mode with verbose output
-  # debug: false
-  debug: true
+  debug: false
+  # debug: true
 
 # ==============================================================================
 # Preset Configurations

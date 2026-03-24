@@ -143,7 +143,11 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2_JIHYE2/h100_ckpt74k/filtered_cam_blur_100/ray_saddle_maxview10_cfg2
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2_JIHYE2/h100_ckpt74k/filtered_cam_blur_300/ray_saddle_maxview10_cfg2
 
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2_JIHYE2/h100_ckpt74k/filtered_cam_blur_100/ray_saddle_maxview50_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2_JIHYE2/h100_ckpt74k/filtered_cam_blur_100/ray_saddle_maxview50_cfg1
+
+
+  # 260323 
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2_JIHYE2/h100_ckpt74k/filtered_cam_blur_300/ray_saddle_maxview50_cfg1
 
 
 
