@@ -63,12 +63,12 @@ class Attention(nn.Module):
             k = self.rope(k, pos)
             
 
-        # PHO 
-        if analysis is not None and analysis.vis_map and len(analysis['da3_attn_map']['extract_idx']) != 0 and layer_idx in analysis['da3_attn_map']['extract_idx']:
-            self.fused_attn = False 
-            
-        
-        if self.fused_attn:
+        # PHO
+        use_manual_attn = (analysis is not None and analysis.vis_map and
+                           len(analysis['da3_attn_map']['extract_idx']) != 0 and
+                           layer_idx in analysis['da3_attn_map']['extract_idx'])
+
+        if self.fused_attn and not use_manual_attn:
             x = F.scaled_dot_product_attention(
                 q,
                 k,

@@ -9,7 +9,8 @@ from . import path
 from .utils import EasyDict, log_state, mean_flat
 from .integrators import ode, sde
 
-from RAE.src.utils.vis_utils import vis_attn_maps
+# from RAE.src.utils.vis_utils import vis_attn_maps
+from utils.vis_utils import vis_attn_maps
 
 
 class ModelType(enum.Enum):
@@ -239,6 +240,10 @@ class Transport:
         """
         
         
+        terms = {}
+        
+        mvrm_analysis = cfg.mvrm.get('analysis', None)
+        
         assert x1.shape == xcond.shape 
         
         b, v, n, d = x1.shape    # b v n+1 d
@@ -290,11 +295,26 @@ class Transport:
         
         
         # mvrm forward pass 
-        model_output = model(xt, t, model_img_size) # b v n+1 d
+        model_output = model(xt, t, model_img_size, analysis=mvrm_analysis) # b v n+1 d
         # assert model_output.shape == xt.shape 
         assert model_output.shape == ut.shape 
         
-        terms = {}
+        
+
+        # collect mvrm attention map
+        if mvrm_analysis.vis_attn_map and len(mvrm_analysis.mvrm_attn_map.extract_idx) != 0:
+        
+            mvrm_maps = {}
+            print(f"MVRM ATTN_MAP EXTRACTION")
+            for layer_idx in mvrm_analysis.mvrm_attn_map.extract_idx:
+                attn_idx, attn_type, attn_map = model.module.blocks[layer_idx].attn.attn_map
+                assert layer_idx == attn_idx
+                mvrm_maps[('mvrm', attn_idx, attn_type)] = attn_map.mean(dim=1)  # 1 head num_view*(n+1) num_view*(n+1)  -> 1 num_view*(n+1) num_view*(n+1)
+
+            terms['mvrm_maps'] = mvrm_maps
+        
+        
+        
         terms['pred'] = model_output
         terms['target_velocity'] = ut 
         terms['cam_tkn_loss'] = mean_flat(((model_output[:,:,0] - ut[:,:,0]) ** 2))
@@ -453,27 +473,28 @@ class Transport:
                 model_output = model(x_in, t, **model_kwargs)
             
             
-            if analysis.vis_attn_map and len(analysis.mvrm_attn_map.extract_idx) != 0:
-            
-                # MVRM attn_map extraction — only at every 10th step
-                if _step_counter[0] % 10 == 0:
-                    mvrm_maps = {}
-                    print(f"MVRM ATTN_MAP EXTRACTION (step {_step_counter[0]})")
-                    for layer_idx in analysis.mvrm_attn_map.extract_idx:
-                        attn_idx, attn_type, attn_map = model.__self__.blocks[layer_idx].attn.attn_map
-                        assert layer_idx == attn_idx
-                        mvrm_maps[('mvrm', attn_idx, attn_type)] = attn_map.mean(dim=1)  # 1 head num_view*(n+1) num_view*(n+1)  -> 1 num_view*(n+1) num_view*(n+1)
+            if analysis is not None:
+                
+                if analysis.vis_attn_map and len(analysis.mvrm_attn_map.extract_idx) != 0:
+                    # MVRM attn_map extraction — only at every 15th step
+                    if _step_counter[0] % 15 == 0:
+                        mvrm_maps = {}
+                        print(f"MVRM ATTN_MAP EXTRACTION (step {_step_counter[0]})")
+                        for layer_idx in analysis.mvrm_attn_map.extract_idx:
+                            attn_idx, attn_type, attn_map = model.__self__.blocks[layer_idx].attn.attn_map
+                            assert layer_idx == attn_idx
+                            mvrm_maps[('mvrm', attn_idx, attn_type)] = attn_map.mean(dim=1)  # 1 head num_view*(n+1) num_view*(n+1)  -> 1 num_view*(n+1) num_view*(n+1)
 
-                    vis_attn_maps(
-                        vis_save_root=mvrm_vis_attn_root,
-                        scene=scene,
-                        num_view=num_view,
-                        model_img_size=model_img_size,
-                        imgs_list=[('lq_imgs', lq_imgs)],
-                        attn_maps_list=[('mvrm_attn_map', mvrm_maps)],
-                        ref_b_idx=ref_b_idx,
-                        mvrm_timestep=t.item()
-                    )
+                        vis_attn_maps(
+                            vis_save_root=mvrm_vis_attn_root,
+                            scene=scene,
+                            num_view=num_view,
+                            model_img_size=model_img_size,
+                            imgs_list=[('lq_imgs', lq_imgs)],
+                            attn_maps_list=[('mvrm_maps', mvrm_maps)],
+                            ref_b_idx=ref_b_idx,
+                            mvrm_step=_step_counter[0]
+                        )
             
             return model_output
 
@@ -488,6 +509,11 @@ class Transport:
             model_output = drift_fn(x, t, model, **model_kwargs)
             # assert model_output.shape == x.shape, "Output shape from ODE solver must match input shape"
             return model_output
+
+        def reset_step_counter():
+            _step_counter[0] = 0
+
+        body_fn.reset_step_counter = reset_step_counter
 
         return body_fn
     

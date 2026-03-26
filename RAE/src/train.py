@@ -240,6 +240,8 @@ def main():
             train_lq_views = IMAGENET_NORMALIZE(train_lq_views.view(train_b*train_v, train_c, train_h, train_w)).view(train_b, train_v, train_c, train_h, train_w)
 
 
+            print(train_hq_views.shape)
+
             # lq view forward pass
             with torch.no_grad():
                 lq_encoder_out, lq_mvrm_out = models['encoder'](
@@ -257,7 +259,7 @@ def main():
             train_lq_pred_depth = torch.from_numpy(train_lq_pred_depth_np).to(device) 
             # lq_latent = lq_mvrm_out['extract_feat']      # b v 973 3072
             lq_latent = lq_mvrm_out[('extract_feat', full_cfg.mvrm.train.extract_feat_layers[0])]
-
+                        
 
             # hq forward pass
             with torch.no_grad():
@@ -269,6 +271,7 @@ def main():
                                                     mode='train',
                                                     ref_b_idx=lq_ref_b_idx,
                                                     # ref_b_idx=None
+                                                    analysis = full_cfg.analysis_HQ
                                                     )
             hq_pred_pose_enc = hq_encoder_out.pose_enc
             hq_pred_pose = hq_encoder_out['extrinsics'] # b v 3 4
@@ -277,10 +280,21 @@ def main():
             train_hq_pred_depth = torch.from_numpy(train_hq_pred_depth_np).to(device) 
             # hq_latent = hq_mvrm_out['extract_feat']
             hq_latent = hq_mvrm_out[('extract_feat', full_cfg.mvrm.train.extract_feat_layers[0])]
-            
-            
             assert lq_latent.shape == hq_latent.shape 
             
+
+            # HQ attn_map extraction 
+            hq_maps = {} 
+            if full_cfg.analysis_HQ.vis_map and len(full_cfg.analysis_HQ.da3_attn_map.extract_idx) != 0:
+                print("HQ ATTN_MAP EXTRACTION")
+                for layer_idx in full_cfg.analysis_HQ.da3_attn_map.extract_idx:
+                    attn_idx, attn_type, attn_map = models['encoder'].model.backbone.pretrained.blocks[layer_idx].attn.attn_map
+                    assert layer_idx==attn_idx 
+                    # hq_maps[('da3', attn_idx, attn_type)] = attn_map  # 1 head num_view*(n+1) num_view*(n+1) 
+                    hq_maps[('da3', attn_idx, attn_type)] = attn_map.mean(dim=1)  # 1 head num_view*(n+1) num_view*(n+1)  -> 1 num_view*(n+1) num_view*(n+1)
+                # to_vis_imgs_list.append(('hq_imgs', imgs))
+                # to_vis_attn_maps_list.append(('hq_maps', hq_maps))
+
 
 
 
@@ -574,10 +588,35 @@ def main():
                 cfg=full_cfg
             )
             
-
+            
+            mvrm_maps = None 
+            if full_cfg.mvrm.analysis.vis_attn_map:
+                mvrm_maps = transport_output.get('mvrm_maps', None)
+                
+                            
             # flow matching velocity loss
             transport_loss = transport_output["loss"].mean()
             loss = transport_loss
+                        
+                        
+                    
+            def cross_entropy_attn(pred, target, eps=1e-8):
+                """CAMEO-style cross-entropy between attention probability distributions."""
+                return -(target * (pred + eps).log()).sum(dim=-1).mean()
+
+            # Attention alignment loss (CAMEO-style)
+            if full_cfg.mvrm.loss.attn_align.use and mvrm_maps is not None and hq_maps:
+                lambda_attn = full_cfg.mvrm.loss.attn_align.lambda_coeff
+                mvrm_key = ('mvrm', full_cfg.mvrm.loss.attn_align.mvrm_layer_idx, 'global')
+                da3_key  = ('da3',  full_cfg.mvrm.loss.attn_align.da3_layer_idx,  'global')
+                pred_map   = mvrm_maps[mvrm_key]              # [1, N, N] on GPU, has grad
+                target_map = hq_maps[da3_key].to(device)      # [1, N, N] on GPU, no grad
+                attn_loss = cross_entropy_attn(pred_map, target_map)
+                loss += lambda_attn * attn_loss
+            else:
+                attn_loss = torch.tensor(0.0, device=device)  
+                        
+                        
                         
             if full_cfg.mvrm.loss.velocity_direction.use:
                 # velocity direction regularization
@@ -664,6 +703,10 @@ def main():
                     "train/loss_transport": transport_loss.item(),
                     "train/loss_cam_token": transport_output["cam_tkn_loss"].mean().item(),
                     "train/loss_patch_token": transport_output["patch_tkn_loss"].mean().item(),
+                    
+                    
+                    "train_attn/loss_attn": attn_loss.item(),
+                    
                                         
                     "train_cam/loss_cam_T": loss_T.item() if full_cfg.mvrm.loss.camera_pose.use else 0.0,
                     "train_cam/loss_cam_R": loss_R.item() if full_cfg.mvrm.loss.camera_pose.use else 0.0,

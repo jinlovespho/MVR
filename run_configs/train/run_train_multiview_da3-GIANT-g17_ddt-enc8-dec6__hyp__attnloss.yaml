@@ -39,6 +39,7 @@ stage_2:
     # hidden_size: [1536, 3072]
     # depth: [12, 6]
 
+
     hidden_size: [1536, 3072]
     depth: [8, 6]
 
@@ -145,10 +146,14 @@ log:
       project: nips26_mvr
       
       ## 260317
-      # msg: 'lqkernel200__ema95__hyp1__ddt-enc8-1536-dec6-3072__lqdrop01_re'
-
-      ## 260326 
-      msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01'
+      # msg: 'lqkernel200__ema95__hyp1__ddt-enc12-1536-dec6-3072__lqdrop01_re'
+      
+      ## 260326
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-enc-1'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-11'
+      msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-13'
+      # msg: 'TMPTMP'
       
       
       
@@ -160,6 +165,7 @@ data:
   train:
     image_size: 512 
     # max_num_input_view: 8
+    # max_num_input_view: 6
     max_num_input_view: 4
     list: [hypersim,]
     # list: [tartanair,]
@@ -199,6 +205,7 @@ data:
     # list: [hypersim]
 
 
+
     eth3d:
       num_eval_img: 5
       # eval_scene: [courtyard]
@@ -211,6 +218,7 @@ data:
         strategy: near_random
         expand_ratio: 2
     
+
     
     hypersim:
       num_eval_img: 10
@@ -228,6 +236,7 @@ data:
 
 
 
+
 mvrm:
   lq_latent_cond: addition    # [addition, concat]
   train:
@@ -242,8 +251,6 @@ mvrm:
     guidance:
       use_cfg: false
       cfg_scale: 1.0
-
-
   loss:
     velocity_direction:
       use: false
@@ -253,15 +260,13 @@ mvrm:
       use: true 
       lambda_coeff: 1.0
     cam_tkn_weight: 1.0
-
-
-
+    
 
 
 
     # ATTENTION ALIGNMENT LOSS
     attn_align:
-      use: false
+      use: true
       lambda_coeff: 1.0
       # mvrm_layer_idx: 1    
       # mvrm_layer_idx: 9
@@ -277,8 +282,8 @@ mvrm:
 
   # MVRM ATTENTION MAP EXTRACTION 
   analysis:
-    # vis_attn_map: true 
-    vis_attn_map: false
+    vis_attn_map: true 
+    # vis_attn_map: false
     mvrm_attn_map:
       # extract_idx: [1]
       # extract_idx: [9]
@@ -292,8 +297,8 @@ mvrm:
 
 # HQ ATTENTION MAP EXTRACTION
 analysis_HQ:
-  # vis_map: true
-  vis_map: false
+  vis_map: true
+  # vis_map: false
   da3_attn_map:
     extract_idx: [17]
 

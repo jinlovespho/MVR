@@ -107,6 +107,11 @@ class ode:
 
     def sample(self, x, model, **model_kwargs):
 
+        # Reset per-scene step counter so attn map folders are iter10/iter20/...
+        # for every scene rather than accumulating across scenes.
+        if hasattr(self.drift, 'reset_step_counter'):
+            self.drift.reset_step_counter()
+
         device = x[0].device if isinstance(x, tuple) else x.device
 
         def _fn(t, x):

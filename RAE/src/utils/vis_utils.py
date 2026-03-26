@@ -234,7 +234,7 @@ def vis_all(vis_save_root, scene, hq_img, lq_img, hq_depth, lq_depth, res_depth)
 
 
 
-def vis_attn_maps(vis_save_root, num_view, model_img_size, scene, imgs_list, attn_maps_list, ref_b_idx, mvrm_timestep=None):
+def vis_attn_maps(vis_save_root, num_view, model_img_size, scene, imgs_list, attn_maps_list, ref_b_idx, mvrm_timestep=None, mvrm_step=None):
 
     model_H, model_W = model_img_size
     patch_size = 14
@@ -278,7 +278,9 @@ def vis_attn_maps(vis_save_root, num_view, model_img_size, scene, imgs_list, att
         # ── cls_tkn: one image per layer + one combined image (layers as rows) ─
         if 'cls_tkn' in to_vis:
             
-            if mvrm_timestep is not None:
+            if mvrm_step is not None:
+                cls_attn_save_root = os.path.join(vis_save_root, f'iter{mvrm_step}', 'cls_tkn', attn_map_name, scene)
+            elif mvrm_timestep is not None:
                 cls_attn_save_root = os.path.join(vis_save_root, f'timestep{mvrm_timestep}', 'cls_tkn', attn_map_name, scene)
             else:
                 cls_attn_save_root = os.path.join(vis_save_root, 'cls_tkn', attn_map_name, scene)
@@ -400,7 +402,9 @@ def vis_attn_maps(vis_save_root, num_view, model_img_size, scene, imgs_list, att
                     sampled_patch_indices.append(r * pw + c)
             sampled_patch_indices = np.array(sorted(set(sampled_patch_indices)))
 
-            if mvrm_timestep is not None:
+            if mvrm_step is not None:
+                patch_attn_save_root = os.path.join(vis_save_root, f'iter{mvrm_step}', 'patch_tkn', attn_map_name, scene)
+            elif mvrm_timestep is not None:
                 patch_attn_save_root = os.path.join(vis_save_root, f'timestep{mvrm_timestep}', 'patch_tkn', attn_map_name, scene)
             else:
                 patch_attn_save_root = os.path.join(vis_save_root, 'patch_tkn', attn_map_name, scene)

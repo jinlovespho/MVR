@@ -519,14 +519,12 @@ class NormAttentionMVRM(nn.Module):
             k = self.rope(k, pos)
 
 
-        # PHO 
-        if analysis is not None and analysis.vis_attn_map and len(analysis['mvrm_attn_map']['extract_idx']) != 0 and layer_idx in analysis['mvrm_attn_map']['extract_idx']:
-            self.fused_attn = False 
-            breakpoint()
-            
-        
+        # PHO
+        use_manual_attn = (analysis is not None and analysis.vis_attn_map and
+                           len(analysis['mvrm_attn_map']['extract_idx']) != 0 and
+                           layer_idx in analysis['mvrm_attn_map']['extract_idx'])
 
-        if self.fused_attn:
+        if self.fused_attn and not use_manual_attn:
             q = q.to(v.dtype)
             k = k.to(v.dtype) # rope may change the q,k's dtype
             x = F.scaled_dot_product_attention(
@@ -543,7 +541,11 @@ class NormAttentionMVRM(nn.Module):
             
         # PHO
         if analysis is not None and analysis.vis_attn_map and len(analysis['mvrm_attn_map']['extract_idx']) != 0 and layer_idx in analysis['mvrm_attn_map']['extract_idx']:
-            self.attn_map = (layer_idx, attn_type, attn.detach().cpu())
+            if self.training:
+                self.attn_map = (layer_idx, attn_type, attn)
+            else:
+                self.attn_map = (layer_idx, attn_type, attn.detach().cpu())
+
 
         x = x.transpose(1, 2).reshape(B, N, C)
         x = self.proj(x)

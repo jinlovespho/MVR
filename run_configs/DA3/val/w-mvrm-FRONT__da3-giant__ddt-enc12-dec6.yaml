@@ -80,9 +80,10 @@ mvrm:
 
       # use_cfg: true
       # cfg_scale: 4.0
-    
+
     analysis:
       vis_attn_map: true 
+      # vis_attn_map: false
       mvrm_attn_map:
         extract_idx: [1,3,5,7,9,11,13,15,17]
 
@@ -113,7 +114,6 @@ analysis_RES:
   da3_attn_map:
     # extract_idx: [15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39]
     extract_idx: [15, 19, 23, 27,  31,  35, 39]
-
 
 
 
@@ -215,9 +215,22 @@ workspace:
 
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc12-dec6__hyp-tar/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc12-dec6__hyp-tar/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview6_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val_260325/da3_giant/w_mvrm_FRONT/ddt-enc12-dec6__hyp-tar/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview6_cfg1
 
 
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val_260325/da3_giant/w_mvrm_FRONT/ddt-enc12-dec6__hyp-tar/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview6_cfg1
+
+
+  # 260326 (pho_val)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val_260326/da3_giant/w_mvrm_FRONT/ddt-enc12-dec6__hyp-tar/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
+
+  # 260326 (pho_vis)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_vis_260326/da3_giant/w_mvrm_FRONT/ddt-enc12-dec6__hyp-tar/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_vis_260326/da3_giant/w_mvrm_FRONT/ddt-enc12-dec6__hyp-tar/a100_ckpt25k/filtered_cam_blur_300/ray_saddle_maxview4_cfg1
+
+
+
+
+
 
 
 
@@ -233,8 +246,8 @@ eval:
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
     - 7scenes
-    - hiroom
     - dtu
+    - hiroom
     - scannetpp
     - eth3d
     - dtu64
@@ -265,9 +278,9 @@ eval:
   # max_frames: 50
   # max_frames: 10
   # max_frames: 8
-  max_frames: 6
+  # max_frames: 6
   # max_frames: 5
-  # max_frames: 4
+  max_frames: 4
   # max_frames: 3
   # max_frames: 1
 
