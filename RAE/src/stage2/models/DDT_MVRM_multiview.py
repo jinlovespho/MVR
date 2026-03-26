@@ -156,7 +156,7 @@ class LightningDDTBlock(nn.Module):
             )
         self.wo_shift = wo_shift
 
-    def forward(self, x, c, pos=None):
+    def forward(self, x, c, pos=None, layer_idx=None, attn_type=None, analysis=None):
         
         if len(c.shape) < len(x.shape): # t
             c = c.unsqueeze(1)  # (B, 1, C)
@@ -178,7 +178,11 @@ class LightningDDTBlock(nn.Module):
                     this value is learnable. Also the scale and shift equation is computed as x*(1+scale) + shift, instead of x*scale + shift
             '''
             shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=-1)        
-        x = x + DDTGate(self.attn(DDTModulate(self.norm1(x), shift_msa, scale_msa), pos=pos), gate_msa)
+        x = x + DDTGate(
+            self.attn(
+                DDTModulate(self.norm1(x), shift_msa, scale_msa), pos=pos, layer_idx=layer_idx, attn_type=attn_type, analysis=analysis
+                ), gate_msa
+            )
         x = x + DDTGate(self.mlp(DDTModulate(self.norm2(x), shift_mlp, scale_mlp)), gate_mlp)
         return x
 
@@ -188,15 +192,20 @@ class DDTFinalLayer(nn.Module):
     The final layer of DDT.
     """
 
-    def __init__(self, hidden_size, patch_size, out_channels, use_rmsnorm=False):
+    def __init__(self, hidden_size, patch_size, out_channels, use_rmsnorm=False, output_dim=None):
         super().__init__()
         if not use_rmsnorm:
             self.norm_final = nn.LayerNorm(
                 hidden_size, elementwise_affine=False, eps=1e-6)
         else:
             self.norm_final = RMSNorm(hidden_size)
+        
+        if output_dim is None:
+            output_dim = patch_size * patch_size * out_channels
+        
+        
         self.linear = nn.Linear(
-            hidden_size, patch_size * patch_size * out_channels, bias=True)
+            hidden_size, output_dim, bias=True)
         self.adaLN_modulation = nn.Sequential(
             nn.SiLU(),
             nn.Linear(hidden_size, 2 * hidden_size, bias=True)
@@ -229,7 +238,8 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
             use_rmsnorm=True,
             wo_shift=False,
             use_pos_embed: bool = True,
-            use_global_residual = False
+            use_global_residual = False,
+            ddt_final_layer_output_dim = None
     ):
         super().__init__()
         
@@ -300,7 +310,8 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
         # self.y_embedder = LabelEmbedder(num_classes, self.encoder_hidden_size, class_dropout_prob)
         # print(f"x_channel_per_token: {x_channel_per_token}, s_channel_per_token: {s_channel_per_token}")
         
-        self.final_layer = DDTFinalLayer(self.decoder_hidden_size, 1, self.x_channel_per_token, use_rmsnorm=use_rmsnorm)
+
+        self.final_layer = DDTFinalLayer(self.decoder_hidden_size, 1, self.x_channel_per_token, use_rmsnorm=use_rmsnorm, output_dim=ddt_final_layer_output_dim)
         # Will use fixed sin-cos embedding:
         
         
@@ -463,7 +474,7 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
         return pos, pos_nodiff
 
 
-    def process_attention_encoder(self, x, c, block, attn_type="global", pos=None):
+    def process_attention_encoder(self, x, c, block, attn_type="global", pos=None, layer_idx=None, analysis=None):
         
         b, s, n, _ = x.shape
         if attn_type == "local":
@@ -480,14 +491,14 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
 
         # x = block(x, c, pos=pos)
         # gradient checkpointing here
-        def block_forward(x, c, pos):
-            return block(x, c, pos=pos)
+        def block_forward(x, c, pos, layer_idx, attn_type, analysis):
+            return block(x, c, pos=pos, layer_idx=layer_idx, attn_type=attn_type, analysis=analysis)
 
         if self.training:
-            x = checkpoint(block_forward, x, c, pos)
+            x = checkpoint(block_forward, x, c, pos, layer_idx, attn_type, analysis)
         else:
-            x = block(x, c, pos=pos)
-            
+            x = block(x, c, pos=pos, layer_idx=layer_idx, attn_type=attn_type, analysis=analysis)
+        
         # x = checkpoint(block_forward, x, c, pos)
 
 
@@ -498,7 +509,7 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
         return x
 
 
-    def process_attention_decoder(self, x, c, block, attn_type="global", pos=None):
+    def process_attention_decoder(self, x, c, block, attn_type="global", pos=None, layer_idx=None, analysis=None):
         
         b, s, n, _ = x.shape
         if attn_type == "local":
@@ -517,13 +528,13 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
 
         # x = block(x, c, pos=pos)
         # gradient checkpointing here
-        def block_forward(x, c, pos):
-            return block(x, c, pos=pos)
+        def block_forward(x, c, pos, layer_idx, attn_type, analysis):
+            return block(x, c, pos=pos, layer_idx=layer_idx, attn_type=attn_type, analysis=analysis)
 
         if self.training:
-            x = checkpoint(block_forward, x, c, pos)
+            x = checkpoint(block_forward, x, c, pos, layer_idx, attn_type, analysis)
         else:
-            x = block(x, c, pos=pos)
+            x = block(x, c, pos=pos, layer_idx=layer_idx, attn_type=attn_type, analysis=analysis)
             
         # x = checkpoint(block_forward, x, c, pos)
 
@@ -535,8 +546,8 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
         return x
 
 
-    def forward(self, x, t, model_img_size, guidance=None):
-            
+    def forward(self, x, t, model_img_size, guidance=None, analysis=None):
+        
         if self.use_global_residual:
             global_residual = x         # b v 973 1536
             
@@ -598,10 +609,11 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
             # s = self.blocks[i](s, c, feat_rope=self.enc_feat_rope)
             if i % 2 == 0:
                 # print(f'encoder - {i} local attn')
-                s = self.process_attention_encoder(s, c, self.blocks[i], 'local', pos=l_pos)    # b v n+1 d
+                s = self.process_attention_encoder(s, c, self.blocks[i], 'local', pos=l_pos, layer_idx=i, analysis=analysis)    # b v n+1 d
             else:
                 # print(f'encoder - {i} global attn')
-                s = self.process_attention_encoder(s, c, self.blocks[i], 'global', pos=g_pos)    # b v n+1 d
+                s = self.process_attention_encoder(s, c, self.blocks[i], 'global', pos=g_pos, layer_idx=i, analysis=analysis)    # b v n+1 d
+
 
         
         # reshape to (b*v n d)
@@ -652,12 +664,12 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
             # x = self.blocks[i](x, s, feat_rope=self.dec_feat_rope)
             if i % 2 == 0:
                 # print(f'decoder - {i} local attn')
-                x = self.process_attention_decoder(x, s, self.blocks[i], 'local', pos=l_pos)
+                x = self.process_attention_decoder(x, s, self.blocks[i], 'local', pos=l_pos, layer_idx=i, analysis=analysis)
             else:
                 # print(f'decoder - {i} global attn')
-                x = self.process_attention_decoder(x, s, self.blocks[i], 'global', pos=g_pos)
+                x = self.process_attention_decoder(x, s, self.blocks[i], 'global', pos=g_pos, layer_idx=i, analysis=analysis)
             
-
+        
         # reshape to (b*v n d)
         x = rearrange(x, 'b v n d -> (b v) n d')
         s = rearrange(s, 'b v n d -> (b v) n d')

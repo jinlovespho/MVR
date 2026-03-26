@@ -26,10 +26,15 @@ denoiser:
     # input_size: [27, 36]  # feat_H, feat_W
     input_size: 
     patch_size: 1
-    in_channels: 1536
-    hidden_size: [1536, 3072]
+    in_channels: 3072
     
+
+
+    hidden_size: [1536, 3072]
     depth: [28, 2]
+
+
+    ddt_final_layer_output_dim: 1536
     
     num_heads: [16, 16]
     mlp_ratio: 4.0
@@ -42,12 +47,13 @@ denoiser:
     wo_shift: false
     use_pos_embed: false
     use_global_residual: false
-  ckpt: result_train/nips26/multi_view/260318/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel200__ema95__hyp1__ddt-enc28-1536-dec2-3072__lqdrop01_re/checkpoints/ep-0015000.pt
+  ckpt: result_train/nips26/multi_view/260325/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc28-dec2-CAT__lqdrop01/checkpoints/ep-0015000.pt
   
 
 
 mvrm:
-  lq_latent_cond: addition    # [addition, concat]
+  # lq_latent_cond: addition    # [addition, concat]
+  lq_latent_cond: concat
   train:
     # DPT Head input feats = [19, 27, 33, 39]
     extract_feat_layers: [17]
@@ -72,9 +78,40 @@ mvrm:
       # cfg_scale: 4.0
 
     analysis:
-      vis_attn_map: true 
+      # vis_attn_map: true 
+      vis_attn_map: false
       mvrm_attn_map:
         extract_idx: [1,5,9,13,17,21,25,29]
+
+
+
+analysis_LQ:
+  # vis_map: true
+  vis_map: false
+  da3_attn_map:
+    # extract_idx: [15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39]
+    extract_idx: [15, 19, 23, 27,  31,  35, 39]
+
+
+
+analysis_HQ:
+  # vis_map: true
+  vis_map: false
+  da3_attn_map:
+    # extract_idx: [15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39]
+    extract_idx: [15, 19, 23, 27,  31,  35, 39]
+
+
+
+analysis_RES:
+  # vis_map: true
+  vis_map: false
+  da3_attn_map:
+    # extract_idx: [15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39]
+    extract_idx: [15, 19, 23, 27,  31,  35, 39]
+
+
+
 
 
 
@@ -84,6 +121,7 @@ transport:
     prediction: 'velocity'
     loss_weight: null
     time_dist_type: 'logit-normal_0_1'
+
 sampler:
   mode: ODE
   params:
@@ -113,85 +151,10 @@ model:
 workspace:
   # Working directory for outputs (model results, metrics, etc.)
 
-
-  ## CFG: 1.0 (maxview50)
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_50/cam_saddle_maxview50_cfg1
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_100/cam_saddle_maxview50_cfg1
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_300/cam_saddle_maxview50_cfg1
-
-  ## CFG: 2.0 (maxview50)
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_50/cam_saddle_maxview50_cfg2
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_100/cam_saddle_maxview50_cfg2
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_300/cam_saddle_maxview50_cfg2
+  # 260326
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2-cat/a100_ckpt15k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
 
 
-
-  ## CFG: 1.0 (maxview10) (cam_tkn)
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_50/cam_saddle_maxview10_cfg1
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_100/cam_saddle_maxview10_cfg1
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
-
-  ## CFG: 2.0 (maxview10) (cam_tkn)
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_50/cam_saddle_maxview10_cfg2
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_100/cam_saddle_maxview10_cfg2
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_300/cam_saddle_maxview10_cfg2
-
-
-
-
-  ## CFG: 1.0 (maxview10) (ray_pose)
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_50/ray_saddle_maxview10_cfg1
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
-
-  ## CFG: 2.0 (maxview10) (ray_pose)
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_50/ray_saddle_maxview10_cfg2
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_100/ray_saddle_maxview10_cfg2
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_300/ray_saddle_maxview10_cfg2
-
-
-  # 260321 
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_100/ray_saddle_maxview50_cfg1
-
-  # 260323 
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_300/ray_saddle_maxview50_cfg1
-
-
-  # 260324 (attn_map analysis)
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_100/ray_saddle_maxview8_cfg1
-
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val_260325/da3_giant/w_mvrm_FRONT/ddt-enc28-dec2/a100_ckpt15k/filtered_cam_blur_100/ray_saddle_maxview6_cfg1
-
-
-
-
-
-
-analysis_LQ:
-  vis_map: true
-  # vis_map: false
-  da3_attn_map:
-    # extract_idx: [15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39]
-    extract_idx: [15, 19, 23, 27,  31,  35, 39]
-
-
-
-analysis_HQ:
-  vis_map: true
-  # vis_map: false
-  da3_attn_map:
-    # extract_idx: [15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39]
-    extract_idx: [15, 19, 23, 27,  31,  35, 39]
-
-
-
-analysis_RES:
-  vis_map: true
-  # vis_map: false
-  da3_attn_map:
-    # extract_idx: [15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39]
-    extract_idx: [15, 19, 23, 27,  31,  35, 39]
 
 
 
@@ -238,9 +201,9 @@ eval:
   # Set to -1 to disable sampling.
   # max_frames: 100
   # max_frames: 50
-  # max_frames: 10
+  max_frames: 10
   # max_frames: 5
-  max_frames: 6
+  # max_frames: 6
   # max_frames: 4
   # max_frames: 3
   # max_frames: 1

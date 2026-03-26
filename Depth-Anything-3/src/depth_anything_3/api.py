@@ -45,7 +45,7 @@ from mvr.utils.metric_utils import *
 from mvr.utils.freq_utils import *
 from mvr.utils.pca_utils import *
 
-from RAE.src.utils.vis_utils import vis_all
+from RAE.src.utils.vis_utils import vis_all, vis_attn_maps
 from RAE.src.vis_cam_pose import plot_cam_trajectory, plot_cam_trajectory_fair, plot_all_cam_trajectory_fair
 
 
@@ -125,7 +125,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         mvrm_result=None,
         mode=None,
         ref_b_idx=None,
-        front_connect_back_mvrm_cfg=None
+        front_connect_back_mvrm_cfg=None,
+        analysis=None
     ) -> dict[str, torch.Tensor]:
         """
         Forward pass through the model.
@@ -147,7 +148,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         with torch.no_grad():
             with torch.autocast(device_type=image.device.type, dtype=autocast_dtype):
                 return self.model(
-                    image, extrinsics, intrinsics, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg, mvrm_result, mode, ref_b_idx, front_connect_back_mvrm_cfg
+                    image, extrinsics, intrinsics, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg, mvrm_result, mode, ref_b_idx, front_connect_back_mvrm_cfg, analysis
                     )
 
     def inference(
@@ -217,6 +218,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         
         # PHO
         data, scene = scene_info 
+        scene = scene.replace('/', '_') if '/' in scene else scene
         pose_setting = 'pose' if use_pose else 'unposed'
         
         
@@ -268,7 +270,10 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             print('-'*70)
             
             export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]
-            
+
+            to_vis_imgs_list = []
+            to_vis_attn_maps_list = []
+
 
             # (W_MVRM) LQ FORWARD PASS
             print("LQ FORWARD PASS")
@@ -283,7 +288,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                                             mvrm_cfg=cfg.mvrm.train, 
                                             mvrm_result=None, 
                                             mode='train',
-                                            ref_b_idx=None
+                                            ref_b_idx=None,
+                                            analysis = cfg.analysis_LQ
                                         )
             # lq_pred_pose_enc = lq_encoder_out.pose_enc      # 1 v 9
             lq_pred_pose = lq_encoder_out['extrinsics']     # 1 v 3 4
@@ -298,7 +304,18 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
 
 
 
+            # LQ attn_map extraction 
+            lq_maps = {} 
+            if cfg.analysis_LQ.vis_map and len(cfg.analysis_LQ.da3_attn_map.extract_idx) != 0:
+                print("LQ ATTN_MAP EXTRACTION")
+                for layer_idx in cfg.analysis_LQ.da3_attn_map.extract_idx:
+                    attn_idx, attn_type, attn_map = self.model.backbone.pretrained.blocks[layer_idx].attn.attn_map
+                    assert layer_idx==attn_idx 
+                    lq_maps[('da3', attn_idx, attn_type)] = attn_map.mean(dim=1)  # 1 head num_view*(n+1) num_view*(n+1)  -> 1 num_view*(n+1) num_view*(n+1)
+                to_vis_imgs_list.append(('lq_imgs', lq_imgs))
+                to_vis_attn_maps_list.append(('lq_maps', lq_maps))
 
+            
 
             # # (W_MVRM) QUAL_RESTORMER FORWARD PASS
             # print("QUAL_RESTORMER FORWARD PASS")
@@ -337,38 +354,76 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                                             mvrm_cfg=cfg.mvrm.train, 
                                             mvrm_result=None, 
                                             mode='train',
-                                            ref_b_idx=lq_ref_b_idx
+                                            ref_b_idx=lq_ref_b_idx,
                                             # ref_b_idx=None
+                                            analysis = cfg.analysis_HQ
                                         )
             # hq_pred_pose_enc = hq_encoder_out.pose_enc      # 1 v 9
             hq_pred_pose = hq_encoder_out['extrinsics']     # 1 v 3 4
             hq_latent = hq_mvrm_out[('extract_feat', cfg.mvrm.train.extract_feat_layers[0])]         # b v n+1 d
             hq_depth = hq_encoder_out.depth.unsqueeze(2)    # 1 v 1 h w
+
+            
+
+            # HQ attn_map extraction 
+            hq_maps = {} 
+            if cfg.analysis_HQ.vis_map and len(cfg.analysis_HQ.da3_attn_map.extract_idx) != 0:
+                print("HQ ATTN_MAP EXTRACTION")
+                for layer_idx in cfg.analysis_HQ.da3_attn_map.extract_idx:
+                    attn_idx, attn_type, attn_map = self.model.backbone.pretrained.blocks[layer_idx].attn.attn_map
+                    assert layer_idx==attn_idx 
+                    hq_maps[('da3', attn_idx, attn_type)] = attn_map.mean(dim=1)  # 1 head num_view*(n+1) num_view*(n+1)  -> 1 num_view*(n+1) num_view*(n+1)
+                to_vis_imgs_list.append(('hq_imgs', imgs))
+                to_vis_attn_maps_list.append(('hq_maps', hq_maps))
+
+            
             
             
             # generate pure noise
             noise_generator.manual_seed(42)
             pure_noise = torch.randn(lq_latent.shape, generator=noise_generator, device=imgs.device, dtype=torch.float32)
             # lq_latent condition method
+            # For 'addition': bake lq_latent into the initial ODE state (shapes stay d-dim throughout)
+            # For 'concat': keep ODE state as d-dim pure noise; lq_latent is injected inside the drift call
             if cfg.mvrm.lq_latent_cond == 'addition':
                 xt = pure_noise + lq_latent
+                lq_latent_for_kwargs = None
                 # CFG
                 if cfg.mvrm.val.guidance.use_cfg:
                     xt_uncond = pure_noise
                     xt = torch.cat([xt_uncond, xt], dim=0)
-                
+
             elif cfg.mvrm.lq_latent_cond == 'concat':
-                xt = torch.concat([pure_noise, lq_latent], dim=3)
+                xt = pure_noise
+                lq_latent_for_kwargs = lq_latent
                 # CFG
                 if cfg.mvrm.val.guidance.use_cfg:
-                    xt_uncond = torch.concat([pure_noise, torch.zeros_like(lq_latent)], dim=3)
+                    xt_uncond = pure_noise
                     xt = torch.cat([xt_uncond, xt], dim=0)
-            
+
 
             model_kwargs={
                 'model_img_size': (model_H, model_W),
-                'guidance': cfg.mvrm.val.guidance
+                'guidance': cfg.mvrm.val.guidance,
+                'analysis': cfg.mvrm.val.analysis,
+                'lq_latent': lq_latent_for_kwargs,
+                'lq_latent_cond': cfg.mvrm.lq_latent_cond,
             }
+            
+            
+            if cfg.mvrm.val.analysis.vis_attn_map:
+                mvrm_vis = {} 
+                mvrm_vis['mvrm_vis_attn_root'] = os.path.join(cfg.workspace.work_dir, 'pho_attn_mvrm_results', data, pose_setting)
+                mvrm_vis['scene'] = scene 
+                mvrm_vis['num_view'] = v
+                mvrm_vis['model_img_size'] = (model_H, model_W) 
+                mvrm_vis['lq_imgs'] = lq_imgs
+                mvrm_vis['ref_b_idx'] = lq_ref_b_idx
+                model_kwargs['mvrm_vis'] = mvrm_vis
+                
+                
+
+                    
             autocast_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
             with torch.no_grad():
                 with torch.autocast(device_type=imgs.device.type, dtype=autocast_dtype):         
@@ -411,7 +466,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                 print("replacing with LQ PATCH TOKEN")
                 restored_samples[:,:,1:] = lq_latent[:,:,1:]   # replace the patch tokens with the lq patch tokens
             
-            
+
                 
             # (W_MVRM) RES FORWARD PASS
             print("RES FORWARD PASS")
@@ -425,13 +480,39 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                                             ref_view_strategy, 
                                             mvrm_cfg=cfg.mvrm.val, 
                                             mvrm_result=mvrm_result, 
-                                            mode='val'
+                                            mode='val',
+                                            ref_b_idx=lq_ref_b_idx,
+                                            analysis = cfg.analysis_RES
                                         )
             res_pred_pose_enc = raw_output.pose_enc      # 1 v 9
             res_pred_pose = raw_output['extrinsics']     # 1 v 3 4
             res_depth = raw_output.depth.unsqueeze(2)    # 1 v 1 h w
             
-            scene = scene.replace('/', '_') if '/' in scene else scene
+            
+
+            # RES attn_map extraction 
+            res_maps = {} 
+            if cfg.analysis_RES.vis_map and len(cfg.analysis_RES.da3_attn_map.extract_idx) != 0:
+                print("RES ATTN_MAP EXTRACTION")
+                for layer_idx in cfg.analysis_RES.da3_attn_map.extract_idx:
+                    attn_idx, attn_type, attn_map = self.model.backbone.pretrained.blocks[layer_idx].attn.attn_map
+                    assert layer_idx==attn_idx 
+                    res_maps[('da3', attn_idx, attn_type)] = attn_map.mean(dim=1)  # 1 head num_view*(n+1) num_view*(n+1)  -> 1 num_view*(n+1) num_view*(n+1)
+                to_vis_imgs_list.append(('res_imgs', lq_imgs))
+                to_vis_attn_maps_list.append(('res_maps', res_maps))
+
+            
+            
+            vis_attn_root = os.path.join(cfg.workspace.work_dir, 'pho_attn_da3_results', data, pose_setting)
+            vis_attn_maps(
+                vis_save_root=vis_attn_root,
+                scene=scene,
+                num_view = v,
+                model_img_size = (model_H, model_W),
+                imgs_list = to_vis_imgs_list, 
+                attn_maps_list = to_vis_attn_maps_list,
+                ref_b_idx = lq_ref_b_idx
+            )
             
 
             vis_save_root = os.path.join(cfg.workspace.work_dir, 'pho_vis_results', data, pose_setting)
@@ -1287,7 +1368,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         mvrm_result=None,
         mode=None,
         ref_b_idx=None,
-        front_connect_back_mvrm_cfg=None
+        front_connect_back_mvrm_cfg=None,
+        analysis=None
     ) -> dict[str, torch.Tensor]:
         """Run model forward pass."""
         device = imgs.device
@@ -1300,7 +1382,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             torch.cuda.synchronize(device)
         start_time = time.time()
         feat_layers = list(export_feat_layers) if export_feat_layers is not None else None
-        output, mvrm_out = self.forward(imgs, ex_t, in_t, feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg, mvrm_result, mode, ref_b_idx, front_connect_back_mvrm_cfg)
+        output, mvrm_out = self.forward(imgs, ex_t, in_t, feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg, mvrm_result, mode, ref_b_idx, front_connect_back_mvrm_cfg, analysis)
         if need_sync:
             torch.cuda.synchronize(device)
         end_time = time.time()

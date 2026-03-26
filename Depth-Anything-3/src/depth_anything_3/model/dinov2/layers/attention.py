@@ -44,7 +44,7 @@ class Attention(nn.Module):
         self.proj_drop = nn.Dropout(proj_drop)
         self.rope = rope
 
-    def forward(self, x: Tensor, pos=None, attn_mask=None) -> Tensor:
+    def forward(self, x: Tensor, pos=None, attn_mask=None, layer_idx=None, attn_type=None, analysis=None) -> Tensor:
         
         # # PHO DEBUG
         # if pos is not None:
@@ -61,6 +61,13 @@ class Attention(nn.Module):
         if self.rope is not None and pos is not None:
             q = self.rope(q, pos)
             k = self.rope(k, pos)
+            
+
+        # PHO 
+        if analysis is not None and analysis.vis_map and len(analysis['da3_attn_map']['extract_idx']) != 0 and layer_idx in analysis['da3_attn_map']['extract_idx']:
+            self.fused_attn = False 
+            
+        
         if self.fused_attn:
             x = F.scaled_dot_product_attention(
                 q,
@@ -79,6 +86,13 @@ class Attention(nn.Module):
             attn = attn.softmax(dim=-1)
             attn = self.attn_drop(attn)
             x = attn @ v
+            
+        
+        # PHO
+        if analysis is not None and analysis.vis_map and len(analysis['da3_attn_map']['extract_idx']) != 0 and layer_idx in analysis['da3_attn_map']['extract_idx']:
+            self.attn_map = (layer_idx, attn_type, attn.detach().cpu())
+        
+        
 
         x = x.transpose(1, 2).reshape(B, N, C)
         x = self.proj(x)

@@ -506,7 +506,9 @@ class NormAttentionMVRM(nn.Module):
         # PHO
         self.rope = rope 
         
-    def forward(self, x: torch.Tensor, pos=None) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, pos=None, layer_idx=None, attn_type=None, analysis=None) -> torch.Tensor:
+        
+
         B, N, C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
         q, k, v = qkv.unbind(0)
@@ -515,6 +517,14 @@ class NormAttentionMVRM(nn.Module):
         if self.rope is not None and pos is not None:
             q = self.rope(q, pos)
             k = self.rope(k, pos)
+
+
+        # PHO 
+        if analysis is not None and analysis.vis_attn_map and len(analysis['mvrm_attn_map']['extract_idx']) != 0 and layer_idx in analysis['mvrm_attn_map']['extract_idx']:
+            self.fused_attn = False 
+            breakpoint()
+            
+        
 
         if self.fused_attn:
             q = q.to(v.dtype)
@@ -529,6 +539,11 @@ class NormAttentionMVRM(nn.Module):
             attn = attn.softmax(dim=-1)
             attn = self.attn_drop(attn)
             x = attn @ v
+        
+            
+        # PHO
+        if analysis is not None and analysis.vis_attn_map and len(analysis['mvrm_attn_map']['extract_idx']) != 0 and layer_idx in analysis['mvrm_attn_map']['extract_idx']:
+            self.attn_map = (layer_idx, attn_type, attn.detach().cpu())
 
         x = x.transpose(1, 2).reshape(B, N, C)
         x = self.proj(x)

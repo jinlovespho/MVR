@@ -2,6 +2,9 @@ import os
 import cv2 
 import torch 
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406])
@@ -227,6 +230,252 @@ def vis_all(vis_save_root, scene, hq_img, lq_img, hq_depth, lq_depth, res_depth)
 
     print(f"Saved visualization to {save_path}")
     
+
+
+
+
+def vis_attn_maps(vis_save_root, num_view, model_img_size, scene, imgs_list, attn_maps_list, ref_b_idx, mvrm_timestep=None):
+
+    model_H, model_W = model_img_size
+    patch_size = 14
+    ph = model_H // patch_size   # e.g. 504 // 14 = 36
+    pw = model_W // patch_size   # e.g. 378 // 14 = 27
+    
+    
+    to_vis = ['cls_tkn', 'patch_tkn']
+
+    # ── normalization modes to save: choose any subset of ['global_log1p', 'perv_p99'] ──
+    norm_modes = ['global_log1p', 'perv_p99']
+    
+
+
+    # build view reorder indices to match what the model saw (ref view placed first)
+    if ref_b_idx is not None:
+        b = int(ref_b_idx[0].item())
+        view_order = [b] + list(range(0, b)) + list(range(b + 1, num_view))
+    else:
+        view_order = list(range(num_view))
+
+    # build imgs lookup: {name: (v, H, W, 3) uint8 numpy}
+    imgs_dict = {}
+    for imgs_name, imgs_tensor in imgs_list:
+        # imgs_tensor: (1, v, c, H, W), imagenet-normalised
+        imgs_np = imgs_tensor[0].permute(0, 2, 3, 1).cpu().numpy()   # (v, H, W, 3)
+        imgs_np = imgs_np * np.array(IMAGENET_STD) + np.array(IMAGENET_MEAN)
+        imgs_np = np.clip(imgs_np * 255, 0, 255).astype(np.uint8)
+        imgs_np = imgs_np[view_order]   # reorder views to match model's reference-first ordering
+        imgs_dict[imgs_name] = imgs_np   # BGR conversion handled by cv2 below
+
+
+    for attn_map_name, attn_map in attn_maps_list:
+
+
+        # pick corresponding images (lq_maps -> lq_imgs, hq_maps -> hq_imgs, res_maps -> res_imgs)
+        img_key = attn_map_name.replace('_maps', '_imgs')
+        imgs_np = imgs_dict.get(img_key, list(imgs_dict.values())[0])  # fallback to first
+        v0_bgr = cv2.cvtColor(imgs_np[0], cv2.COLOR_RGB2BGR)
+
+        # ── cls_tkn: one image per layer + one combined image (layers as rows) ─
+        if 'cls_tkn' in to_vis:
+            
+            if mvrm_timestep is not None:
+                cls_attn_save_root = os.path.join(vis_save_root, f'timestep{mvrm_timestep}', 'cls_tkn', attn_map_name, scene)
+            else:
+                cls_attn_save_root = os.path.join(vis_save_root, 'cls_tkn', attn_map_name, scene)
+            os.makedirs(cls_attn_save_root, exist_ok=True)
+
+            cls_layer_strips = {m: [] for m in norm_modes}  # {mode: [(layer_idx, strip)]}
+            cls_bar_figs = []                                # (layer_idx, fig) for combined bar graph
+
+            for map_info, map in attn_map.items():
+                model_name, layer_idx, attn_type = map_info
+                if attn_type != 'global':
+                    continue
+
+                tokens_per_view = map.shape[1] // num_view
+                assert tokens_per_view == ph * pw + 1, \
+                    f"tokens_per_view {tokens_per_view} != ph*pw+1 {ph*pw+1}"
+
+                cls_row = map[0, 0, :]   # (V * tokens_per_view,)
+
+                # ── bar graph of cls_row magnitudes ──────────────────────────
+                cls_row_np = cls_row.cpu().float().numpy()
+                fig, ax = plt.subplots(figsize=(max(8, len(cls_row_np) // 50), 4))
+                ax.bar(np.arange(len(cls_row_np)), cls_row_np, width=1.0, linewidth=0)
+                ax.set_xlabel('token index')
+                ax.set_ylabel('attention weight')
+                ax.set_title(f'{attn_map_name}  layer{layer_idx}  cls→all tokens')
+                ax.set_xlim(0, len(cls_row_np))
+                ax.set_yscale('log')
+                for vi in range(1, num_view):
+                    ax.axvline(vi * tokens_per_view, color='red', linewidth=0.8, linestyle='--')
+                fig.tight_layout()
+                cls_bar_figs.append((layer_idx, fig))
+                # ─────────────────────────────────────────────────────────────
+                
+                raw_patch_attns = []
+                for vi in range(num_view):
+                    start = vi * tokens_per_view
+                    pa = cls_row[start + 1 : start + tokens_per_view].cpu().numpy()
+                    raw_patch_attns.append(pa)
+
+                def _make_cls_strip(patch_attns_list):
+                    label_img = v0_bgr.copy()
+                    cv2.putText(label_img, f'layer{layer_idx}', (6, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                    cols = [label_img]
+                    for vi in range(num_view):
+                        patch_attn = patch_attns_list[vi].reshape(ph, pw)
+                        heatmap = cv2.resize((patch_attn * 255).astype(np.uint8), (model_W, model_H), interpolation=cv2.INTER_LINEAR)
+                        heatmap_color = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+                        img_bgr = cv2.cvtColor(imgs_np[vi], cv2.COLOR_RGB2BGR)
+                        overlay = cv2.addWeighted(img_bgr, 0.5, heatmap_color, 0.5, 0)
+                        cv2.putText(overlay, f'view{vi+1}', (6, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                        cols.append(overlay)
+                    return np.concatenate(cols, axis=1)
+
+                if 'global_log1p' in norm_modes:
+                    all_log = [np.log1p(pa) for pa in raw_patch_attns]
+                    g_min = min(p.min() for p in all_log)
+                    g_max = max(p.max() for p in all_log)
+                    all_patch_attns_global = [(pa - g_min) / (g_max - g_min + 1e-8) for pa in all_log]
+                    cls_layer_strips['global_log1p'].append((layer_idx, _make_cls_strip(all_patch_attns_global)))
+
+                if 'perv_p99' in norm_modes:
+                    all_patch_attns_perv = []
+                    for pa in raw_patch_attns:
+                        pa = np.clip(pa, 0, np.percentile(pa, 99))
+                        pa = (pa - pa.min()) / (pa.max() - pa.min() + 1e-8)
+                        all_patch_attns_perv.append(pa)
+                    cls_layer_strips['perv_p99'].append((layer_idx, _make_cls_strip(all_patch_attns_perv)))
+
+                # # per-layer image
+                # save_path = os.path.join(cls_attn_save_root, f'layer{layer_idx}__{attn_type}__v0cls.png')
+                # cv2.imwrite(save_path, strip)
+                # print(f"[CLS attn map] Saved: {save_path}")
+
+            # combined heatmap: one file per norm mode, each in its own subfolder
+            for mode, strips in cls_layer_strips.items():
+                if strips:
+                    mode_dir = os.path.join(cls_attn_save_root, mode)
+                    os.makedirs(mode_dir, exist_ok=True)
+                    combined = np.concatenate([s for _, s in sorted(strips)], axis=0)
+                    save_path = os.path.join(mode_dir, f'all_layers__{attn_type}__v0cls.png')
+                    cv2.imwrite(save_path, combined)
+                    print(f"[CLS attn map {mode}] Saved: {save_path}")
+
+            # combined bar graph: all layers stacked vertically into one image
+            if cls_bar_figs:
+                from io import BytesIO
+                from PIL import Image
+                bar_imgs = []
+                for _, fig in sorted(cls_bar_figs):
+                    buf = BytesIO()
+                    fig.savefig(buf, format='png', dpi=100)
+                    plt.close(fig)
+                    buf.seek(0)
+                    bar_imgs.append(np.array(Image.open(buf)))
+                combined_bar = np.concatenate(bar_imgs, axis=0)
+                bar_combined_path = os.path.join(cls_attn_save_root, f'all_layers__{attn_type}__v0cls_bar.png')
+                combined_bar_bgr = cv2.cvtColor(combined_bar, cv2.COLOR_RGBA2BGR) if combined_bar.shape[2] == 4 else cv2.cvtColor(combined_bar, cv2.COLOR_RGB2BGR)
+                cv2.imwrite(bar_combined_path, combined_bar_bgr)
+                print(f"[CLS bar graph combined] Saved: {bar_combined_path}")
+
+        # ── patch_tkn: one image per query patch, layers as rows ─────────────
+        if 'patch_tkn' in to_vis:
+
+            # determine tokens_per_view and sampled patches from the first global map
+            first_global_map = next(m for (_, _, t), m in attn_map.items() if t == 'global')
+            tokens_per_view = first_global_map.shape[1] // num_view
+            n_patches = tokens_per_view - 1
+            
+            # sample a 3x3 grid evenly spread across the image (at 1/4, 1/2, 3/4 positions)
+            grid_rows, grid_cols = 3, 3
+            row_positions = [int(round(ph * f)) for f in [0.25, 0.50, 0.75]]
+            col_positions = [int(round(pw * f)) for f in [0.25, 0.50, 0.75]]
+            sampled_patch_indices = []
+            for r in row_positions:
+                for c in col_positions:
+                    r = np.clip(r, 0, ph - 1)
+                    c = np.clip(c, 0, pw - 1)
+                    sampled_patch_indices.append(r * pw + c)
+            sampled_patch_indices = np.array(sorted(set(sampled_patch_indices)))
+
+            if mvrm_timestep is not None:
+                patch_attn_save_root = os.path.join(vis_save_root, f'timestep{mvrm_timestep}', 'patch_tkn', attn_map_name, scene)
+            else:
+                patch_attn_save_root = os.path.join(vis_save_root, 'patch_tkn', attn_map_name, scene)
+            os.makedirs(patch_attn_save_root, exist_ok=True)
+
+            # collect strips: {mode: {pi: [(layer_idx, strip)]}}
+            strips_per_patch = {m: {pi: [] for pi in sampled_patch_indices} for m in norm_modes}
+
+            for map_info, map in attn_map.items():
+                model_name, layer_idx, attn_type = map_info
+                if attn_type != 'global':
+                    continue
+
+                for pi in sampled_patch_indices:
+                    query_row = map[0, 1 + pi, :]   # (V * tokens_per_view,)
+
+                    # self + cross attention for all views (vi=0 is self-attention)
+                    all_view_attns = []
+                    for vi in range(num_view):
+                        start = vi * tokens_per_view
+                        pa = query_row[start + 1 : start + tokens_per_view].cpu().numpy()
+                        if vi == 0:
+                            pa = pa.copy()
+                            pa[pi] = 0.0   # mask diagonal (query patch attending to itself)
+                        all_view_attns.append((vi, pa))
+                    # query patch pixel center
+                    pi_h, pi_w = pi // pw, pi % pw
+                    cx = int((pi_w + 0.5) * patch_size)
+                    cy = int((pi_h + 0.5) * patch_size)
+
+                    def _make_patch_strip(view_attns_list):
+                        ref_img = v0_bgr.copy()
+                        cv2.circle(ref_img, (cx, cy), radius=8, color=(0, 255, 0), thickness=-1)
+                        cv2.circle(ref_img, (cx, cy), radius=8, color=(0, 0, 0), thickness=1)
+                        cv2.putText(ref_img, f'layer{layer_idx}', (6, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                        cols = [ref_img]
+                        for vi, pa in view_attns_list:
+                            patch_attn = pa.reshape(ph, pw)
+                            heatmap = cv2.resize((patch_attn * 255).astype(np.uint8), (model_W, model_H), interpolation=cv2.INTER_LINEAR)
+                            heatmap_color = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+                            img_bgr = cv2.cvtColor(imgs_np[vi], cv2.COLOR_RGB2BGR)
+                            overlay = cv2.addWeighted(img_bgr, 0.5, heatmap_color, 0.5, 0)
+                            label = f'view{vi+1}(self)' if vi == 0 else f'view{vi+1}'
+                            cv2.putText(overlay, label, (6, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                            cols.append(overlay)
+                        return np.concatenate(cols, axis=1)
+
+                    if 'global_log1p' in norm_modes:
+                        all_log = [(vi, np.log1p(pa)) for vi, pa in all_view_attns]
+                        g_min = min(pa.min() for _, pa in all_log)
+                        g_max = max(pa.max() for _, pa in all_log)
+                        all_view_attns_global = [(vi, (pa - g_min) / (g_max - g_min + 1e-8)) for vi, pa in all_log]
+                        strips_per_patch['global_log1p'][pi].append((layer_idx, _make_patch_strip(all_view_attns_global)))
+
+                    if 'perv_p99' in norm_modes:
+                        all_view_attns_perv = []
+                        for vi, pa in all_view_attns:
+                            pa = np.clip(pa, 0, np.percentile(pa, 99))
+                            pa = (pa - pa.min()) / (pa.max() - pa.min() + 1e-8)
+                            all_view_attns_perv.append((vi, pa))
+                        strips_per_patch['perv_p99'][pi].append((layer_idx, _make_patch_strip(all_view_attns_perv)))
+
+            # save one image per query patch per norm mode, each mode in its own subfolder
+            for mode, patch_strips in strips_per_patch.items():
+                mode_dir = os.path.join(patch_attn_save_root, mode)
+                os.makedirs(mode_dir, exist_ok=True)
+                for pi in sampled_patch_indices:
+                    grid_img = np.concatenate([s for _, s in sorted(patch_strips[pi])], axis=0)
+                    save_path = os.path.join(mode_dir, f'v0patch{pi:04d}.png')
+                    cv2.imwrite(save_path, grid_img)
+                    print(f"[Patch attn map {mode}] Saved: {save_path}")
+                
+
+        
+        
 
     
       

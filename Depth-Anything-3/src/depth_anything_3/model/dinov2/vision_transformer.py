@@ -314,13 +314,14 @@ class DinoVisionTransformer(nn.Module):
 
         # MVRM OUTPUTS
         mvrm_output={}
+        analysis = kwargs.get('analysis', None)
         
         
         ref_view_start_idx=1000
         b_idx = None
         for i, blk in enumerate(self.blocks):
-
-
+            
+            
             # # MVRM restore degraded features
             # if kwargs['mode'] == 'val':
             #     mvrm_val_cfg = kwargs['mvrm_cfg']
@@ -388,10 +389,10 @@ class DinoVisionTransformer(nn.Module):
             # --------------------------------------- ATTENTION COMPUTATION ---------------------------------------
             if self.alt_start != -1 and i >= self.alt_start and i % 2 == 1:
                 # print(f'{i} global attn')
-                x = self.process_attention(x, blk, "global", pos=g_pos, attn_mask=kwargs.get("attn_mask", None))    # b v 972+1 1536
+                x = self.process_attention(x, blk, "global", pos=g_pos, attn_mask=kwargs.get("attn_mask", None), layer_idx=i, analysis=analysis)    # b v 972+1 1536
             else:
                 # print(f'{i} frame attn')
-                x = self.process_attention(x, blk, "local", pos=l_pos)  # b v 972+1 1536          
+                x = self.process_attention(x, blk, "local", pos=l_pos, layer_idx=i, analysis=analysis)  # b v 972+1 1536          
                 local_x = x                                             # b v 972+1 1536
             # -------------------------------------------------------------------------------------------------------
             
@@ -479,7 +480,7 @@ class DinoVisionTransformer(nn.Module):
         
         
         
-    def process_attention(self, x, block, attn_type="global", pos=None, attn_mask=None):
+    def process_attention(self, x, block, attn_type="global", pos=None, attn_mask=None, layer_idx=None, analysis=None):
         
         # PHO DEBUG
         # if pos is not None:
@@ -498,7 +499,7 @@ class DinoVisionTransformer(nn.Module):
             raise ValueError(f"Invalid attention type: {attn_type}")
 
         # breakpoint()
-        x = block(x, pos=pos, attn_mask=attn_mask)
+        x = block(x, pos=pos, attn_mask=attn_mask, layer_idx=layer_idx, attn_type=attn_type, analysis=analysis)
 
         if attn_type == "local":
             x = rearrange(x, "(b s) n c -> b s n c", b=b, s=s)

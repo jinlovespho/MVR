@@ -340,14 +340,45 @@ class PhoTartanAir(Dataset):
                 view_id = view.split('/')[-1].split('.')[0]
                 lq_view_id.append(f'tartanair_{scene_id}_{view_id}')
                 img_pil = self.convert_imgpath(view)
-                KERNEL_SIZE = self.data_cfg.lq_kernel_size
                 BLUR_INTENSITY=0.1
+                # Sample kernel size from Gaussian centered at lq_kernel_size (SirDiff-style):
+                # 95% of samples fall within [mean//2, mean + mean//2]
+                lq_kernel_mean = self.data_cfg.lq_kernel_size
+                lq_kernel_std  = (lq_kernel_mean / 2) / 1.96
+                lq_kernel_min  = max(1, lq_kernel_mean // 2)
+                lq_kernel_max  = lq_kernel_mean + lq_kernel_mean // 2
+                KERNEL_SIZE = int(np.clip(np.random.normal(lq_kernel_mean, lq_kernel_std), lq_kernel_min, lq_kernel_max))
                 kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
                 blurred = kernel.applyTo(img_pil, keep_image_dim=True)
                 blurred = np.array(blurred)
                 lq_view_list.append(self.resize(blurred))
             outputs['lq_ids'] = lq_view_id 
             outputs['lq_views'] = lq_view_list
+            
+            
+
+
+        # # ----------------------------------
+        # #       get lq on the fly
+        # # ----------------------------------
+        # lq_view_id=[]
+        # lq_view_list=[]
+        
+        # if self.mode == 'train':
+        #     views = sorted([self.data['hq_img'][i] for i in frame_ids])
+        #     for view in views:
+        #         scene_id = view.split('/')[-5]
+        #         view_id = view.split('/')[-1].split('.')[0]
+        #         lq_view_id.append(f'tartanair_{scene_id}_{view_id}')
+        #         img_pil = self.convert_imgpath(view)
+        #         KERNEL_SIZE = self.data_cfg.lq_kernel_size
+        #         BLUR_INTENSITY=0.1
+        #         kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
+        #         blurred = kernel.applyTo(img_pil, keep_image_dim=True)
+        #         blurred = np.array(blurred)
+        #         lq_view_list.append(self.resize(blurred))
+        #     outputs['lq_ids'] = lq_view_id 
+        #     outputs['lq_views'] = lq_view_list
 
 
 

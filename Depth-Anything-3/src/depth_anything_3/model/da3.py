@@ -111,7 +111,8 @@ class DepthAnything3Net(nn.Module):
         mvrm_result=None,
         mode=None,
         ref_b_idx=None,
-        front_connect_back_mvrm_cfg=None
+        front_connect_back_mvrm_cfg=None,
+        analysis=None
     ) -> Dict[str, torch.Tensor]:
         """
         Forward pass through the network.
@@ -139,7 +140,7 @@ class DepthAnything3Net(nn.Module):
 
         # dinov2 backbone
         feats, aux_feats, mvrm_output, ref_b_idx = self.backbone(
-            x, cam_token=cam_token, export_feat_layers=export_feat_layers, ref_view_strategy=ref_view_strategy, mvrm_cfg=mvrm_cfg, mvrm_result=mvrm_result, mode=mode, ref_b_idx=ref_b_idx, front_connect_back_mvrm_cfg=front_connect_back_mvrm_cfg
+            x, cam_token=cam_token, export_feat_layers=export_feat_layers, ref_view_strategy=ref_view_strategy, mvrm_cfg=mvrm_cfg, mvrm_result=mvrm_result, mode=mode, ref_b_idx=ref_b_idx, front_connect_back_mvrm_cfg=front_connect_back_mvrm_cfg, analysis=analysis
         )
         
         # MVRM 
@@ -169,9 +170,9 @@ class DepthAnything3Net(nn.Module):
             (Pdb) output['ray_conf']    torch.Size([1, 38, 192, 288])
             '''
             
-            if use_ray_pose:    # f
+            if use_ray_pose:    
                 output = self._process_ray_pose_estimation(output, H, W)
-            else:   # t
+            else:   
                 output = self._process_camera_estimation(feats, H, W, output)
             if infer_gs:    # f
                 output = self._process_gs_head(feats, H, W, output, x, extrinsics, intrinsics)

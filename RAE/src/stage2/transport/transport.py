@@ -1,3 +1,4 @@
+import os 
 import torch
 import numpy as np
 import logging
@@ -7,6 +8,9 @@ import enum
 from . import path
 from .utils import EasyDict, log_state, mean_flat
 from .integrators import ode, sde
+
+from RAE.src.utils.vis_utils import vis_attn_maps
+
 
 class ModelType(enum.Enum):
     """
@@ -280,15 +284,16 @@ class Transport:
 
         # lq_latent conditioning method
         if cfg.mvrm.lq_latent_cond == 'addition':
-            xt = xt + xcond
+            xt = xt + xcond                          # b v n+1 d
         elif cfg.mvrm.lq_latent_cond == 'concat':
-            xt = torch.concat([xt, xcond], dim=2)   # channel concat
+            xt = torch.concat([xt, xcond], dim=-1)   # channel concat  (b v n+1 2d)
         
         
         # mvrm forward pass 
-        model_output = model(xt, t, model_img_size) # b v n+11 d
-        assert model_output.shape == xt.shape 
-
+        model_output = model(xt, t, model_img_size) # b v n+1 d
+        # assert model_output.shape == xt.shape 
+        assert model_output.shape == ut.shape 
+        
         terms = {}
         terms['pred'] = model_output
         terms['target_velocity'] = ut 
@@ -405,15 +410,38 @@ class Transport:
             score = model_output / -sigma_t
             return (-drift_mean + drift_var * score)
         
+        _step_counter = [0]
+
         def velocity_ode(x, t, model, **model_kwargs):
+
+            _step_counter[0] += 1
+
+            analysis = model_kwargs.get('analysis', None)
+            
+            mvrm_vis = model_kwargs.pop('mvrm_vis', None) 
+            if mvrm_vis is not None:
+                mvrm_vis_attn_root = mvrm_vis['mvrm_vis_attn_root']
+                scene = mvrm_vis['scene']
+                num_view = mvrm_vis['num_view']
+                model_img_size = mvrm_vis['model_img_size']
+                lq_imgs = mvrm_vis['lq_imgs'] 
+                ref_b_idx = mvrm_vis['ref_b_idx']
+            
+
+
+            # For 'concat' conditioning: lq_latent is passed separately and concatenated
+            # here before the model call so the ODE state x stays d-dim throughout.
+            lq_latent = model_kwargs.pop('lq_latent', None)
+            lq_latent_cond = model_kwargs.pop('lq_latent_cond', 'addition')
+            x_in = torch.cat([x, lq_latent], dim=-1) if (lq_latent is not None and lq_latent_cond == 'concat') else x
 
             if model_kwargs['guidance'].use_cfg:
                 cfg_scale = model_kwargs['guidance'].cfg_scale
 
                 if cfg_scale > 1.0:
 
-                    model_out = model(x, t, **model_kwargs)
-                    
+                    model_out = model(x_in, t, **model_kwargs)
+
                     v_uncond, v_cond = model_out.chunk(2, dim=0)
 
                     v_guided = v_uncond + cfg_scale * (v_cond - v_uncond)
@@ -421,9 +449,32 @@ class Transport:
                     return torch.cat([v_guided, v_guided], dim=0)
 
             else:
-                model_output = model(x, t, **model_kwargs)
                 
-                    
+                model_output = model(x_in, t, **model_kwargs)
+            
+            
+            if analysis.vis_attn_map and len(analysis.mvrm_attn_map.extract_idx) != 0:
+            
+                # MVRM attn_map extraction — only at every 10th step
+                if _step_counter[0] % 10 == 0:
+                    mvrm_maps = {}
+                    print(f"MVRM ATTN_MAP EXTRACTION (step {_step_counter[0]})")
+                    for layer_idx in analysis.mvrm_attn_map.extract_idx:
+                        attn_idx, attn_type, attn_map = model.__self__.blocks[layer_idx].attn.attn_map
+                        assert layer_idx == attn_idx
+                        mvrm_maps[('mvrm', attn_idx, attn_type)] = attn_map.mean(dim=1)  # 1 head num_view*(n+1) num_view*(n+1)  -> 1 num_view*(n+1) num_view*(n+1)
+
+                    vis_attn_maps(
+                        vis_save_root=mvrm_vis_attn_root,
+                        scene=scene,
+                        num_view=num_view,
+                        model_img_size=model_img_size,
+                        imgs_list=[('lq_imgs', lq_imgs)],
+                        attn_maps_list=[('mvrm_attn_map', mvrm_maps)],
+                        ref_b_idx=ref_b_idx,
+                        mvrm_timestep=t.item()
+                    )
+            
             return model_output
 
         if self.model_type == ModelType.NOISE:  # f
@@ -435,7 +486,7 @@ class Transport:
         
         def body_fn(x, t, model, **model_kwargs):
             model_output = drift_fn(x, t, model, **model_kwargs)
-            assert model_output.shape == x.shape, "Output shape from ODE solver must match input shape"
+            # assert model_output.shape == x.shape, "Output shape from ODE solver must match input shape"
             return model_output
 
         return body_fn

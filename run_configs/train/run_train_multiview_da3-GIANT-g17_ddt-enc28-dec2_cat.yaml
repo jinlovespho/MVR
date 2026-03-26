@@ -26,12 +26,16 @@ stage_2:
     # input_size: [27, 36]  # feat_H, feat_W
     input_size: 
     patch_size: 1
-    in_channels: 1536
+    in_channels: 3072
     
 
 
     hidden_size: [1536, 3072]
     depth: [28, 2]
+
+
+    ddt_final_layer_output_dim: 1536
+
 
     # hidden_size: [1536, 3072]
     # depth: [22, 4]
@@ -130,7 +134,6 @@ training:
   
 
 
-
 log:
   result_root_dir: result_train/nips26/multi_view/260325
   tracker:
@@ -142,7 +145,8 @@ log:
       project: nips26_mvr
       
       ## 260317
-      msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc28-1536-dec2-3072__lqdrop01_'
+      msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc28-dec2-CAT__lqdrop01'
+      # msg: 'TMP'
       
       
       
@@ -221,8 +225,19 @@ data:
 
 
 
+
+# analysis:
+#   da3_attn_map:
+#     extract_idx: []
+#   mvrm_attn_map:
+#     extract_idx: []
+
+
+
+
 mvrm:
-  lq_latent_cond: addition    # [addition, concat]
+  # lq_latent_cond: addition    # [addition, concat]
+  lq_latent_cond: concat
   train:
     # DPT Head input feats = [19, 27, 33, 39]
     extract_feat_layers: [17]
@@ -235,6 +250,7 @@ mvrm:
     guidance:
       use_cfg: false
       cfg_scale: 1.0
+
 
 
   loss:
