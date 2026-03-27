@@ -1,4 +1,6 @@
 import os 
+import sys
+sys.path.append(os.getcwd())
 import torch
 import numpy as np
 import logging
@@ -9,8 +11,8 @@ from . import path
 from .utils import EasyDict, log_state, mean_flat
 from .integrators import ode, sde
 
-# from RAE.src.utils.vis_utils import vis_attn_maps
-from utils.vis_utils import vis_attn_maps
+from RAE.src.utils.vis_utils import vis_attn_maps
+# from utils.vis_utils import vis_attn_maps
 
 
 class ModelType(enum.Enum):
@@ -455,26 +457,22 @@ class Transport:
             lq_latent_cond = model_kwargs.pop('lq_latent_cond', 'addition')
             x_in = torch.cat([x, lq_latent], dim=-1) if (lq_latent is not None and lq_latent_cond == 'concat') else x
 
+
             if model_kwargs['guidance'].use_cfg:
                 cfg_scale = model_kwargs['guidance'].cfg_scale
 
                 if cfg_scale > 1.0:
-
                     model_out = model(x_in, t, **model_kwargs)
-
                     v_uncond, v_cond = model_out.chunk(2, dim=0)
-
                     v_guided = v_uncond + cfg_scale * (v_cond - v_uncond)
-
                     return torch.cat([v_guided, v_guided], dim=0)
 
             else:
-                
                 model_output = model(x_in, t, **model_kwargs)
             
             
+
             if analysis is not None:
-                
                 if analysis.vis_attn_map and len(analysis.mvrm_attn_map.extract_idx) != 0:
                     # MVRM attn_map extraction — only at every 15th step
                     if _step_counter[0] % 15 == 0:

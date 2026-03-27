@@ -225,7 +225,9 @@ workspace:
 
   # 260326 (pho_vis)
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_vis_260326/da3_giant/w_mvrm_FRONT/ddt-enc12-dec6__hyp-tar/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_vis_260326/da3_giant/w_mvrm_FRONT/ddt-enc12-dec6__hyp-tar/a100_ckpt25k/filtered_cam_blur_300/ray_saddle_maxview4_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_vis_260326/da3_giant/w_mvrm_FRONT/ddt-enc12-dec6__hyp-tar/a100_ckpt25k/filtered_cam_blur_300/ray_saddle_maxview4_cfg1
+
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_vis_260326/da3_giant/w_mvrm_FRONT/ddt-enc12-dec6__hyp-tar/a100_ckpt25k/filtered_cam_blur_300/ray_saddle_maxview6_cfg1
 
 
 
@@ -245,12 +247,12 @@ eval:
   # Datasets to evaluate
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
-    - 7scenes
+    # - 7scenes
     - dtu
-    - hiroom
-    - scannetpp
-    - eth3d
-    - dtu64
+    # - hiroom
+    # - scannetpp
+    # - eth3d
+    # - dtu64
 
 
   # Evaluation modes
@@ -269,7 +271,7 @@ eval:
 
   # Specific scenes to evaluate (null = all scenes)
   # Example: [courtyard, relief] for eth3d
-  scenes: []
+  scenes: [scan33]
 
   # Maximum number of frames per scene (for sampling)
   # If a scene has more frames, randomly sample to this limit.
@@ -278,9 +280,9 @@ eval:
   # max_frames: 50
   # max_frames: 10
   # max_frames: 8
-  # max_frames: 6
+  max_frames: 6
   # max_frames: 5
-  max_frames: 4
+  # max_frames: 4
   # max_frames: 3
   # max_frames: 1
 
