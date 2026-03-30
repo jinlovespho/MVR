@@ -106,7 +106,7 @@ training:
   shuffle: true
   log_interval: 1
 
-  ckpt_step_interval: 5000   # 5k
+  ckpt_step_interval: 25000   # 25k
 
   vis:
     train_depth_every: 1000   # 1k
@@ -135,7 +135,8 @@ training:
 
 log:
   # result_root_dir: result_train/nips26/multi_view/260318
-  result_root_dir: result_train/nips26/multi_view/260326
+  # result_root_dir: result_train/nips26/multi_view/260326
+  result_root_dir: result_train/nips26/multi_view/260327
   tracker:
     name: wandb
     wandb:
@@ -148,7 +149,10 @@ log:
       # msg: 'lqkernel200__ema95__hyp1__ddt-enc8-1536-dec6-3072__lqdrop01_re'
 
       ## 260326 
-      msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01'
+
+      ## 260327
+      msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__blur001-03'
       
       
       
@@ -160,6 +164,7 @@ data:
   train:
     image_size: 512 
     # max_num_input_view: 8
+    # max_num_input_view: 6
     max_num_input_view: 4
     list: [hypersim,]
     # list: [tartanair,]
@@ -169,6 +174,7 @@ data:
       ann_path: metadata_images_split_scene_v1.csv
       hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data
       lq_kernel_size: 200
+      lq_intensity_range: [0.01, 0.3]
       view_selection:
         # [random, near_random, near_camera]
         # strategy: random
@@ -182,6 +188,7 @@ data:
       ann_path: 
       hq_root_path: /mnt/dataset1/MV_Restoration/tartanair/data
       lq_kernel_size: 200
+      lq_intensity_range: [0.01, 0.3]
       view_selection:
         # [random, near_random]
         # strategy: random
@@ -199,6 +206,7 @@ data:
     # list: [hypersim]
 
 
+
     eth3d:
       num_eval_img: 5
       # eval_scene: [courtyard]
@@ -211,6 +219,7 @@ data:
         strategy: near_random
         expand_ratio: 2
     
+
     
     hypersim:
       num_eval_img: 10
@@ -225,6 +234,9 @@ data:
         expand_ratio: 2
       process_res: 504
       patch_size: 14
+
+
+
 
 
 

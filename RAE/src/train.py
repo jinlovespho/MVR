@@ -18,6 +18,9 @@ from pathlib import Path
 import math
 from omegaconf import OmegaConf
 
+from depth_anything_3.utils.export.glb import _depths_to_world_points_with_colors   
+from depth_anything_3.utils.geometry import unproject_depth, affine_inverse, as_homogeneous
+
 
 ##### model imports
 
@@ -274,6 +277,7 @@ def main():
                                                     analysis = full_cfg.analysis_HQ
                                                     )
             hq_pred_pose_enc = hq_encoder_out.pose_enc
+            hq_pred_intrinsics = hq_encoder_out['intrinsics']  # (b, v, 3, 3) tensor
             hq_pred_pose = hq_encoder_out['extrinsics'] # b v 3 4
             hq_encoder_out = processors['encoder_output_processor'](hq_encoder_out)
             train_hq_pred_depth_np = hq_encoder_out.depth                  # b v 378 504
@@ -294,6 +298,30 @@ def main():
                     hq_maps[('da3', attn_idx, attn_type)] = attn_map.mean(dim=1)  # 1 head num_view*(n+1) num_view*(n+1)  -> 1 num_view*(n+1) num_view*(n+1)
                 # to_vis_imgs_list.append(('hq_imgs', imgs))
                 # to_vis_attn_maps_list.append(('hq_maps', hq_maps))
+                
+            
+
+                                    
+            # if full_cfg.analysis_HQ.get('vis_pointcloud', False):
+            #     print("HQ POINT_CLOUD EXTRACTION")
+            #     from depth_anything_3.utils.geometry import unproject_depth, affine_inverse, as_homogeneous
+
+            #     # train_hq_pred_depth: (b, v, H, W) already on device
+            #     # hq_pred_pose:        (b, v, 3, 4) w2c already on device
+            #     # hq_pred_intrinsics:  (b, v, 3, 3) saved above
+
+            #     depth_t = train_hq_pred_depth.unsqueeze(-1).float()   # (b, v, H, W, 1)
+            #     c2w_t   = affine_inverse(as_homogeneous(hq_pred_pose)) # (b, v, 4, 4)
+
+            #     pts = unproject_depth(depth_t, hq_pred_intrinsics, c2w_t)  # (b, v, H, W, 3)
+
+            #     # colors from input images: (b, v, 3, H, W) -> (b, v, H, W, 3)
+            #     colors = train_hq_views.permute(0, 1, 3, 4, 2).float()
+                
+                
+
+
+
 
 
 
@@ -604,19 +632,52 @@ def main():
                 """CAMEO-style cross-entropy between attention probability distributions."""
                 return -(target * (pred + eps).log()).sum(dim=-1).mean()
 
+
             # Attention alignment loss (CAMEO-style)
-            if full_cfg.mvrm.loss.attn_align.use and mvrm_maps is not None and hq_maps:
+            attn_loss = torch.tensor(0.0, device=device)
+            if full_cfg.mvrm.loss.attn_align.use and mvrm_maps is not None:
                 lambda_attn = full_cfg.mvrm.loss.attn_align.lambda_coeff
                 mvrm_key = ('mvrm', full_cfg.mvrm.loss.attn_align.mvrm_layer_idx, 'global')
-                da3_key  = ('da3',  full_cfg.mvrm.loss.attn_align.da3_layer_idx,  'global')
-                pred_map   = mvrm_maps[mvrm_key]              # [1, N, N] on GPU, has grad
-                target_map = hq_maps[da3_key].to(device)      # [1, N, N] on GPU, no grad
-                attn_loss = cross_entropy_attn(pred_map, target_map)
-                loss += lambda_attn * attn_loss
-            else:
-                attn_loss = torch.tensor(0.0, device=device)  
-                        
-                        
+                pred_map = mvrm_maps[mvrm_key]  # (1, v*(n+1), v*(n+1))
+
+                if full_cfg.mvrm.loss.attn_align.da3_attn_map.use and hq_maps:
+                    # target: HQ DA3 attention map
+                    da3_key    = ('da3', full_cfg.mvrm.loss.attn_align.da3_attn_map.da3_layer_idx, 'global')
+                    target_map = hq_maps[da3_key].to(device)      # (1, N, N)
+                    attn_loss  = cross_entropy_attn(pred_map, target_map)
+                    loss += lambda_attn * attn_loss
+
+                elif full_cfg.mvrm.loss.attn_align.da3_point_cloud.use:
+                    # target: geometric correspondence from HQ point cloud
+                    depth_t = train_hq_pred_depth.unsqueeze(-1).float()                 # (b, v, H, W, 1)
+                    c2w_t   = affine_inverse(as_homogeneous(hq_pred_pose.float()))      # (b, v, 4, 4)
+                    pts = unproject_depth(depth_t, hq_pred_intrinsics.float(), c2w_t)  # (b, v, H, W, 3)
+
+                    PATCH_SIZE = 14
+                    b, v, H, W, _ = pts.shape
+                    Ph, Pw = H // PATCH_SIZE, W // PATCH_SIZE
+                    n = Ph * Pw  # spatial tokens per view
+
+                    # pool to patch resolution: (b, v, Ph, Pw, 3)
+                    pts_patch  = pts.reshape(b, v, Ph, PATCH_SIZE, Pw, PATCH_SIZE, 3).mean(dim=(3, 5))
+                    # flatten all views' patches: (b, v*n, 3)
+                    pts_flat   = pts_patch.reshape(b, v * n, 3)
+                    # pairwise neg L2: (b, v*n, v*n)
+                    diff       = pts_flat.unsqueeze(1) - pts_flat.unsqueeze(2)  # (b, v*n, v*n, 3)
+                    neg_l2     = -torch.norm(diff, dim=-1)                       # (b, v*n, v*n)
+                    geo_target = neg_l2.softmax(dim=-1)                          # (b, v*n, v*n)
+
+                    # slice CLS tokens out of pred_map: positions 0, n+1, 2*(n+1), ...
+                    N_total = pred_map.shape[-1]
+                    spatial_mask = torch.ones(N_total, dtype=torch.bool, device=device)
+                    for vi in range(v):
+                        spatial_mask[vi * (n + 1)] = False
+                    pred_map_spatial = pred_map[:, spatial_mask, :][:, :, spatial_mask]  # (1, v*n, v*n)
+
+                    attn_loss = cross_entropy_attn(pred_map_spatial, geo_target)
+                    loss += lambda_attn * attn_loss
+                    
+                                          
                         
             if full_cfg.mvrm.loss.velocity_direction.use:
                 # velocity direction regularization

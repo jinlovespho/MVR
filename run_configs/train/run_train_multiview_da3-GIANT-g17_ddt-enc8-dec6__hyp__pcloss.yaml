@@ -99,7 +99,7 @@ training:
   precision: fp32
   epochs: 10
  
-  global_batch_size: 5
+  global_batch_size: 1
   grad_accum_steps: 1
   ema_decay: 0.9995
   # ema_decay: 0.9999
@@ -107,7 +107,7 @@ training:
   shuffle: true
   log_interval: 1
 
-  ckpt_step_interval: 10000   # 10k
+  ckpt_step_interval: 25000   # 25k
 
   vis:
     train_depth_every: 1000   # 1k
@@ -138,7 +138,7 @@ log:
   # result_root_dir: result_train/nips26/multi_view/260318
   # result_root_dir: result_train/nips26/multi_view/260326
   # result_root_dir: result_train/nips26/multi_view/260327
-  result_root_dir: result_train/nips26/multi_view/260329
+  result_root_dir: result_train/nips26/multi_view/260328
   tracker:
     name: wandb
     wandb:
@@ -146,30 +146,21 @@ log:
       entity: jinlovespho
       # project: eccv26_mv_restoration
       project: nips26_mvr
-      
-      ## 260317
-      # msg: 'lqkernel200__ema95__hyp1__ddt-enc12-1536-dec6-3072__lqdrop01_re'
-      
-      ## 260326
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-enc-1'
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9'
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-11'
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-13'
 
 
-      ## 260327
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-enc-1__blur001-03'
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__blur001-03'
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-11__blur001-03'
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-13__blur001-03'
-      
-      
+
+      # 260328
+      msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss01-temp01__da3-pc-to-mvrm-enc-1__blur001-03'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss01-temp01__da3-pc-to-mvrm-dec-9__blur001-03'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss01-temp01__da3-pc-to-mvrm-dec-11__blur001-03'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss01-temp01__da3-pc-to-mvrm-dec-13__blur001-03'
+
+
+
       # msg: 'TMPTMP'
       
       
       
-          
-    
 
 
 data:
@@ -276,24 +267,23 @@ mvrm:
     
 
 
+
     # ATTENTION ALIGNMENT LOSS
     attn_align:
       use: true
       lambda_coeff: 1.0
-      # mvrm_layer_idx: 1    
-      mvrm_layer_idx: 9
+      mvrm_layer_idx: 1    
+      # mvrm_layer_idx: 9
       # mvrm_layer_idx: 11
       # mvrm_layer_idx: 13
 
 
       da3_attn_map:
-        use: true
+        use: false
         da3_layer_idx: 17   
 
-
       da3_point_cloud:
-        # use: true 
-        use: false
+        use: true 
         vis_pc_temperature: 0.1   
 
       
@@ -301,14 +291,13 @@ mvrm:
 
 
 
-
   # MVRM ATTENTION MAP EXTRACTION 
   analysis:
-    vis_attn_map: true 
-    # vis_attn_map: false
+    # vis_attn_map: true 
+    vis_attn_map: false
     mvrm_attn_map:
-      # extract_idx: [1]
-      extract_idx: [9]
+      extract_idx: [1]
+      # extract_idx: [9]
       # extract_idx: [11]
       # extract_idx: [13]
 
@@ -317,11 +306,14 @@ mvrm:
 
 
 
+
 # HQ ATTENTION MAP EXTRACTION
 analysis_HQ:
-  vis_map: true
-  # vis_map: false
+  # vis_map: true
+  vis_map: false
   da3_attn_map:
     extract_idx: [17]
+  
+
 
 

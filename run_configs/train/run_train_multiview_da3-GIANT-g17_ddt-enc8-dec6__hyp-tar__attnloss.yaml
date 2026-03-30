@@ -135,9 +135,6 @@ training:
 
 
 log:
-  # result_root_dir: result_train/nips26/multi_view/260318
-  # result_root_dir: result_train/nips26/multi_view/260326
-  # result_root_dir: result_train/nips26/multi_view/260327
   result_root_dir: result_train/nips26/multi_view/260329
   tracker:
     name: wandb
@@ -147,22 +144,9 @@ log:
       # project: eccv26_mv_restoration
       project: nips26_mvr
       
-      ## 260317
-      # msg: 'lqkernel200__ema95__hyp1__ddt-enc12-1536-dec6-3072__lqdrop01_re'
-      
-      ## 260326
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-enc-1'
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9'
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-11'
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-13'
 
-
-      ## 260327
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-enc-1__blur001-03'
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__blur001-03'
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-11__blur001-03'
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-13__blur001-03'
-      
+      ## 260329
+      msg: 'lqkernel200-gaussian__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__blur001-03'
       
       # msg: 'TMPTMP'
       
@@ -178,9 +162,9 @@ data:
     # max_num_input_view: 8
     # max_num_input_view: 6
     max_num_input_view: 4
-    list: [hypersim,]
+    # list: [hypersim,]
     # list: [tartanair,]
-    # list: [hypersim, tartanair,]
+    list: [hypersim, tartanair,]
     
     hypersim:
       ann_path: metadata_images_split_scene_v1.csv

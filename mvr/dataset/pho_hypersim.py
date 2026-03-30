@@ -406,8 +406,6 @@ class PhoHypersim(Dataset):
         lq_view_id=[]
         lq_view_list=[]
         
-        
-
         hq_views = [self.data['hq_img'][i] for i in frame_ids]
         for global_i, hq_view in zip(frame_ids, hq_views):
             volume = hq_view.split('/')[-4].split('_')[-2]
@@ -418,11 +416,11 @@ class PhoHypersim(Dataset):
             img_pil = self.convert_hdf5_img(hq_view)
 
 
-            BLUR_INTENSITY=0.1
             if self.mode == 'val':
                 np.random.seed(int(global_i))
                 random.seed(int(global_i))
                 KERNEL_SIZE = self.data_cfg.lq_kernel_size
+                BLUR_INTENSITY = 0.1
             else:
                 # Sample kernel size from Gaussian centered at lq_kernel_size (SirDiff-style):
                 # 95% of samples fall within [mean//2, mean + mean//2]
@@ -431,12 +429,64 @@ class PhoHypersim(Dataset):
                 lq_kernel_min  = max(1, lq_kernel_mean // 2)
                 lq_kernel_max  = lq_kernel_mean + lq_kernel_mean // 2
                 KERNEL_SIZE = int(np.clip(np.random.normal(lq_kernel_mean, lq_kernel_std), lq_kernel_min, lq_kernel_max))
+                # Sample blur intensity log-uniformly over [lq_intensity_range[0], lq_intensity_range[1]]
+                lq_intensity_min, lq_intensity_max = self.data_cfg.lq_intensity_range
+                BLUR_INTENSITY = np.exp(np.random.uniform(np.log(lq_intensity_min), np.log(lq_intensity_max)))
             kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
             blurred = kernel.applyTo(img_pil, keep_image_dim=True)
             blurred = np.array(blurred)
             lq_view_list.append(self.resize(blurred))
         outputs['lq_ids'] = lq_view_id 
         outputs['lq_views'] = lq_view_list
+
+
+
+
+
+        # # ----------------------------------
+        # #       get lq on the fly
+        # # ----------------------------------
+        # lq_view_id=[]
+        # lq_view_list=[]
+        
+        # hq_views = [self.data['hq_img'][i] for i in frame_ids]
+        # for global_i, hq_view in zip(frame_ids, hq_views):
+        #     volume = hq_view.split('/')[-4].split('_')[-2]
+        #     scene = hq_view.split('/')[-4].split('_')[-1]
+        #     camera = hq_view.split('/')[-2].split('_')[-3]
+        #     view_id = hq_view.split('/')[-1].split('.')[-3]
+        #     lq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
+        #     img_pil = self.convert_hdf5_img(hq_view)
+
+
+        #     BLUR_INTENSITY=0.1
+        #     if self.mode == 'val':
+        #         np.random.seed(int(global_i))
+        #         random.seed(int(global_i))
+        #         KERNEL_SIZE = self.data_cfg.lq_kernel_size
+        #     else:
+        #         # Sample kernel size from Gaussian centered at lq_kernel_size (SirDiff-style):
+        #         # 95% of samples fall within [mean//2, mean + mean//2]
+        #         lq_kernel_mean = self.data_cfg.lq_kernel_size
+        #         lq_kernel_std  = (lq_kernel_mean / 2) / 1.96
+        #         lq_kernel_min  = max(1, lq_kernel_mean // 2)
+        #         lq_kernel_max  = lq_kernel_mean + lq_kernel_mean // 2
+        #         KERNEL_SIZE = int(np.clip(np.random.normal(lq_kernel_mean, lq_kernel_std), lq_kernel_min, lq_kernel_max))
+        #     kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
+        #     blurred = kernel.applyTo(img_pil, keep_image_dim=True)
+        #     blurred = np.array(blurred)
+        #     lq_view_list.append(self.resize(blurred))
+        # outputs['lq_ids'] = lq_view_id 
+        # outputs['lq_views'] = lq_view_list
+
+
+
+
+
+
+
+
+
 
 
 

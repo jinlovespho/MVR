@@ -499,7 +499,6 @@ def main():
                     val_lq_views = val_batch['lq_views'].to(device)     # b v 3 h w=504 [0,1]
                     logger.info(f"Val sample shape: {val_hq_views.shape}")
                     
-                    breakpoint()
                     # apply imagenet normalization
                     val_b, val_v, val_c, val_h, val_w = val_lq_views.shape 
                     # val_hq_views = IMAGENET_NORMALIZE(val_hq_views.view(val_b*val_v, val_c, val_h, val_w)).view(val_b, val_v, val_c, val_h, val_w)

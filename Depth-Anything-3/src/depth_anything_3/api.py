@@ -45,8 +45,9 @@ from mvr.utils.metric_utils import *
 from mvr.utils.freq_utils import *
 from mvr.utils.pca_utils import *
 
-from RAE.src.utils.vis_utils import vis_all, vis_attn_maps
+from RAE.src.utils.vis_utils import vis_all, vis_attn_maps, vis_pointcloud_correspondence_maps
 from RAE.src.vis_cam_pose import plot_cam_trajectory, plot_cam_trajectory_fair, plot_all_cam_trajectory_fair
+from depth_anything_3.utils.geometry import unproject_depth, affine_inverse, as_homogeneous
 
 
 
@@ -273,6 +274,9 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
 
             to_vis_imgs_list = []
             to_vis_attn_maps_list = []
+            to_vis_pc_list = []       # (name, pts)  pts: (b, v, H, W, 3) tensor
+            to_vis_pc_maps_list = []  # (name, pc_maps)  pc_maps: {('pc', 0, 'global'): (1, v*n, v*n)}
+            
 
 
             # (W_MVRM) LQ FORWARD PASS
@@ -293,6 +297,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                                         )
             # lq_pred_pose_enc = lq_encoder_out.pose_enc      # 1 v 9
             lq_pred_pose = lq_encoder_out['extrinsics']     # 1 v 3 4
+            lq_pred_intrinsics = lq_encoder_out['intrinsics']  # (b, v, 3, 3)
             lq_ref_b_idx = lq_encoder_out.ref_b_idx
             # safety check
             for key in lq_mvrm_out.keys():
@@ -314,6 +319,33 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                     lq_maps[('da3', attn_idx, attn_type)] = attn_map.mean(dim=1)  # 1 head num_view*(n+1) num_view*(n+1)  -> 1 num_view*(n+1) num_view*(n+1)
                 to_vis_imgs_list.append(('lq_imgs', lq_imgs))
                 to_vis_attn_maps_list.append(('lq_maps', lq_maps))
+                
+            
+            # LQ point_cloud extraction
+            if cfg.analysis_LQ.vis_pc:
+                print("LQ POINT_CLOUD EXTRACTION")
+                with torch.no_grad():
+                    lq_depth_t = lq_encoder_out.depth.unsqueeze(-1).float()                          # (b, v, H, W, 1)
+                    lq_c2w_t   = affine_inverse(as_homogeneous(lq_pred_pose.float()))                # (b, v, 4, 4)
+                    lq_pts     = unproject_depth(lq_depth_t, lq_pred_intrinsics.float(), lq_c2w_t)  # (b, v, H, W, 3)
+
+                    PATCH_SIZE = 14
+                    b, v_pts, H_pts, W_pts, _ = lq_pts.shape
+                    Ph, Pw = H_pts // PATCH_SIZE, W_pts // PATCH_SIZE
+                    n_pts  = Ph * Pw
+                    pts_patch  = lq_pts.reshape(b, v_pts, Ph, PATCH_SIZE, Pw, PATCH_SIZE, 3).mean(dim=(3, 5))  # (b, v, Ph, Pw, 3)
+                    pts_flat   = pts_patch.reshape(b, v_pts * n_pts, 3)                                         # (b, v*n, 3)
+                    diff       = pts_flat.unsqueeze(1) - pts_flat.unsqueeze(2)                                  # (b, v*n, v*n, 3)
+                    neg_l2     = -torch.norm(diff, dim=-1)                                                      # (b, v*n, v*n)
+                    T = cfg.analysis_LQ.get('vis_pc_temperature', 1.0)
+                    lq_geo_corr = (neg_l2 / T).softmax(dim=-1)                                                  # (b, v*n, v*n)
+
+                lq_pc_maps = {('pc', 0, 'global'): lq_geo_corr}  # (b, v*n, v*n)
+                to_vis_pc_list.append(('lq_pts', lq_pts))
+                to_vis_pc_maps_list.append(('lq_pc_maps', lq_pc_maps))
+                if not any(n == 'lq_imgs' for n, _ in to_vis_imgs_list):
+                    to_vis_imgs_list.append(('lq_imgs', lq_imgs))
+
 
             
 
@@ -360,6 +392,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                                         )
             # hq_pred_pose_enc = hq_encoder_out.pose_enc      # 1 v 9
             hq_pred_pose = hq_encoder_out['extrinsics']     # 1 v 3 4
+            hq_pred_intrinsics = hq_encoder_out['intrinsics']  # (b, v, 3, 3)
             hq_latent = hq_mvrm_out[('extract_feat', cfg.mvrm.train.extract_feat_layers[0])]         # b v n+1 d
             hq_depth = hq_encoder_out.depth.unsqueeze(2)    # 1 v 1 h w
 
@@ -375,6 +408,34 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                     hq_maps[('da3', attn_idx, attn_type)] = attn_map.mean(dim=1)  # 1 head num_view*(n+1) num_view*(n+1)  -> 1 num_view*(n+1) num_view*(n+1)
                 to_vis_imgs_list.append(('hq_imgs', imgs))
                 to_vis_attn_maps_list.append(('hq_maps', hq_maps))
+                
+
+            
+            # HQ point_cloud extraction
+            if cfg.analysis_HQ.vis_pc:
+                print("HQ POINT_CLOUD EXTRACTION")
+                with torch.no_grad():
+                    hq_depth_t = hq_encoder_out.depth.unsqueeze(-1).float()                          # (b, v, H, W, 1)
+                    hq_c2w_t   = affine_inverse(as_homogeneous(hq_pred_pose.float()))                # (b, v, 4, 4)
+                    hq_pts     = unproject_depth(hq_depth_t, hq_pred_intrinsics.float(), hq_c2w_t)  # (b, v, H, W, 3)
+
+                    PATCH_SIZE = 14
+                    b, v_pts, H_pts, W_pts, _ = hq_pts.shape
+                    Ph, Pw = H_pts // PATCH_SIZE, W_pts // PATCH_SIZE
+                    n_pts  = Ph * Pw
+                    pts_patch  = hq_pts.reshape(b, v_pts, Ph, PATCH_SIZE, Pw, PATCH_SIZE, 3).mean(dim=(3, 5))
+                    pts_flat   = pts_patch.reshape(b, v_pts * n_pts, 3)
+                    diff       = pts_flat.unsqueeze(1) - pts_flat.unsqueeze(2)
+                    neg_l2     = -torch.norm(diff, dim=-1)
+                    T = cfg.analysis_HQ.get('vis_pc_temperature', 1.0)
+                    hq_geo_corr = (neg_l2 / T).softmax(dim=-1)                                                  # (b, v*n, v*n)
+
+                hq_pc_maps = {('pc', 0, 'global'): hq_geo_corr}
+                to_vis_pc_list.append(('hq_pts', hq_pts))
+                to_vis_pc_maps_list.append(('hq_pc_maps', hq_pc_maps))
+                if not any(n == 'hq_imgs' for n, _ in to_vis_imgs_list):
+                    to_vis_imgs_list.append(('hq_imgs', imgs))
+
 
             
             
@@ -486,6 +547,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                                         )
             res_pred_pose_enc = raw_output.pose_enc      # 1 v 9
             res_pred_pose = raw_output['extrinsics']     # 1 v 3 4
+            res_pred_intrinsics = raw_output['intrinsics']  # (b, v, 3, 3)
             res_depth = raw_output.depth.unsqueeze(2)    # 1 v 1 h w
             
             
@@ -500,6 +562,49 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                     res_maps[('da3', attn_idx, attn_type)] = attn_map.mean(dim=1)  # 1 head num_view*(n+1) num_view*(n+1)  -> 1 num_view*(n+1) num_view*(n+1)
                 to_vis_imgs_list.append(('res_imgs', lq_imgs))
                 to_vis_attn_maps_list.append(('res_maps', res_maps))
+                
+
+            
+            # RES point_cloud extraction
+            if cfg.analysis_RES.vis_pc:
+                print("RES POINT_CLOUD EXTRACTION")
+                with torch.no_grad():
+                    res_depth_t = raw_output.depth.unsqueeze(-1).float()                              # (b, v, H, W, 1)
+                    res_c2w_t   = affine_inverse(as_homogeneous(res_pred_pose.float()))               # (b, v, 4, 4)
+                    res_pts     = unproject_depth(res_depth_t, res_pred_intrinsics.float(), res_c2w_t)  # (b, v, H, W, 3)
+
+                    PATCH_SIZE = 14
+                    b, v_pts, H_pts, W_pts, _ = res_pts.shape
+                    Ph, Pw = H_pts // PATCH_SIZE, W_pts // PATCH_SIZE
+                    n_pts  = Ph * Pw
+                    pts_patch    = res_pts.reshape(b, v_pts, Ph, PATCH_SIZE, Pw, PATCH_SIZE, 3).mean(dim=(3, 5))
+                    pts_flat     = pts_patch.reshape(b, v_pts * n_pts, 3)
+                    diff         = pts_flat.unsqueeze(1) - pts_flat.unsqueeze(2)
+                    neg_l2       = -torch.norm(diff, dim=-1)
+                    T = cfg.analysis_RES.get('vis_pc_temperature', 1.0)
+                    res_geo_corr = (neg_l2 / T).softmax(dim=-1)                                         # (b, v*n, v*n)
+
+                res_pc_maps = {('pc', 0, 'global'): res_geo_corr}
+                to_vis_pc_list.append(('res_pts', res_pts))
+                to_vis_pc_maps_list.append(('res_pc_maps', res_pc_maps))
+                if not any(n == 'res_imgs' for n, _ in to_vis_imgs_list):
+                    to_vis_imgs_list.append(('res_imgs', lq_imgs))
+            
+            
+            
+            
+            
+            vis_pc_root = os.path.join(cfg.workspace.work_dir, 'pho_pointcloud_da3_results', str(T), data, pose_setting)
+            vis_pointcloud_correspondence_maps(
+                vis_save_root=vis_pc_root,
+                scene=scene,
+                num_view = v,
+                model_img_size = (model_H, model_W),
+                imgs_list = to_vis_imgs_list, 
+                attn_maps_list = to_vis_pc_maps_list,
+                ref_b_idx = lq_ref_b_idx
+            )
+            
 
             
             
