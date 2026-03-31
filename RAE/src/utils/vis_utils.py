@@ -585,7 +585,9 @@ def vis_pointcloud_correspondence_maps(vis_save_root, scene, num_view, model_img
                 if 'perv_p99' in norm_modes:
                     perv = []
                     for vi, pa in all_view_attns:
-                        pa = np.clip(pa, 0, np.percentile(pa, 99))
+                        p99 = np.percentile(pa, 99)
+                        if p99 > 0:  # skip clip when distribution is too sparse (e.g. hard one-hot)
+                            pa = np.clip(pa, 0, p99)
                         pa = (pa - pa.min()) / (pa.max() - pa.min() + 1e-8)
                         perv.append((vi, pa))
                     strips_per_patch['perv_p99'][pi] = _make_strip(perv)
@@ -599,3 +601,245 @@ def vis_pointcloud_correspondence_maps(vis_save_root, scene, num_view, model_img
                         save_path = os.path.join(mode_dir, f'v0patch{pi:04d}.png')
                         cv2.imwrite(save_path, strip)
                         print(f"[PC corr {mode}] Saved: {save_path}")
+
+
+def vis_pointcloud_cycle_correspondence_maps(vis_save_root, scene, num_view, model_img_size, imgs_list, attn_maps_list, ref_b_idx):
+    """
+    Same as vis_pointcloud_correspondence_maps but for cycle-consistency-masked geo_corr.
+    Expects pc_map keys with map_info[2] == 'global_cycle'.
+    Zero values indicate patches that failed cycle consistency (not visible in that view);
+    they appear as blue in JET, distinguishing them from low-but-visible patches.
+    """
+    model_H, model_W = model_img_size
+    patch_size = 14
+    ph = model_H // patch_size
+    pw = model_W // patch_size
+    n  = ph * pw
+
+    norm_modes = ['global_log1p', 'perv_p99']
+
+    if ref_b_idx is not None:
+        b = int(ref_b_idx[0].item())
+        view_order = [b] + list(range(0, b)) + list(range(b + 1, num_view))
+    else:
+        view_order = list(range(num_view))
+
+    imgs_dict = {}
+    for imgs_name, imgs_tensor in imgs_list:
+        imgs_np = imgs_tensor[0].permute(0, 2, 3, 1).cpu().numpy()
+        imgs_np = imgs_np * np.array(IMAGENET_STD) + np.array(IMAGENET_MEAN)
+        imgs_np = np.clip(imgs_np * 255, 0, 255).astype(np.uint8)
+        imgs_np = imgs_np[view_order]
+        imgs_dict[imgs_name] = imgs_np
+
+    row_positions = [int(round(ph * f)) for f in [0.25, 0.50, 0.75]]
+    col_positions = [int(round(pw * f)) for f in [0.25, 0.50, 0.75]]
+    sampled_patch_indices = []
+    for r in row_positions:
+        for c in col_positions:
+            r = np.clip(r, 0, ph - 1)
+            c = np.clip(c, 0, pw - 1)
+            sampled_patch_indices.append(r * pw + c)
+    sampled_patch_indices = np.array(sorted(set(sampled_patch_indices)))
+
+    for pc_map_name, pc_map in attn_maps_list:
+
+        img_key = pc_map_name.replace('_pc_maps_cycle', '_imgs')
+        imgs_np = imgs_dict.get(img_key, list(imgs_dict.values())[0])
+        v0_bgr  = cv2.cvtColor(imgs_np[0], cv2.COLOR_RGB2BGR)
+
+        for map_info, geo_corr in pc_map.items():
+            if map_info[2] != 'global_cycle':
+                continue
+
+            geo_corr_np = geo_corr[0].cpu().float().numpy()  # (v*n, v*n)
+
+            perm = np.concatenate([np.arange(vi * n, vi * n + n) for vi in view_order])
+            geo_corr_np = geo_corr_np[np.ix_(perm, perm)]
+
+            patch_save_root = os.path.join(vis_save_root, 'patch_tkn', pc_map_name, scene)
+            os.makedirs(patch_save_root, exist_ok=True)
+
+            strips_per_patch = {m: {} for m in norm_modes}
+
+            for pi in sampled_patch_indices:
+                query_row = geo_corr_np[pi, :]  # (v*n,)
+
+                all_view_attns = []
+                for vi in range(num_view):
+                    pa = query_row[vi * n : vi * n + n].copy()
+                    if vi == 0:
+                        pa[pi] = 0.0
+                    all_view_attns.append((vi, pa))
+
+                pi_h, pi_w = pi // pw, pi % pw
+                cx = int((pi_w + 0.5) * patch_size)
+                cy = int((pi_h + 0.5) * patch_size)
+
+                def _make_strip(view_attns_list):
+                    ref_img = v0_bgr.copy()
+                    cv2.circle(ref_img, (cx, cy), radius=8, color=(0, 255, 0), thickness=-1)
+                    cv2.circle(ref_img, (cx, cy), radius=8, color=(0, 0, 0), thickness=1)
+                    cols = [ref_img]
+                    for vi, pa in view_attns_list:
+                        patch_attn    = pa.reshape(ph, pw)
+                        heatmap       = cv2.resize((patch_attn * 255).astype(np.uint8), (model_W, model_H), interpolation=cv2.INTER_LINEAR)
+                        heatmap_color = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+                        img_bgr       = cv2.cvtColor(imgs_np[vi], cv2.COLOR_RGB2BGR)
+                        overlay       = cv2.addWeighted(img_bgr, 0.5, heatmap_color, 0.5, 0)
+                        label         = f'view{vi+1}(self)' if vi == 0 else f'view{vi+1}'
+                        cv2.putText(overlay, label, (6, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                        cols.append(overlay)
+                    return np.concatenate(cols, axis=1)
+
+                if 'global_log1p' in norm_modes:
+                    all_log = [(vi, np.log1p(pa)) for vi, pa in all_view_attns]
+                    # compute range over visible (non-zero) values only so masked zeros stay at 0 (blue)
+                    all_nonzero = np.concatenate([pa[pa > 0] for _, pa in all_log], axis=0) \
+                                  if any((pa > 0).any() for _, pa in all_log) else np.array([0.0, 1.0])
+                    g_min = float(all_nonzero.min())
+                    g_max = float(all_nonzero.max())
+                    normalized = [(vi, np.clip((pa - g_min) / (g_max - g_min + 1e-8), 0, 1))
+                                  for vi, pa in all_log]
+                    strips_per_patch['global_log1p'][pi] = _make_strip(normalized)
+
+                if 'perv_p99' in norm_modes:
+                    perv = []
+                    for vi, pa in all_view_attns:
+                        visible_vals = pa[pa > 0]
+                        p99 = float(np.percentile(visible_vals, 99)) if len(visible_vals) > 0 else 0.0
+                        pa  = np.clip(pa, 0, p99)
+                        pa  = (pa - pa.min()) / (pa.max() - pa.min() + 1e-8)
+                        perv.append((vi, pa))
+                    strips_per_patch['perv_p99'][pi] = _make_strip(perv)
+
+            for mode, patch_strips in strips_per_patch.items():
+                mode_dir = os.path.join(patch_save_root, mode)
+                os.makedirs(mode_dir, exist_ok=True)
+                for pi in sampled_patch_indices:
+                    strip = patch_strips.get(pi)
+                    if strip is not None:
+                        save_path = os.path.join(mode_dir, f'v0patch{pi:04d}.png')
+                        cv2.imwrite(save_path, strip)
+                        print(f"[PC cycle corr {mode}] Saved: {save_path}")
+
+
+def vis_pointcloud_reproj_correspondence_maps(vis_save_root, scene, num_view, model_img_size, imgs_list, attn_maps_list, ref_b_idx):
+    """
+    Same as vis_pointcloud_cycle_correspondence_maps but for reprojection-masked geo_corr.
+    Expects pc_map keys with map_info[2] == 'global_reproj'.
+    Zero values indicate patches that failed reprojection visibility (out of bounds or
+    depth-inconsistent); they appear as blue in JET.
+    """
+    model_H, model_W = model_img_size
+    patch_size = 14
+    ph = model_H // patch_size
+    pw = model_W // patch_size
+    n  = ph * pw
+
+    norm_modes = ['global_log1p', 'perv_p99']
+
+    if ref_b_idx is not None:
+        b = int(ref_b_idx[0].item())
+        view_order = [b] + list(range(0, b)) + list(range(b + 1, num_view))
+    else:
+        view_order = list(range(num_view))
+
+    imgs_dict = {}
+    for imgs_name, imgs_tensor in imgs_list:
+        imgs_np = imgs_tensor[0].permute(0, 2, 3, 1).cpu().numpy()
+        imgs_np = imgs_np * np.array(IMAGENET_STD) + np.array(IMAGENET_MEAN)
+        imgs_np = np.clip(imgs_np * 255, 0, 255).astype(np.uint8)
+        imgs_np = imgs_np[view_order]
+        imgs_dict[imgs_name] = imgs_np
+
+    row_positions = [int(round(ph * f)) for f in [0.25, 0.50, 0.75]]
+    col_positions = [int(round(pw * f)) for f in [0.25, 0.50, 0.75]]
+    sampled_patch_indices = []
+    for r in row_positions:
+        for c in col_positions:
+            r = np.clip(r, 0, ph - 1)
+            c = np.clip(c, 0, pw - 1)
+            sampled_patch_indices.append(r * pw + c)
+    sampled_patch_indices = np.array(sorted(set(sampled_patch_indices)))
+
+    for pc_map_name, pc_map in attn_maps_list:
+
+        img_key = pc_map_name.replace('_pc_maps_reproj', '_imgs')
+        imgs_np = imgs_dict.get(img_key, list(imgs_dict.values())[0])
+        v0_bgr  = cv2.cvtColor(imgs_np[0], cv2.COLOR_RGB2BGR)
+
+        for map_info, geo_corr in pc_map.items():
+            if map_info[2] != 'global_reproj':
+                continue
+
+            geo_corr_np = geo_corr[0].cpu().float().numpy()  # (v*n, v*n)
+
+            perm = np.concatenate([np.arange(vi * n, vi * n + n) for vi in view_order])
+            geo_corr_np = geo_corr_np[np.ix_(perm, perm)]
+
+            patch_save_root = os.path.join(vis_save_root, 'patch_tkn', pc_map_name, scene)
+            os.makedirs(patch_save_root, exist_ok=True)
+
+            strips_per_patch = {m: {} for m in norm_modes}
+
+            for pi in sampled_patch_indices:
+                query_row = geo_corr_np[pi, :]
+
+                all_view_attns = []
+                for vi in range(num_view):
+                    pa = query_row[vi * n : vi * n + n].copy()
+                    if vi == 0:
+                        pa[pi] = 0.0
+                    all_view_attns.append((vi, pa))
+
+                pi_h, pi_w = pi // pw, pi % pw
+                cx = int((pi_w + 0.5) * patch_size)
+                cy = int((pi_h + 0.5) * patch_size)
+
+                def _make_strip(view_attns_list):
+                    ref_img = v0_bgr.copy()
+                    cv2.circle(ref_img, (cx, cy), radius=8, color=(0, 255, 0), thickness=-1)
+                    cv2.circle(ref_img, (cx, cy), radius=8, color=(0, 0, 0), thickness=1)
+                    cols = [ref_img]
+                    for vi, pa in view_attns_list:
+                        patch_attn    = pa.reshape(ph, pw)
+                        heatmap       = cv2.resize((patch_attn * 255).astype(np.uint8), (model_W, model_H), interpolation=cv2.INTER_LINEAR)
+                        heatmap_color = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+                        img_bgr       = cv2.cvtColor(imgs_np[vi], cv2.COLOR_RGB2BGR)
+                        overlay       = cv2.addWeighted(img_bgr, 0.5, heatmap_color, 0.5, 0)
+                        label         = f'view{vi+1}(self)' if vi == 0 else f'view{vi+1}'
+                        cv2.putText(overlay, label, (6, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                        cols.append(overlay)
+                    return np.concatenate(cols, axis=1)
+
+                if 'global_log1p' in norm_modes:
+                    all_log = [(vi, np.log1p(pa)) for vi, pa in all_view_attns]
+                    all_nonzero = np.concatenate([pa[pa > 0] for _, pa in all_log], axis=0) \
+                                  if any((pa > 0).any() for _, pa in all_log) else np.array([0.0, 1.0])
+                    g_min = float(all_nonzero.min())
+                    g_max = float(all_nonzero.max())
+                    normalized = [(vi, np.clip((pa - g_min) / (g_max - g_min + 1e-8), 0, 1))
+                                  for vi, pa in all_log]
+                    strips_per_patch['global_log1p'][pi] = _make_strip(normalized)
+
+                if 'perv_p99' in norm_modes:
+                    perv = []
+                    for vi, pa in all_view_attns:
+                        visible_vals = pa[pa > 0]
+                        p99 = float(np.percentile(visible_vals, 99)) if len(visible_vals) > 0 else 0.0
+                        pa  = np.clip(pa, 0, p99)
+                        pa  = (pa - pa.min()) / (pa.max() - pa.min() + 1e-8)
+                        perv.append((vi, pa))
+                    strips_per_patch['perv_p99'][pi] = _make_strip(perv)
+
+            for mode, patch_strips in strips_per_patch.items():
+                mode_dir = os.path.join(patch_save_root, mode)
+                os.makedirs(mode_dir, exist_ok=True)
+                for pi in sampled_patch_indices:
+                    strip = patch_strips.get(pi)
+                    if strip is not None:
+                        save_path = os.path.join(mode_dir, f'v0patch{pi:04d}.png')
+                        cv2.imwrite(save_path, strip)
+                        print(f"[PC reproj corr {mode}] Saved: {save_path}")
+

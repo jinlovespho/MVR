@@ -138,7 +138,8 @@ log:
   # result_root_dir: result_train/nips26/multi_view/260318
   # result_root_dir: result_train/nips26/multi_view/260326
   # result_root_dir: result_train/nips26/multi_view/260327
-  result_root_dir: result_train/nips26/multi_view/260328
+  # result_root_dir: result_train/nips26/multi_view/260328
+  result_root_dir: result_train/nips26/multi_view/260401
   tracker:
     name: wandb
     wandb:
@@ -150,14 +151,21 @@ log:
 
 
       # 260328
-      msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss01-temp01__da3-pc-to-mvrm-enc-1__blur001-03'
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss01-temp01__da3-pc-to-mvrm-dec-9__blur001-03'
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss01-temp01__da3-pc-to-mvrm-dec-11__blur001-03'
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss01-temp01__da3-pc-to-mvrm-dec-13__blur001-03'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss01-temp01__da3-17-to-mvrm-enc-1__blur001-03'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss01-temp01__da3-17-to-mvrm-dec-9__blur001-03'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss01-temp01__da3-17-to-mvrm-dec-11__blur001-03'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss01-temp01__da3-17-to-mvrm-dec-13__blur001-03'
+
+
+      # 260401
+      # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss01-temp01__da3-pc_temp-1_cycle15-to-mvrm-enc-1'
+      # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss01-temp01__da3-pc_temp-1_cycle15-to-mvrm-dec-9'
+      # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss01-temp01__da3-pc_temp-1_cycle15-to-mvrm-dec-11'
+      msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss01-temp01__da3-pc_temp-1_cycle15-to-mvrm-dec-13'
 
 
 
-      # msg: 'TMPTMP'
+      # msg: 'TMPTMPTMP'
       
       
       
@@ -272,34 +280,37 @@ mvrm:
     attn_align:
       use: true
       lambda_coeff: 1.0
-      mvrm_layer_idx: 1    
+      # mvrm_layer_idx: 1    
       # mvrm_layer_idx: 9
       # mvrm_layer_idx: 11
-      # mvrm_layer_idx: 13
+      mvrm_layer_idx: 13
 
 
       da3_attn_map:
+        # use: true
         use: false
         da3_layer_idx: 17   
 
       da3_point_cloud:
-        use: true 
-        vis_pc_temperature: 0.1   
+        use: true
+        # use: false
+        vis_pc_temperature: -1
+        visibility_mask: cycle_consistency              # [none, cycle_consistency, reprojection]
+        vis_pc_cycle_threshold: 1.5             # 0=exact match; >0=Chebyshev patch distance (cycle_consistency only)
+        reprojection_depth_threshold: 0.1     # relative depth error threshold (reprojection only)
 
       
 
 
-
-
   # MVRM ATTENTION MAP EXTRACTION 
   analysis:
-    # vis_attn_map: true 
-    vis_attn_map: false
+    vis_attn_map: true 
+    # vis_attn_map: false
     mvrm_attn_map:
-      extract_idx: [1]
+      # extract_idx: [1]
       # extract_idx: [9]
       # extract_idx: [11]
-      # extract_idx: [13]
+      extract_idx: [13]
 
 
 

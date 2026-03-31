@@ -307,8 +307,8 @@ class Transport:
         if mvrm_analysis.vis_attn_map and len(mvrm_analysis.mvrm_attn_map.extract_idx) != 0:
         
             mvrm_maps = {}
-            print(f"MVRM ATTN_MAP EXTRACTION")
             for layer_idx in mvrm_analysis.mvrm_attn_map.extract_idx:
+                print('MVRM ATTENTION MAP EXTRACTION - LAYER ', layer_idx)
                 attn_idx, attn_type, attn_map = model.module.blocks[layer_idx].attn.attn_map
                 assert layer_idx == attn_idx
                 mvrm_maps[('mvrm', attn_idx, attn_type)] = attn_map.mean(dim=1)  # 1 head num_view*(n+1) num_view*(n+1)  -> 1 num_view*(n+1) num_view*(n+1)
@@ -475,7 +475,8 @@ class Transport:
             if analysis is not None:
                 if analysis.vis_attn_map and len(analysis.mvrm_attn_map.extract_idx) != 0:
                     # MVRM attn_map extraction — only at every 15th step
-                    if _step_counter[0] % 15 == 0:
+                    # if _step_counter[0] % 15 == 0:
+                    if _step_counter[0] == 30:
                         mvrm_maps = {}
                         print(f"MVRM ATTN_MAP EXTRACTION (step {_step_counter[0]})")
                         for layer_idx in analysis.mvrm_attn_map.extract_idx:

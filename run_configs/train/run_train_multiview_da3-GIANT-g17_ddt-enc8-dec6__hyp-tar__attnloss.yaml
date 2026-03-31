@@ -276,9 +276,11 @@ mvrm:
 
 
       da3_point_cloud:
-        # use: true 
+        # use: true
         use: false
-        vis_pc_temperature: 0.1   
+        vis_pc_temperature: 0.1
+        visibility_mask: none              # [none, cycle_consistency, reprojection]
+        reprojection_depth_threshold: 0.1  # relative depth error threshold (reprojection only)
 
       
 

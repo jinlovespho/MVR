@@ -50,7 +50,7 @@ denoiser:
   ### 260328 (blur001-03)
 
   ## lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__blur001-03
-  ckpt: result_train/nips26/multi_view/260327/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__blur001-03/checkpoints/ep-0025000.pt
+  # ckpt: result_train/nips26/multi_view/260327/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__blur001-03/checkpoints/ep-0025000.pt
 
   
   ## lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-enc-1__blur001-03
@@ -68,12 +68,23 @@ denoiser:
   # ckpt: result_train/nips26/multi_view/260327/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-13__blur001-03/checkpoints/ep-0025000.pt
 
 
+
+
+
+  ### 260329 (blur001-03)
+  
+  # lqkernel200-gaussian__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__blur001-03
+  ckpt: result_train/nips26/multi_view/260329/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs5-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__blur001-03/checkpoints/ep-0040000.pt
+
+
+
+
+
   
   
   
   
 
-  
 
 
 mvrm:
@@ -117,14 +128,28 @@ analysis_LQ:
   # vis_map: true
   vis_map: false
 
-  vis_pc: true 
-  vis_pc_temperature: 0.5
+  vis_pc: true
+  # vis_pc_temperature: 0.5
   # vis_pc_temperature: 0.1
   # vis_pc_temperature: 0.05
   # vis_pc_temperature: 0.01
   # vis_pc_temperature: 0.005
+  # vis_pc_temperature: 0.001
+  vis_pc_temperature: -1
+
+  # vis_pc_reproj_depth_threshold: 0.1   # relative depth error threshold for reprojection mask
+  vis_pc_reproj_depth_threshold: 0.05
+  # vis_pc_reproj_depth_threshold: 0.01
 
   
+
+  vis_pc_cycle_threshold: 5
+  # vis_pc_cycle_threshold: 2
+  # vis_pc_cycle_threshold: 1.5
+  # vis_pc_cycle_threshold: 1
+  # vis_pc_cycle_threshold: 0   # 0=strict, 1=1-patch Chebyshev radius, 2=2-patch, etc.
+
+
   da3_attn_map:
     extract_idx: [15, 19, 23, 27,  31,  35, 39]
 
@@ -136,12 +161,27 @@ analysis_HQ:
   # vis_map: true
   vis_map: false
 
-  vis_pc: true 
-  vis_pc_temperature: 0.5
+  vis_pc: true
+  # vis_pc_temperature: 0.5
   # vis_pc_temperature: 0.1
   # vis_pc_temperature: 0.05
   # vis_pc_temperature: 0.01
   # vis_pc_temperature: 0.005
+  # vis_pc_temperature: 0.001
+  vis_pc_temperature: -1
+
+
+  # vis_pc_reproj_depth_threshold: 0.1   # relative depth error threshold for reprojection mask
+  vis_pc_reproj_depth_threshold: 0.05
+  # vis_pc_reproj_depth_threshold: 0.01
+
+
+
+  vis_pc_cycle_threshold: 5
+  # vis_pc_cycle_threshold: 2
+  # vis_pc_cycle_threshold: 1.5
+  # vis_pc_cycle_threshold: 1
+  # vis_pc_cycle_threshold: 0   # 0=strict, 1=1-patch Chebyshev radius, 2=2-patch, etc.
 
 
   da3_attn_map:
@@ -153,12 +193,26 @@ analysis_RES:
   # vis_map: true
   vis_map: false
 
-  vis_pc: true 
-  vis_pc_temperature: 0.5
+  vis_pc: true
+  # vis_pc_temperature: 0.5
   # vis_pc_temperature: 0.1
   # vis_pc_temperature: 0.05
   # vis_pc_temperature: 0.01
   # vis_pc_temperature: 0.005
+  # vis_pc_temperature: 0.001
+  vis_pc_temperature: -1
+
+
+  # vis_pc_reproj_depth_threshold: 0.1   # relative depth error threshold for reprojection mask
+  vis_pc_reproj_depth_threshold: 0.05
+  # vis_pc_reproj_depth_threshold: 0.01
+
+
+  vis_pc_cycle_threshold: 5
+  # vis_pc_cycle_threshold: 2
+  # vis_pc_cycle_threshold: 1.5
+  # vis_pc_cycle_threshold: 1
+  # vis_pc_cycle_threshold: 0   # 0=strict, 1=1-patch Chebyshev radius, 2=2-patch, etc.
 
 
   da3_attn_map:
@@ -230,10 +284,17 @@ workspace:
 
 
   # work_dir: /mnt/dataset1/MV_Restoration/TMPTMP_beforefix
-  work_dir: /mnt/dataset1/MV_Restoration/TMPTMP_afterfix__temp05
+  # work_dir: /mnt/dataset1/MV_Restoration/TMPTMP_afterfix__temp05
   # work_dir: /mnt/dataset1/MV_Restoration/TMPTMP_afterfix__temp01
   # work_dir: /mnt/dataset1/MV_Restoration/TMPTMP_afterfix__temp001
-  # work_dir: /mnt/dataset1/MV_Restoration/TMPTMP_afterfix__temp0005
+
+
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_vis_260331/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-13/a100_ckpt40k/filtered_cam_blur_100/ray_saddle_maxview6_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_vis_260331/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-13/a100_ckpt40k/filtered_cam_blur_300/ray_saddle_maxview4_cfg1
+
+
+  # work_dir: /mnt/dataset1/MV_Restoration/TMP
+
 
 
 
@@ -253,7 +314,7 @@ eval:
     - dtu
     # - scannetpp
     # - hiroom
-    # - eth3d
+    - eth3d
     # - dtu64
 
 
@@ -273,7 +334,8 @@ eval:
 
   # Specific scenes to evaluate (null = all scenes)
   # Example: [courtyard, relief] for eth3d
-  scenes: [chess, redkitchen, scan4]
+  scenes: [chess, redkitchen, scan4, courtyard]
+  # scenes: []
 
   # Maximum number of frames per scene (for sampling)
   # If a scene has more frames, randomly sample to this limit.
@@ -282,6 +344,7 @@ eval:
   # max_frames: 50
   # max_frames: 10
   max_frames: 6
+  # max_frames: 4
   # max_frames: 1
 
   # Only run evaluation (skip inference)

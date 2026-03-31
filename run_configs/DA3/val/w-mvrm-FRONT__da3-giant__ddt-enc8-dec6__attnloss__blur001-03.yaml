@@ -65,15 +65,24 @@ denoiser:
   # ckpt: result_train/nips26/multi_view/260327/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-11__blur001-03/checkpoints/ep-0025000.pt
 
   ## lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-13__blur001-03
-  ckpt: result_train/nips26/multi_view/260327/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-13__blur001-03/checkpoints/ep-0025000.pt
+  # ckpt: result_train/nips26/multi_view/260327/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-13__blur001-03/checkpoints/ep-0025000.pt
 
 
+
+
+
+  ### 260329 (blur001-03)
+  
+  # lqkernel200-gaussian__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__blur001-03
+  ckpt: result_train/nips26/multi_view/260329/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs5-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__blur001-03/checkpoints/ep-0040000.pt
+
+
+
   
   
   
   
 
-  
 
 
 mvrm:
@@ -105,8 +114,8 @@ mvrm:
       # cfg_scale: 4.0
 
     analysis:
-      vis_attn_map: true 
-      # vis_attn_map: false
+      # vis_attn_map: true 
+      vis_attn_map: false
       mvrm_attn_map:
         extract_idx: [1,3,5,7,9,11,13]
 
@@ -116,6 +125,11 @@ mvrm:
 analysis_LQ:
   # vis_map: true
   vis_map: false
+
+  # vis_pc: true 
+  vis_pc: false
+  vis_pc_temperature: 0.01
+
   da3_attn_map:
     extract_idx: [15, 19, 23, 27,  31,  35, 39]
 
@@ -124,6 +138,11 @@ analysis_LQ:
 analysis_HQ:
   # vis_map: true
   vis_map: false
+
+  # vis_pc: true 
+  vis_pc: false
+  vis_pc_temperature: 0.01
+
   da3_attn_map:
     extract_idx: [15, 19, 23, 27,  31,  35, 39]
 
@@ -132,6 +151,11 @@ analysis_HQ:
 analysis_RES:
   # vis_map: true
   vis_map: false
+
+  # vis_pc: true 
+  vis_pc: false
+  vis_pc_temperature: 0.01
+
   da3_attn_map:
     extract_idx: [15, 19, 23, 27,  31,  35, 39]
 
@@ -179,19 +203,41 @@ workspace:
   ### 260328
 
   ## lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__blur001-03
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_vis_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
   
   ## lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-enc-1__blur001-03
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_vis_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-enc-1/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-enc-1/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
 
   ## lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__blur001-03
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_vis_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-9/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-9/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
 
   ## lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-11__blur001-03
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_vis_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-11/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-11/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
 
   ## lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-13__blur001-03
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_vis_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-13/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-13/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
+
+
+
+
+
+  ### 260330 
+
+  # filtered_cam_blur100 / maxview10
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val_260330/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-13/a100_ckpt40k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
+
+  # filtered_cam_blur300 / maxview10
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val_260330/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-13/a100_ckpt40k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
+
+  # filtered_cam_blur100 / maxview50
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val_260330/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-13/a100_ckpt40k/filtered_cam_blur_100/ray_saddle_maxview50_cfg1
+
+  # filtered_cam_blur300 / maxview50
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val_260330/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-13/a100_ckpt40k/filtered_cam_blur_300/ray_saddle_maxview50_cfg1
+
+
+
+
 
 
   
@@ -208,10 +254,10 @@ eval:
   datasets:
     - 7scenes
     - dtu
-    # - scannetpp
-    # - hiroom
-    # - eth3d
-    # - dtu64
+    - scannetpp
+    - hiroom
+    - eth3d
+    - dtu64
 
 
   # Evaluation modes
@@ -236,9 +282,9 @@ eval:
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
   # max_frames: 100
-  # max_frames: 50
+  max_frames: 50
   # max_frames: 10
-  max_frames: 4
+  # max_frames: 4
   # max_frames: 1
 
   # Only run evaluation (skip inference)

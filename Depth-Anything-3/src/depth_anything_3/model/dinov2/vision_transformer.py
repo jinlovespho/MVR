@@ -467,11 +467,6 @@ class DinoVisionTransformer(nn.Module):
                 
                 aux_output.append(x)
         
-        # breakpoint()
-        # return output, aux_output, mvrm_output, None
-        
-        
-        # return output, aux_output, mvrm_output, b_idx
         if use_gt_cam_tkn:
             return output, aux_output, mvrm_output, None 
         else:

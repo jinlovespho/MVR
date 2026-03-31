@@ -40,7 +40,7 @@ from utils.loss_utils import velocity_direction_loss, camera_loss_single
 import torch.nn.functional as F 
 from torchvision.utils import save_image 
 from utils.vis_utils import depth_to_colormap, depth_error_to_colormap_thresholded, tensor_to_uint8_image
-import torchvision.transforms as T 
+import torchvision
 
 from einops import rearrange
 from RAE.src import initialize
@@ -213,7 +213,7 @@ def main():
         logger.info(f"Running with world size {world_size}, starting from epoch {start_epoch} to {num_epochs}.")
 
 
-    IMAGENET_NORMALIZE = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225],)
+    IMAGENET_NORMALIZE = torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225],)
     
 
     dist.barrier() 
@@ -245,6 +245,7 @@ def main():
 
             print(train_hq_views.shape)
 
+            
             # lq view forward pass
             with torch.no_grad():
                 lq_encoder_out, lq_mvrm_out = models['encoder'](
@@ -290,8 +291,8 @@ def main():
             # HQ attn_map extraction 
             hq_maps = {} 
             if full_cfg.analysis_HQ.vis_map and len(full_cfg.analysis_HQ.da3_attn_map.extract_idx) != 0:
-                print("HQ ATTN_MAP EXTRACTION")
                 for layer_idx in full_cfg.analysis_HQ.da3_attn_map.extract_idx:
+                    print('HQ DA3 ATTENTION MAP EXTRACTION - LAYER ', layer_idx)
                     attn_idx, attn_type, attn_map = models['encoder'].model.backbone.pretrained.blocks[layer_idx].attn.attn_map
                     assert layer_idx==attn_idx 
                     # hq_maps[('da3', attn_idx, attn_type)] = attn_map  # 1 head num_view*(n+1) num_view*(n+1) 
@@ -628,9 +629,13 @@ def main():
                         
                         
                     
-            def cross_entropy_attn(pred, target, eps=1e-8):
-                """CAMEO-style cross-entropy between attention probability distributions."""
-                return -(target * (pred + eps).log()).sum(dim=-1).mean()
+            def cross_entropy_attn(pred, target, row_mask=None, eps=1e-8):
+                """CAMEO-style cross-entropy between attention probability distributions.
+                row_mask: (b, v*n) bool tensor; if given, averages only over True rows."""
+                per_row = -(target * (pred + eps).log()).sum(dim=-1)  # (b, v*n)
+                if row_mask is not None:
+                    return per_row[row_mask].mean()
+                return per_row.mean()
 
 
             # Attention alignment loss (CAMEO-style)
@@ -640,14 +645,17 @@ def main():
                 mvrm_key = ('mvrm', full_cfg.mvrm.loss.attn_align.mvrm_layer_idx, 'global')
                 pred_map = mvrm_maps[mvrm_key]  # (1, v*(n+1), v*(n+1))
 
+
                 if full_cfg.mvrm.loss.attn_align.da3_attn_map.use and hq_maps:
+                    print('attention alignment - HQ attention map')
                     # target: HQ DA3 attention map
                     da3_key    = ('da3', full_cfg.mvrm.loss.attn_align.da3_attn_map.da3_layer_idx, 'global')
                     target_map = hq_maps[da3_key].to(device)      # (1, N, N)
                     attn_loss  = cross_entropy_attn(pred_map, target_map)
                     loss += lambda_attn * attn_loss
 
-                elif full_cfg.mvrm.loss.attn_align.da3_point_cloud.use:
+                elif full_cfg.mvrm.loss.attn_align.use and full_cfg.mvrm.loss.attn_align.da3_point_cloud.use:
+                    print(f'attention alignment - HQ point cloud correspondence map - temperature {full_cfg.mvrm.loss.attn_align.da3_point_cloud.get("vis_pc_temperature", "None")}')
                     # target: geometric correspondence from HQ point cloud
                     depth_t = train_hq_pred_depth.unsqueeze(-1).float()                 # (b, v, H, W, 1)
                     c2w_t   = affine_inverse(as_homogeneous(hq_pred_pose.float()))      # (b, v, 4, 4)
@@ -662,10 +670,120 @@ def main():
                     pts_patch  = pts.reshape(b, v, Ph, PATCH_SIZE, Pw, PATCH_SIZE, 3).mean(dim=(3, 5))
                     # flatten all views' patches: (b, v*n, 3)
                     pts_flat   = pts_patch.reshape(b, v * n, 3)
+
+                    # reorder view blocks to match pred_map (ref view first)
+                    if lq_ref_b_idx is None:
+                        lq_ref_b_idx = torch.tensor([0], device=device)  # default to first view as reference if not provided by encoder
+                    ref_v      = int(lq_ref_b_idx[0].item())
+                    view_order = [ref_v] + [vi for vi in range(v) if vi != ref_v]
+                    perm       = torch.cat([torch.arange(vi * n, vi * n + n, device=pts_flat.device) for vi in view_order])
+                    pts_flat   = pts_flat[:, perm, :]  # (b, v*n, 3) reordered
+
                     # pairwise neg L2: (b, v*n, v*n)
                     diff       = pts_flat.unsqueeze(1) - pts_flat.unsqueeze(2)  # (b, v*n, v*n, 3)
-                    neg_l2     = -torch.norm(diff, dim=-1)                       # (b, v*n, v*n)
-                    geo_target = neg_l2.softmax(dim=-1)                          # (b, v*n, v*n)
+                    neg_l2     = -torch.norm(diff, dim=-1)                                    # (b, v*n, v*n)
+                    T          = full_cfg.mvrm.loss.attn_align.da3_point_cloud.get('vis_pc_temperature', 1.0)
+                    if T == -1:  # hard one-hot assignment (nearest neighbour per view block)
+                        print('hard assignment for point cloud')
+                        _blocked   = neg_l2.reshape(b, v * n, v, n)
+                        geo_target = torch.zeros_like(_blocked).scatter_(-1, _blocked.argmax(dim=-1, keepdim=True), 1.0)
+                        geo_target = geo_target.reshape(b, v * n, v * n)
+                    else:
+                        print('soft assignment for point cloud')
+                        geo_target = (neg_l2 / T).softmax(dim=-1)                       # (b, v*n, v*n)
+
+                    # --- Visibility mask (optional) ---
+                    # Controls which (query patch, target view) pairs contribute to the loss.
+                    # Unmasked geo_target rows that fail visibility are zeroed and renormalized.
+                    pc_cfg       = full_cfg.mvrm.loss.attn_align.da3_point_cloud
+                    vis_mask_type = pc_cfg.get('visibility_mask', 'none')  # [none, cycle_consistency, reprojection]
+
+                    if vis_mask_type != 'none':
+                        vis_mask = torch.zeros(b, v * n, v * n, dtype=torch.bool, device=device)
+
+                        if vis_mask_type == 'cycle_consistency':
+                            print(f'Using cycle consistency visibility mask - cycle threshold {pc_cfg.get("vis_pc_cycle_threshold", "None")}')
+                            ref_idx = torch.arange(n, device=device).unsqueeze(0).expand(b, -1)  # (b, n)
+                            for va in range(v):
+                                for vb in range(v):
+                                    va_s, va_e = va * n, (va + 1) * n
+                                    vb_s, vb_e = vb * n, (vb + 1) * n
+                                    if va == vb:
+                                        vis_mask[:, va_s:va_e, vb_s:vb_e] = True
+                                        continue
+                                    corr_ab = geo_target[:, va_s:va_e, vb_s:vb_e]   # (b, n, n)
+                                    corr_ba = geo_target[:, vb_s:vb_e, va_s:va_e]   # (b, n, n)
+                                    fwd       = corr_ab.argmax(dim=-1)                 # (b, n)
+                                    bwd       = corr_ba.argmax(dim=-1)                 # (b, n)
+                                    roundtrip = torch.gather(bwd, 1, fwd)              # (b, n)
+                                    cycle_thresh = pc_cfg.get('vis_pc_cycle_threshold', 0)
+                                    if cycle_thresh == 0:
+                                        visible = (roundtrip == ref_idx)
+                                    else:
+                                        rt_r,  rt_c  = roundtrip // Pw, roundtrip % Pw
+                                        ref_r, ref_c = ref_idx   // Pw, ref_idx   % Pw
+                                        distance    = torch.max((rt_r - ref_r).abs(), (rt_c - ref_c).abs())
+                                        visible = distance <= cycle_thresh
+                                    vis_mask[:, va_s:va_e, vb_s:vb_e] = visible.unsqueeze(-1).expand(-1, -1, n)
+
+                        elif vis_mask_type == 'reprojection':
+                            print(f'using reprojection visibility mask - depth threshold {pc_cfg.get("reprojection_depth_threshold", "None")}')
+                            depth_thr  = pc_cfg.get('reprojection_depth_threshold', 0.1)
+                            view_order_t = torch.tensor(view_order, device=device)
+
+                            # Reorder intrinsics, w2c, depth to match view_order
+                            K_ord     = hq_pred_intrinsics.float()[:, view_order_t]              # (b, v, 3, 3)
+                            w2c_ord   = as_homogeneous(hq_pred_pose.float())[:, view_order_t]    # (b, v, 4, 4) w2c
+                            depth_ord = depth_t.squeeze(-1)[:, view_order_t]                     # (b, v, H, W)
+                            depth_patch_ord = depth_ord.reshape(
+                                b, v, Ph, PATCH_SIZE, Pw, PATCH_SIZE).mean(dim=(3, 5))           # (b, v, Ph, Pw)
+
+                            # pts_flat is already reordered → (b, v, n, 3)
+                            pts_v = pts_flat.reshape(b, v, n, 3)
+
+                            for va in range(v):
+                                for vb in range(v):
+                                    va_s, va_e = va * n, (va + 1) * n
+                                    vb_s, vb_e = vb * n, (vb + 1) * n
+                                    if va == vb:
+                                        vis_mask[:, va_s:va_e, vb_s:vb_e] = True
+                                        continue
+
+                                    P_world = pts_v[:, va]                        # (b, n, 3)
+                                    R_vb    = w2c_ord[:, vb, :3, :3]             # (b, 3, 3)
+                                    t_vb    = w2c_ord[:, vb, :3, 3]              # (b, 3)
+                                    P_cam   = torch.bmm(P_world, R_vb.transpose(1, 2)) + t_vb.unsqueeze(1)  # (b, n, 3)
+
+                                    z_proj  = P_cam[:, :, 2]                     # (b, n)
+                                    fx = K_ord[:, vb, 0, 0].unsqueeze(1)
+                                    fy = K_ord[:, vb, 1, 1].unsqueeze(1)
+                                    cx = K_ord[:, vb, 0, 2].unsqueeze(1)
+                                    cy = K_ord[:, vb, 1, 2].unsqueeze(1)
+
+                                    u_px   = fx * P_cam[:, :, 0] / z_proj.clamp(min=1e-8) + cx  # (b, n) pixel x
+                                    v_px   = fy * P_cam[:, :, 1] / z_proj.clamp(min=1e-8) + cy  # (b, n) pixel y
+                                    pi_col = (u_px / PATCH_SIZE).long()          # patch column in vb
+                                    pi_row = (v_px / PATCH_SIZE).long()          # patch row in vb
+
+                                    in_bounds = (z_proj > 0) & (pi_row >= 0) & (pi_row < Ph) & (pi_col >= 0) & (pi_col < Pw)
+
+                                    # Depth consistency: compare projected depth vs actual patch depth in vb
+                                    pi_row_c = pi_row.clamp(0, Ph - 1)
+                                    pi_col_c = pi_col.clamp(0, Pw - 1)
+                                    flat_idx = (pi_row_c * Pw + pi_col_c)        # (b, n)
+                                    depth_vb_flat = depth_patch_ord[:, vb].reshape(b, -1)        # (b, Ph*Pw)
+                                    depth_at_proj = torch.gather(depth_vb_flat, 1, flat_idx)     # (b, n)
+                                    rel_err  = (z_proj - depth_at_proj).abs() / (depth_at_proj.abs() + 1e-8)
+                                    depth_ok = rel_err < depth_thr
+
+                                    visible  = in_bounds & depth_ok
+                                    vis_mask[:, va_s:va_e, vb_s:vb_e] = visible.unsqueeze(-1).expand(-1, -1, n)
+
+                        # Zero out non-visible correspondences and renormalize rows
+                        geo_target = geo_target * vis_mask.float()
+                        row_sum    = geo_target.sum(dim=-1, keepdim=True)          # (b, v*n, 1)
+                        valid_rows = (row_sum.squeeze(-1) > 0)                     # (b, v*n) rows with mass
+                        geo_target = geo_target / row_sum.clamp(min=1e-8)
 
                     # slice CLS tokens out of pred_map: positions 0, n+1, 2*(n+1), ...
                     N_total = pred_map.shape[-1]
@@ -674,7 +792,8 @@ def main():
                         spatial_mask[vi * (n + 1)] = False
                     pred_map_spatial = pred_map[:, spatial_mask, :][:, :, spatial_mask]  # (1, v*n, v*n)
 
-                    attn_loss = cross_entropy_attn(pred_map_spatial, geo_target)
+                    row_mask  = valid_rows if vis_mask_type != 'none' else None
+                    attn_loss = cross_entropy_attn(pred_map_spatial, geo_target, row_mask=row_mask)
                     loss += lambda_attn * attn_loss
                     
                                           

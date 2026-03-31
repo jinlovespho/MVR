@@ -45,7 +45,7 @@ from mvr.utils.metric_utils import *
 from mvr.utils.freq_utils import *
 from mvr.utils.pca_utils import *
 
-from RAE.src.utils.vis_utils import vis_all, vis_attn_maps, vis_pointcloud_correspondence_maps
+from RAE.src.utils.vis_utils import vis_all, vis_attn_maps, vis_pointcloud_correspondence_maps, vis_pointcloud_cycle_correspondence_maps, vis_pointcloud_reproj_correspondence_maps
 from RAE.src.vis_cam_pose import plot_cam_trajectory, plot_cam_trajectory_fair, plot_all_cam_trajectory_fair
 from depth_anything_3.utils.geometry import unproject_depth, affine_inverse, as_homogeneous
 
@@ -57,6 +57,70 @@ torch.backends.cudnn.benchmark = False
 
 SAFETENSORS_NAME = "model.safetensors"
 CONFIG_NAME = "config.json"
+
+
+def _build_reproj_vis_mask(pts_patch, depth_t, w2c, K, b, v_pts, Ph, Pw, n_pts, PATCH_SIZE, depth_thr=0.1):
+    """
+    Reprojection-based visibility mask.
+    For each patch i in view va, project its 3D point into view vb.
+    A patch is "visible" in vb if:
+      (1) the projected pixel is within image bounds, and
+      (2) the projected depth matches the actual depth at that patch location
+          within a relative threshold.
+
+    Args:
+        pts_patch : (b, v, Ph, Pw, 3)  patch-level 3D world points
+        depth_t   : (b, v, H, W, 1)   full-resolution depth (original view order)
+        w2c       : (b, v, 4, 4)       world-to-camera transforms
+        K         : (b, v, 3, 3)       camera intrinsics (pixel space)
+        depth_thr : relative depth error threshold
+
+    Returns:
+        reproj_mask : (b, v*n, v*n) bool  — True where correspondence is valid
+    """
+    depth_patch = depth_t.squeeze(-1).reshape(
+        b, v_pts, Ph, PATCH_SIZE, Pw, PATCH_SIZE).mean(dim=(3, 5))     # (b, v, Ph, Pw)
+    pts_v       = pts_patch.reshape(b, v_pts, n_pts, 3)                # (b, v, n, 3)
+    reproj_mask = torch.zeros(b, v_pts * n_pts, v_pts * n_pts,
+                              dtype=torch.bool, device=pts_patch.device)
+
+    for va in range(v_pts):
+        for vb in range(v_pts):
+            va_s, va_e = va * n_pts, (va + 1) * n_pts
+            vb_s, vb_e = vb * n_pts, (vb + 1) * n_pts
+            if va == vb:
+                reproj_mask[:, va_s:va_e, vb_s:vb_e] = True
+                continue
+
+            P_world = pts_v[:, va]                                      # (b, n, 3)
+            R_vb    = w2c[:, vb, :3, :3]                               # (b, 3, 3)
+            t_vb    = w2c[:, vb, :3, 3]                                # (b, 3)
+            P_cam   = torch.bmm(P_world, R_vb.transpose(1, 2)) + t_vb.unsqueeze(1)  # (b, n, 3)
+            z_proj  = P_cam[:, :, 2]                                    # (b, n)
+
+            fx = K[:, vb, 0, 0].unsqueeze(1)
+            fy = K[:, vb, 1, 1].unsqueeze(1)
+            cx = K[:, vb, 0, 2].unsqueeze(1)
+            cy = K[:, vb, 1, 2].unsqueeze(1)
+            u_px   = fx * P_cam[:, :, 0] / z_proj.clamp(min=1e-8) + cx  # (b, n)
+            v_px   = fy * P_cam[:, :, 1] / z_proj.clamp(min=1e-8) + cy
+            pi_col = (u_px / PATCH_SIZE).long()
+            pi_row = (v_px / PATCH_SIZE).long()
+
+            in_bounds = (z_proj > 0) & (pi_row >= 0) & (pi_row < Ph) & (pi_col >= 0) & (pi_col < Pw)
+
+            pi_row_c      = pi_row.clamp(0, Ph - 1)
+            pi_col_c      = pi_col.clamp(0, Pw - 1)
+            flat_idx      = pi_row_c * Pw + pi_col_c                   # (b, n)
+            depth_vb_flat = depth_patch[:, vb].reshape(b, -1)          # (b, n)
+            depth_at_proj = torch.gather(depth_vb_flat, 1, flat_idx)   # (b, n)
+            rel_err       = (z_proj - depth_at_proj).abs() / (depth_at_proj.abs() + 1e-8)
+            depth_ok      = rel_err < depth_thr
+
+            visible = in_bounds & depth_ok
+            reproj_mask[:, va_s:va_e, vb_s:vb_e] = visible.unsqueeze(-1).expand(-1, -1, n_pts)
+
+    return reproj_mask
 
 
 class DepthAnything3(nn.Module, PyTorchModelHubMixin):
@@ -276,6 +340,9 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             to_vis_attn_maps_list = []
             to_vis_pc_list = []       # (name, pts)  pts: (b, v, H, W, 3) tensor
             to_vis_pc_maps_list = []  # (name, pc_maps)  pc_maps: {('pc', 0, 'global'): (1, v*n, v*n)}
+            to_vis_pc_maps_cycle_list  = []  # (name, pc_maps)  pc_maps: {('pc', 0, 'global_cycle'):  (1, v*n, v*n)}
+            to_vis_pc_maps_reproj_list = []  # (name, pc_maps)  pc_maps: {('pc', 0, 'global_reproj'): (1, v*n, v*n)}
+            
             
 
 
@@ -307,8 +374,6 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             lq_depth = lq_encoder_out.depth.unsqueeze(2)     # 1 v 1 h w
 
 
-
-
             # LQ attn_map extraction 
             lq_maps = {} 
             if cfg.analysis_LQ.vis_map and len(cfg.analysis_LQ.da3_attn_map.extract_idx) != 0:
@@ -338,13 +403,61 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                     diff       = pts_flat.unsqueeze(1) - pts_flat.unsqueeze(2)                                  # (b, v*n, v*n, 3)
                     neg_l2     = -torch.norm(diff, dim=-1)                                                      # (b, v*n, v*n)
                     T = cfg.analysis_LQ.get('vis_pc_temperature', 1.0)
-                    lq_geo_corr = (neg_l2 / T).softmax(dim=-1)                                                  # (b, v*n, v*n)
+                    if T == -1: # hard assignment
+                        _blocked = neg_l2.reshape(b, v_pts * n_pts, v_pts, n_pts)
+                        lq_geo_corr = torch.zeros_like(_blocked).scatter_(-1, _blocked.argmax(dim=-1, keepdim=True), 1.0)
+                        lq_geo_corr = lq_geo_corr.reshape(b, v_pts * n_pts, v_pts * n_pts)
+                    else:
+                        lq_geo_corr = (neg_l2 / T).softmax(dim=-1)                                              # (b, v*n, v*n)
 
-                lq_pc_maps = {('pc', 0, 'global'): lq_geo_corr}  # (b, v*n, v*n)
+                    # Cycle-consistency visibility mask
+                    ref_idx    = torch.arange(n_pts, device=lq_geo_corr.device).unsqueeze(0).expand(b, -1)
+                    cycle_mask = torch.zeros(b, v_pts * n_pts, v_pts * n_pts,
+                                             dtype=torch.bool, device=lq_geo_corr.device)
+                    for va in range(v_pts):
+                        for vb in range(v_pts):
+                            va_s, va_e = va * n_pts, (va + 1) * n_pts
+                            vb_s, vb_e = vb * n_pts, (vb + 1) * n_pts
+                            if va == vb:
+                                cycle_mask[:, va_s:va_e, vb_s:vb_e] = True
+                                continue
+                            corr_ab = lq_geo_corr[:, va_s:va_e, vb_s:vb_e]
+                            corr_ba = lq_geo_corr[:, vb_s:vb_e, va_s:va_e]
+                            fwd     = corr_ab.argmax(dim=-1)
+                            bwd     = corr_ba.argmax(dim=-1)
+                            cycle_thresh = cfg.analysis_LQ.get('vis_pc_cycle_threshold', 0)
+                            roundtrip = torch.gather(bwd, 1, fwd)
+                            if cycle_thresh == 0:
+                                visible = (roundtrip == ref_idx)
+                            else:
+                                rt_r,  rt_c  = roundtrip // Pw, roundtrip % Pw
+                                ref_r, ref_c = ref_idx   // Pw, ref_idx   % Pw
+                                dist    = torch.max((rt_r - ref_r).abs(), (rt_c - ref_c).abs())
+                                visible = dist <= cycle_thresh
+                            cycle_mask[:, va_s:va_e, vb_s:vb_e] = visible.unsqueeze(-1).expand(-1, -1, n_pts)
+                    lq_geo_corr_masked = lq_geo_corr * cycle_mask.float()
+
+                    # Reprojection visibility mask
+                    depth_thr = cfg.analysis_LQ.get('vis_pc_reproj_depth_threshold', 0.1)
+                    w2c_lq    = as_homogeneous(lq_pred_pose.float())        # (b, v, 4, 4) w2c
+                    reproj_mask = _build_reproj_vis_mask(
+                        pts_patch, lq_depth_t, w2c_lq, lq_pred_intrinsics.float(),
+                        b, v_pts, Ph, Pw, n_pts, PATCH_SIZE, depth_thr)
+                    lq_geo_corr_reproj = lq_geo_corr * reproj_mask.float()
+
+                lq_pc_maps        = {('pc', 0, 'global'):       lq_geo_corr}
+                lq_pc_maps_cycle  = {('pc', 0, 'global_cycle'): lq_geo_corr_masked}
+                lq_pc_maps_reproj = {('pc', 0, 'global_reproj'): lq_geo_corr_reproj}
                 to_vis_pc_list.append(('lq_pts', lq_pts))
                 to_vis_pc_maps_list.append(('lq_pc_maps', lq_pc_maps))
+                to_vis_pc_maps_cycle_list.append(('lq_pc_maps_cycle', lq_pc_maps_cycle))
+                to_vis_pc_maps_reproj_list.append(('lq_pc_maps_reproj', lq_pc_maps_reproj))
                 if not any(n == 'lq_imgs' for n, _ in to_vis_imgs_list):
                     to_vis_imgs_list.append(('lq_imgs', lq_imgs))
+            else:
+                T = 'none'
+                depth_thr = 'none'
+                cycle_thresh = 'none'  
 
 
             
@@ -419,6 +532,14 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                     hq_c2w_t   = affine_inverse(as_homogeneous(hq_pred_pose.float()))                # (b, v, 4, 4)
                     hq_pts     = unproject_depth(hq_depth_t, hq_pred_intrinsics.float(), hq_c2w_t)  # (b, v, H, W, 3)
 
+
+                    # from extrinsic2pyramid.util.camera_pose_visualizer import CameraPoseVisualizer
+                    # visualizer = CameraPoseVisualizer([-50, 50], [-50, 50], [0, 100])
+                    # pose = as_homogeneous(hq_pred_pose.float()).view(-1,4,4)
+                    # for p in pose:
+                    #     visualizer.extrinsic2pyramid(p.cpu().numpy(), 'c', 10)
+                    # visualizer.save('tmp2.jpg')
+
                     PATCH_SIZE = 14
                     b, v_pts, H_pts, W_pts, _ = hq_pts.shape
                     Ph, Pw = H_pts // PATCH_SIZE, W_pts // PATCH_SIZE
@@ -428,15 +549,66 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                     diff       = pts_flat.unsqueeze(1) - pts_flat.unsqueeze(2)
                     neg_l2     = -torch.norm(diff, dim=-1)
                     T = cfg.analysis_HQ.get('vis_pc_temperature', 1.0)
-                    hq_geo_corr = (neg_l2 / T).softmax(dim=-1)                                                  # (b, v*n, v*n)
+                    if T == -1: # hard assignment
+                        _blocked = neg_l2.reshape(b, v_pts * n_pts, v_pts, n_pts)
+                        hq_geo_corr = torch.zeros_like(_blocked).scatter_(-1, _blocked.argmax(dim=-1, keepdim=True), 1.0)
+                        hq_geo_corr = hq_geo_corr.reshape(b, v_pts * n_pts, v_pts * n_pts)
+                    else:
+                        hq_geo_corr = (neg_l2 / T).softmax(dim=-1)                                              # (b, v*n, v*n)
 
-                hq_pc_maps = {('pc', 0, 'global'): hq_geo_corr}
+                    # Cycle-consistency visibility mask
+                    # For each view pair (va, vb): patch pi in va is "visible" in vb
+                    # iff argmax(corr[va->vb][pi]) round-trips back to pi.
+                    ref_idx    = torch.arange(n_pts, device=hq_geo_corr.device).unsqueeze(0).expand(b, -1)  # (b, n)
+                    cycle_mask = torch.zeros(b, v_pts * n_pts, v_pts * n_pts,
+                                             dtype=torch.bool, device=hq_geo_corr.device)
+                    for va in range(v_pts):
+                        for vb in range(v_pts):
+                            va_s, va_e = va * n_pts, (va + 1) * n_pts
+                            vb_s, vb_e = vb * n_pts, (vb + 1) * n_pts
+                            if va == vb:
+                                cycle_mask[:, va_s:va_e, vb_s:vb_e] = True   # self-view: always visible
+                                continue
+                            corr_ab  = hq_geo_corr[:, va_s:va_e, vb_s:vb_e]  # (b, n, n)
+                            corr_ba  = hq_geo_corr[:, vb_s:vb_e, va_s:va_e]  # (b, n, n)
+                            fwd      = corr_ab.argmax(dim=-1)                 # (b, n) best match in vb
+                            bwd      = corr_ba.argmax(dim=-1)                 # (b, n) best match in va
+                            # patch i is visible in vb iff round-trip lands within cycle_thresh patches of i
+                            cycle_thresh = cfg.analysis_HQ.get('vis_pc_cycle_threshold', 0)
+                            roundtrip = torch.gather(bwd, 1, fwd)             # (b, n)
+                            if cycle_thresh == 0:
+                                visible = (roundtrip == ref_idx)
+                            else:
+                                rt_r,  rt_c  = roundtrip // Pw, roundtrip % Pw
+                                ref_r, ref_c = ref_idx   // Pw, ref_idx   % Pw
+                                dist    = torch.max((rt_r - ref_r).abs(), (rt_c - ref_c).abs())
+                                visible = dist <= cycle_thresh
+                            cycle_mask[:, va_s:va_e, vb_s:vb_e] = visible.unsqueeze(-1).expand(-1, -1, n_pts)
+                    
+
+                    hq_geo_corr_masked = hq_geo_corr * cycle_mask.float()   # (b, v*n, v*n) zero-out invisible
+
+                    # Reprojection visibility mask
+                    depth_thr = cfg.analysis_HQ.get('vis_pc_reproj_depth_threshold', 0.1)
+                    w2c_hq    = as_homogeneous(hq_pred_pose.float())        # (b, v, 4, 4) w2c
+                    reproj_mask = _build_reproj_vis_mask(
+                        pts_patch, hq_depth_t, w2c_hq, hq_pred_intrinsics.float(),
+                        b, v_pts, Ph, Pw, n_pts, PATCH_SIZE, depth_thr)
+                    hq_geo_corr_reproj = hq_geo_corr * reproj_mask.float()  # (b, v*n, v*n)
+
+                hq_pc_maps        = {('pc', 0, 'global'):       hq_geo_corr}
+                hq_pc_maps_cycle  = {('pc', 0, 'global_cycle'): hq_geo_corr_masked}
+                hq_pc_maps_reproj = {('pc', 0, 'global_reproj'): hq_geo_corr_reproj}
                 to_vis_pc_list.append(('hq_pts', hq_pts))
                 to_vis_pc_maps_list.append(('hq_pc_maps', hq_pc_maps))
+                to_vis_pc_maps_cycle_list.append(('hq_pc_maps_cycle', hq_pc_maps_cycle))
+                to_vis_pc_maps_reproj_list.append(('hq_pc_maps_reproj', hq_pc_maps_reproj))
                 if not any(n == 'hq_imgs' for n, _ in to_vis_imgs_list):
                     to_vis_imgs_list.append(('hq_imgs', imgs))
-
-
+            else:
+                T = 'none'
+                depth_thr = 'none'
+                cycle_thresh = 'none'
             
             
             
@@ -582,19 +754,79 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                     diff         = pts_flat.unsqueeze(1) - pts_flat.unsqueeze(2)
                     neg_l2       = -torch.norm(diff, dim=-1)
                     T = cfg.analysis_RES.get('vis_pc_temperature', 1.0)
-                    res_geo_corr = (neg_l2 / T).softmax(dim=-1)                                         # (b, v*n, v*n)
+                    if T == -1: # hard assignment
+                        _blocked = neg_l2.reshape(b, v_pts * n_pts, v_pts, n_pts)
+                        res_geo_corr = torch.zeros_like(_blocked).scatter_(-1, _blocked.argmax(dim=-1, keepdim=True), 1.0)
+                        res_geo_corr = res_geo_corr.reshape(b, v_pts * n_pts, v_pts * n_pts)
+                    else:
+                        res_geo_corr = (neg_l2 / T).softmax(dim=-1)                                     # (b, v*n, v*n)
 
-                res_pc_maps = {('pc', 0, 'global'): res_geo_corr}
+                    # Cycle-consistency visibility mask
+                    ref_idx    = torch.arange(n_pts, device=res_geo_corr.device).unsqueeze(0).expand(b, -1)
+                    cycle_mask = torch.zeros(b, v_pts * n_pts, v_pts * n_pts,
+                                             dtype=torch.bool, device=res_geo_corr.device)
+                    for va in range(v_pts):
+                        for vb in range(v_pts):
+                            va_s, va_e = va * n_pts, (va + 1) * n_pts
+                            vb_s, vb_e = vb * n_pts, (vb + 1) * n_pts
+                            if va == vb:
+                                cycle_mask[:, va_s:va_e, vb_s:vb_e] = True
+                                continue
+                            corr_ab = res_geo_corr[:, va_s:va_e, vb_s:vb_e]
+                            corr_ba = res_geo_corr[:, vb_s:vb_e, va_s:va_e]
+                            fwd     = corr_ab.argmax(dim=-1)
+                            bwd     = corr_ba.argmax(dim=-1)
+                            cycle_thresh = cfg.analysis_RES.get('vis_pc_cycle_threshold', 0)
+                            roundtrip = torch.gather(bwd, 1, fwd)
+                            if cycle_thresh == 0:
+                                visible = (roundtrip == ref_idx)
+                            else:
+                                rt_r,  rt_c  = roundtrip // Pw, roundtrip % Pw
+                                ref_r, ref_c = ref_idx   // Pw, ref_idx   % Pw
+                                dist    = torch.max((rt_r - ref_r).abs(), (rt_c - ref_c).abs())
+                                visible = dist <= cycle_thresh
+                            cycle_mask[:, va_s:va_e, vb_s:vb_e] = visible.unsqueeze(-1).expand(-1, -1, n_pts)
+                    res_geo_corr_masked = res_geo_corr * cycle_mask.float()
+
+                    # Reprojection visibility mask
+                    depth_thr = cfg.analysis_RES.get('vis_pc_reproj_depth_threshold', 0.1)
+                    w2c_res   = as_homogeneous(res_pred_pose.float())       # (b, v, 4, 4) w2c
+                    reproj_mask = _build_reproj_vis_mask(
+                        pts_patch, res_depth_t, w2c_res, res_pred_intrinsics.float(),
+                        b, v_pts, Ph, Pw, n_pts, PATCH_SIZE, depth_thr)
+                    res_geo_corr_reproj = res_geo_corr * reproj_mask.float()
+
+                res_pc_maps        = {('pc', 0, 'global'):       res_geo_corr}
+                res_pc_maps_cycle  = {('pc', 0, 'global_cycle'): res_geo_corr_masked}
+                res_pc_maps_reproj = {('pc', 0, 'global_reproj'): res_geo_corr_reproj}
                 to_vis_pc_list.append(('res_pts', res_pts))
                 to_vis_pc_maps_list.append(('res_pc_maps', res_pc_maps))
+                to_vis_pc_maps_cycle_list.append(('res_pc_maps_cycle', res_pc_maps_cycle))
+                to_vis_pc_maps_reproj_list.append(('res_pc_maps_reproj', res_pc_maps_reproj))
                 if not any(n == 'res_imgs' for n, _ in to_vis_imgs_list):
                     to_vis_imgs_list.append(('res_imgs', lq_imgs))
+            else:
+                T = 'none'
+                depth_thr = 'none'
+                cycle_thresh = 'none'
+                
+
+                                                                        
+            # import torch.nn.functional as F                                                                                         
+                                                                                                                                    
+            # # cycle_mask: (b, v*n, v*n)                                                                                             
+            # mask = cycle_mask[0].float()                              # (v*n, v*n)                                                  
+            # # mask_per_patch = mask.mean(dim=-1)                        # (v*n,) mean visibility per source patch                     
+            # mask_per_patch = mask.any(dim=-1).float()   # (v*n,)   
+            # mask_per_view  = mask_per_patch.reshape(v_pts, 1, Ph, Pw) # (v, 1, Ph, Pw)                                              
+            # mask_per_view  = F.interpolate(mask_per_view, size=(H_pts, W_pts), mode='nearest')  # (v, 1, H, W)                      
+            # save_image(mask_per_view, 'cycle_mask2.png', nrow=v_pts)                                                                 
+                                                
+            # save_image(imgs[0], 'imgs.png')
+
             
             
-            
-            
-            
-            vis_pc_root = os.path.join(cfg.workspace.work_dir, 'pho_pointcloud_da3_results', str(T), data, pose_setting)
+            vis_pc_root = os.path.join(cfg.workspace.work_dir, 'pho_pointcloud_da3_results',  f'temp{T}', data, pose_setting)
             vis_pointcloud_correspondence_maps(
                 vis_save_root=vis_pc_root,
                 scene=scene,
@@ -606,8 +838,32 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             )
             
 
-            
-            
+
+
+            vis_pc_cycle_root = os.path.join(cfg.workspace.work_dir, 'pho_pointcloud_cycle_da3_results', f'temp{T}', f'cycle_thres{cycle_thresh}' ,data, pose_setting)
+            vis_pointcloud_cycle_correspondence_maps(
+                vis_save_root=vis_pc_cycle_root,
+                scene=scene,
+                num_view = v,
+                model_img_size = (model_H, model_W),
+                imgs_list = to_vis_imgs_list,
+                attn_maps_list = to_vis_pc_maps_cycle_list,
+                ref_b_idx = lq_ref_b_idx
+            )
+
+            vis_pc_reproj_root = os.path.join(cfg.workspace.work_dir, 'pho_pointcloud_reproj_da3_results', f'temp{T}', f'reproj_thres{depth_thr}', data, pose_setting)
+            vis_pointcloud_reproj_correspondence_maps(
+                vis_save_root=vis_pc_reproj_root,
+                scene=scene,
+                num_view = v,
+                model_img_size = (model_H, model_W),
+                imgs_list = to_vis_imgs_list,
+                attn_maps_list = to_vis_pc_maps_reproj_list,
+                ref_b_idx = lq_ref_b_idx
+            )
+
+
+
             vis_attn_root = os.path.join(cfg.workspace.work_dir, 'pho_attn_da3_results', data, pose_setting)
             vis_attn_maps(
                 vis_save_root=vis_attn_root,
@@ -646,6 +902,9 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             cam_save_root = os.path.join(cfg.workspace.work_dir, 'pho_cam_traj_results', data, pose_setting)
             plot_cam_trajectory(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/{scene}.png")
             plot_cam_trajectory_fair(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/fair_{scene}.png")
+            
+            
+        
 
             # plot_all_cam_trajectory_fair(
             #     hq_pred_pose[0], 
