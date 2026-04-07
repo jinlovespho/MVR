@@ -11,7 +11,7 @@ scenes = glob.glob(f'{hq_root_path}/Rectified/*')
 
 
 BLUR_INTENSITY=0.1
-for KERNEL_SIZE in [400, 600]:
+for KERNEL_SIZE in [200]:
 
     print('Applying kernel: ', KERNEL_SIZE)
     for scene in tqdm(scenes):

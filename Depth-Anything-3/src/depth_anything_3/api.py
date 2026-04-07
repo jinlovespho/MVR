@@ -615,32 +615,22 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             # generate pure noise
             noise_generator.manual_seed(42)
             pure_noise = torch.randn(lq_latent.shape, generator=noise_generator, device=imgs.device, dtype=torch.float32)
-            # lq_latent condition method
-            # For 'addition': bake lq_latent into the initial ODE state (shapes stay d-dim throughout)
-            # For 'concat': keep ODE state as d-dim pure noise; lq_latent is injected inside the drift call
-            if cfg.mvrm.lq_latent_cond == 'addition':
-                xt = pure_noise + lq_latent
-                lq_latent_for_kwargs = None
-                # CFG
-                if cfg.mvrm.val.guidance.use_cfg:
-                    xt_uncond = pure_noise
-                    xt = torch.cat([xt_uncond, xt], dim=0)
-
-            elif cfg.mvrm.lq_latent_cond == 'concat':
-                xt = pure_noise
-                lq_latent_for_kwargs = lq_latent
-                # CFG
-                if cfg.mvrm.val.guidance.use_cfg:
-                    xt_uncond = pure_noise
-                    xt = torch.cat([xt_uncond, xt], dim=0)
-
-
+            
+            
+            
+            
+            lq_start_denoise = cfg.mvrm.val.get('lq_start_denoise', False)
+            if lq_start_denoise:
+                x0 = pure_noise + lq_latent 
+            else:
+                x0 = pure_noise
+            
+            
+            
             model_kwargs={
+                'mvrm_cfg': cfg.mvrm, 
                 'model_img_size': (model_H, model_W),
-                'guidance': cfg.mvrm.val.guidance,
-                'analysis': cfg.mvrm.val.analysis,
-                'lq_latent': lq_latent_for_kwargs,
-                'lq_latent_cond': cfg.mvrm.lq_latent_cond,
+                'lq_latent': lq_latent         
             }
             
             
@@ -654,20 +644,11 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                 mvrm_vis['ref_b_idx'] = lq_ref_b_idx
                 model_kwargs['mvrm_vis'] = mvrm_vis
                 
-                
-
-                    
+               
             autocast_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
             with torch.no_grad():
                 with torch.autocast(device_type=imgs.device.type, dtype=autocast_dtype):         
-                    restored_samples = eval_sampler(xt, denoiser.forward, **model_kwargs)[-1]     # b v n d # eval_sampler: class ode def sample() function
-            
-
-            # CFG
-            if cfg.mvrm.val.guidance.use_cfg:   
-                # get the conditional restored sample
-                restored_samples = restored_samples[1:]
-                print('USING CFG!!')
+                    restored_samples = eval_sampler(x0, denoiser.forward, **model_kwargs)[-1]     # b v n d # eval_sampler: class ode def sample() function
             
 
             mvrm_result={}

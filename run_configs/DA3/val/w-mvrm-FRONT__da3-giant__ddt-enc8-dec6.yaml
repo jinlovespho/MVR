@@ -45,7 +45,8 @@ denoiser:
     use_pos_embed: false
     use_global_residual: false
   # ckpt: result_train/nips26/multi_view/260318/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel200__ema95__hyp1__ddt-enc8-1536-dec6-3072__lqdrop01_re/checkpoints/ep-0015000.pt
-  ckpt: result_train/nips26/multi_view/260326/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01/checkpoints/ep-0015000.pt
+  # ckpt: result_train/nips26/multi_view/260326/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01/checkpoints/ep-0015000.pt
+  ckpt: result_train/nips26/multi_view/260405/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs5-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__blur001-03_re/checkpoints/ep-0040000.pt
   
 
 
@@ -81,7 +82,10 @@ mvrm:
       # vis_attn_map: true 
       vis_attn_map: false
       mvrm_attn_map:
-        extract_idx: [1,3,5,7,9,11,13,15,17]
+        extract_idx: [1,3,5,7,9,11,13]
+    
+    # lq_start_denoise: true
+    lq_start_denoise: false
 
 
 
@@ -89,14 +93,65 @@ mvrm:
 analysis_LQ:
   # vis_map: true
   vis_map: false
+
+  # vis_pc: true
+  vis_pc: false
+  # vis_pc_temperature: 0.5
+  # vis_pc_temperature: 0.1
+  # vis_pc_temperature: 0.05
+  # vis_pc_temperature: 0.01
+  # vis_pc_temperature: 0.005
+  # vis_pc_temperature: 0.001
+  vis_pc_temperature: -1
+
+  # vis_pc_reproj_depth_threshold: 0.1   # relative depth error threshold for reprojection mask
+  vis_pc_reproj_depth_threshold: 0.05
+  # vis_pc_reproj_depth_threshold: 0.01
+
+  
+
+  vis_pc_cycle_threshold: 5
+  # vis_pc_cycle_threshold: 2
+  # vis_pc_cycle_threshold: 1.5
+  # vis_pc_cycle_threshold: 1
+  # vis_pc_cycle_threshold: 0   # 0=strict, 1=1-patch Chebyshev radius, 2=2-patch, etc.
+
+
   da3_attn_map:
     extract_idx: [15, 19, 23, 27,  31,  35, 39]
+
+
 
 
 
 analysis_HQ:
   # vis_map: true
   vis_map: false
+
+  # vis_pc: true
+  vis_pc: false
+  # vis_pc_temperature: 0.5
+  # vis_pc_temperature: 0.1
+  # vis_pc_temperature: 0.05
+  # vis_pc_temperature: 0.01
+  # vis_pc_temperature: 0.005
+  # vis_pc_temperature: 0.001
+  vis_pc_temperature: -1
+
+
+  # vis_pc_reproj_depth_threshold: 0.1   # relative depth error threshold for reprojection mask
+  vis_pc_reproj_depth_threshold: 0.05
+  # vis_pc_reproj_depth_threshold: 0.01
+
+
+
+  vis_pc_cycle_threshold: 5
+  # vis_pc_cycle_threshold: 2
+  # vis_pc_cycle_threshold: 1.5
+  # vis_pc_cycle_threshold: 1
+  # vis_pc_cycle_threshold: 0   # 0=strict, 1=1-patch Chebyshev radius, 2=2-patch, etc.
+
+
   da3_attn_map:
     extract_idx: [15, 19, 23, 27,  31,  35, 39]
 
@@ -105,8 +160,33 @@ analysis_HQ:
 analysis_RES:
   # vis_map: true
   vis_map: false
+
+  # vis_pc: true
+  vis_pc: false
+  # vis_pc_temperature: 0.5
+  # vis_pc_temperature: 0.1
+  # vis_pc_temperature: 0.05
+  # vis_pc_temperature: 0.01
+  # vis_pc_temperature: 0.005
+  # vis_pc_temperature: 0.001
+  vis_pc_temperature: -1
+
+
+  # vis_pc_reproj_depth_threshold: 0.1   # relative depth error threshold for reprojection mask
+  vis_pc_reproj_depth_threshold: 0.05
+  # vis_pc_reproj_depth_threshold: 0.01
+
+
+  vis_pc_cycle_threshold: 5
+  # vis_pc_cycle_threshold: 2
+  # vis_pc_cycle_threshold: 1.5
+  # vis_pc_cycle_threshold: 1
+  # vis_pc_cycle_threshold: 0   # 0=strict, 1=1-patch Chebyshev radius, 2=2-patch, etc.
+
+
   da3_attn_map:
     extract_idx: [15, 19, 23, 27,  31,  35, 39]
+
 
 
 
@@ -148,52 +228,12 @@ workspace:
   # Working directory for outputs (model results, metrics, etc.)
 
 
-
-  ## CFG: 1.0 (maxview50) (cam_tkn)
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_50/cam_saddle_maxview50_cfg1
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_100/cam_saddle_maxview50_cfg1
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_300/cam_saddle_maxview50_cfg1
-
-  ## CFG: 2.0 (maxview50) (cam_tkn)
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_50/cam_saddle_maxview50_cfg2
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_100/cam_saddle_maxview50_cfg2
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_300/cam_saddle_maxview50_cfg2
+  # 260407 (filtered_cam_blur100)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260407/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp-tar__maxview4__blur001-03/a100_ckpt40k/filtered_cam_blur_100/cam_saddle_maxview10_cfg1
 
 
-
-  ## CFG: 1.0 (maxview10) (cam_tkn)
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_50/cam_saddle_maxview10_cfg1
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_100/cam_saddle_maxview10_cfg1
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
-
-  ## CFG: 2.0 (maxview10) (cam_tkn)
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_50/cam_saddle_maxview10_cfg2
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_100/cam_saddle_maxview10_cfg2
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_300/cam_saddle_maxview10_cfg2
-
-
-
-  ## CFG: 1.0 (maxview10) (ray_pose)
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_50/ray_saddle_maxview10_cfg1
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
-
-
-  ## CFG: 2.0 (maxview10) (ray_pose)
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_50/ray_saddle_maxview10_cfg2
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_100/ray_saddle_maxview10_cfg2
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_300/ray_saddle_maxview10_cfg2
-
-
-  # 260322
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_100/ray_saddle_maxview50_cfg1
-
-  # 260323 
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6/a100_ckpt15k/filtered_cam_blur_300/ray_saddle_maxview50_cfg1
-
-
-  # 260327
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val_260327/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4/a100_ckpt15k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
+  # 260407 (filtered_cam_blur300)
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260407/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp-tar__maxview4__blur001-03/a100_ckpt40k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
 
 
 

@@ -99,7 +99,7 @@ training:
   precision: fp32
   epochs: 10
  
-  global_batch_size: 5
+  global_batch_size: 1
   grad_accum_steps: 1
   ema_decay: 0.9995
   # ema_decay: 0.9999
@@ -107,7 +107,7 @@ training:
   shuffle: true
   log_interval: 1
 
-  ckpt_step_interval: 10000   # 10k
+  ckpt_step_interval: 25000   # 25k
 
   vis:
     train_depth_every: 1000   # 1k
@@ -138,7 +138,9 @@ log:
   # result_root_dir: result_train/nips26/multi_view/260318
   # result_root_dir: result_train/nips26/multi_view/260326
   # result_root_dir: result_train/nips26/multi_view/260327
-  result_root_dir: result_train/nips26/multi_view/260329
+  # result_root_dir: result_train/nips26/multi_view/260329
+  result_root_dir: result_train/nips26/multi_view/260403
+  # result_root_dir: result_train/TMP
   tracker:
     name: wandb
     wandb:
@@ -162,9 +164,16 @@ log:
       # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__blur001-03'
       # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-11__blur001-03'
       # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-13__blur001-03'
+
+
+      ## 260403 
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-enc-1__blur001-03'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-dec-9__blur001-03'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-dec-11__blur001-03'
+      msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-dec-13__blur001-03'
       
       
-      # msg: 'TMPTMP'
+      # msg: 'TMPTMPTMPTMP'
       
       
       
@@ -281,14 +290,15 @@ mvrm:
       use: true
       lambda_coeff: 1.0
       # mvrm_layer_idx: 1    
-      mvrm_layer_idx: 9
+      # mvrm_layer_idx: 9
       # mvrm_layer_idx: 11
-      # mvrm_layer_idx: 13
+      mvrm_layer_idx: 13
 
 
       da3_attn_map:
         use: true
-        da3_layer_idx: 17   
+        # da3_layer_idx: 17   
+        da3_layer_idx: 19
 
 
       da3_point_cloud:
@@ -310,9 +320,9 @@ mvrm:
     # vis_attn_map: false
     mvrm_attn_map:
       # extract_idx: [1]
-      extract_idx: [9]
+      # extract_idx: [9]
       # extract_idx: [11]
-      # extract_idx: [13]
+      extract_idx: [13]
 
 
 
@@ -324,6 +334,7 @@ analysis_HQ:
   vis_map: true
   # vis_map: false
   da3_attn_map:
-    extract_idx: [17]
+    # extract_idx: [17]
+    extract_idx: [19]
 
 

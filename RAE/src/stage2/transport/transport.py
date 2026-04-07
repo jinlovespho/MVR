@@ -419,6 +419,8 @@ class Transport:
     def get_drift(
         self
     ):
+        
+        
         """member function for obtaining the drift of the probability flow ODE"""
         def score_ode(x, t, model, **model_kwargs):
             drift_mean, drift_var = self.path_sampler.compute_drift(x, t)
@@ -434,12 +436,21 @@ class Transport:
         
         _step_counter = [0]
 
+
         def velocity_ode(x, t, model, **model_kwargs):
-
-            _step_counter[0] += 1
-
-            analysis = model_kwargs.get('analysis', None)
             
+            _step_counter[0] += 1
+            
+                                                          
+            mvrm_cfg = model_kwargs.pop('mvrm_cfg', None)
+            model_img_size = model_kwargs.pop('model_img_size', None)        
+            lq_latent = model_kwargs.pop('lq_latent', None)
+            
+            
+            analysis = mvrm_cfg.val.get('analysis', None)  
+            guidance = mvrm_cfg.val.get('guidance', None)
+                        
+
             mvrm_vis = model_kwargs.pop('mvrm_vis', None) 
             if mvrm_vis is not None:
                 mvrm_vis_attn_root = mvrm_vis['mvrm_vis_attn_root']
@@ -450,26 +461,21 @@ class Transport:
                 ref_b_idx = mvrm_vis['ref_b_idx']
             
 
-
-            # For 'concat' conditioning: lq_latent is passed separately and concatenated
-            # here before the model call so the ODE state x stays d-dim throughout.
-            lq_latent = model_kwargs.pop('lq_latent', None)
-            lq_latent_cond = model_kwargs.pop('lq_latent_cond', 'addition')
-            x_in = torch.cat([x, lq_latent], dim=-1) if (lq_latent is not None and lq_latent_cond == 'concat') else x
+            # lq condition
+            if mvrm_cfg.lq_latent_cond == 'addition':
+                x_in = x + lq_latent
 
 
-            if model_kwargs['guidance'].use_cfg:
-                cfg_scale = model_kwargs['guidance'].cfg_scale
-
-                if cfg_scale > 1.0:
-                    model_out = model(x_in, t, **model_kwargs)
-                    v_uncond, v_cond = model_out.chunk(2, dim=0)
-                    v_guided = v_uncond + cfg_scale * (v_cond - v_uncond)
-                    return torch.cat([v_guided, v_guided], dim=0)
-
-            else:
-                model_output = model(x_in, t, **model_kwargs)
+            if guidance.use_cfg and guidance.cfg_scale > 1.0:
+                cfg_scale = guidance.cfg_scale
+                x_uncond = x        # unconditional: no lq_latent (matches CFG dropout during training)
+                x_cond   = x_in     # conditional: lq_latent fused
+                v_uncond = model(x_uncond, t, model_img_size, analysis)
+                v_cond   = model(x_cond,   t, model_img_size, analysis)
+                model_output = v_uncond + cfg_scale * (v_cond - v_uncond)
             
+            else:
+                model_output = model(x_in, t, model_img_size, analysis)
             
 
             if analysis is not None:

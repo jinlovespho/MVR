@@ -99,7 +99,7 @@ training:
   precision: fp32
   epochs: 10
  
-  global_batch_size: 1
+  global_batch_size: 5
   grad_accum_steps: 1
   ema_decay: 0.9995
   # ema_decay: 0.9999
@@ -140,7 +140,9 @@ log:
   # result_root_dir: result_train/nips26/multi_view/260327
   # result_root_dir: result_train/nips26/multi_view/260328
   # result_root_dir: result_train/nips26/multi_view/260401
-  result_root_dir: result_train/nips26/multi_view/260402
+  # result_root_dir: result_train/nips26/multi_view/260402
+  result_root_dir: result_train/nips26/multi_view/260404
+  # result_root_dir: result_train/TMP
   tracker:
     name: wandb
     wandb:
@@ -168,11 +170,22 @@ log:
       # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-enc-1'
       # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9'
       # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-11'
-      msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-13'
+      # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-13'
+
+      ## 260404
+      # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp01_cycle15-to-mvrm-enc-1'
+      # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp01_cycle15-to-mvrm-dec-9'
+      # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp01_cycle15-to-mvrm-dec-11'
+      msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp01_cycle15-to-mvrm-dec-13'
 
 
 
-      # msg: 'TMPTMPTMP'
+
+
+
+
+
+      # msg: 'TMP'
       
       
       
@@ -302,7 +315,8 @@ mvrm:
         use: true
         # use: false
         # vis_pc_temperature: -1
-        vis_pc_temperature: 0.01
+        # vis_pc_temperature: 0.01
+        vis_pc_temperature: 0.1
         visibility_mask: cycle_consistency              # [none, cycle_consistency, reprojection]
         vis_pc_cycle_threshold: 1.5             # 0=exact match; >0=Chebyshev patch distance (cycle_consistency only)
         reprojection_depth_threshold: 0.1     # relative depth error threshold (reprojection only)

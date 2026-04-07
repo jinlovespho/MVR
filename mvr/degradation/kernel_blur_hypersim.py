@@ -16,7 +16,7 @@ BLUR_INTENSITY=0.1
 
 # for KERNEL_SIZE in [10]:
 # for KERNEL_SIZE in [50, 30, 10]:
-for KERNEL_SIZE in [200, 100]:
+for KERNEL_SIZE in [200]:
 
     # load hypersim clean data
     all_data_folders = sorted(glob.glob(f'/mnt/dataset1/MV_Restoration/hypersim/data/*/images/*final_hdf5*'))

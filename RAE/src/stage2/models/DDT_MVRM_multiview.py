@@ -560,7 +560,7 @@ class DiTwDDTHeadMVRM_Multiview(nn.Module):
         return x
 
 
-    def forward(self, x, t, model_img_size, guidance=None, analysis=None):
+    def forward(self, x, t, model_img_size, analysis=None):
         
         
         if self.use_global_residual:

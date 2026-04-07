@@ -47,37 +47,49 @@ denoiser:
 
 
 
-  ### 260328 (blur001-03)
-
-  ## lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__blur001-03
+  ### 260328 (blur001-03) (da3 hq attention map training)
   # ckpt: result_train/nips26/multi_view/260327/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__blur001-03/checkpoints/ep-0025000.pt
-
-  
-  ## lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-enc-1__blur001-03
   # ckpt: result_train/nips26/multi_view/260327/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-enc-1__blur001-03/checkpoints/ep-0025000.pt
-
-
-  ## lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__blur001-03
   # ckpt: result_train/nips26/multi_view/260327/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__blur001-03/checkpoints/ep-0025000.pt
-
-
-  ## lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-11__blur001-03
   # ckpt: result_train/nips26/multi_view/260327/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-11__blur001-03/checkpoints/ep-0025000.pt
-
-  ## lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-13__blur001-03
   # ckpt: result_train/nips26/multi_view/260327/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-13__blur001-03/checkpoints/ep-0025000.pt
 
 
 
+  ### 260329 (blur001-03) (longest training 40k)
+  # ckpt: result_train/nips26/multi_view/260329/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs5-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__blur001-03/checkpoints/ep-0040000.pt
 
 
-  ### 260329 (blur001-03)
+
+  ### 260401 (blur001-03) (da3 hq point cloud training) (temp-1)  
+  # ckpt: result_train/nips26/multi_view/260401/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp-1_cycle15-to-mvrm-enc-1/checkpoints/ep-0025000.pt
+  # ckpt: result_train/nips26/multi_view/260401/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp-1_cycle15-to-mvrm-dec-9/checkpoints/ep-0025000.pt
+  # ckpt: result_train/nips26/multi_view/260401/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp-1_cycle15-to-mvrm-dec-11/checkpoints/ep-0025000.pt
+  ckpt: result_train/nips26/multi_view/260401/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp-1_cycle15-to-mvrm-dec-13/checkpoints/ep-0025000.pt
+
+
+
+  ### 260402 (blur001-03) (da3 hq point cloud training) (temp0.01)
+  # ckpt: result_train/nips26/multi_view/260402/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-enc-1/checkpoints/ep-0025000.pt
+  # ckpt: result_train/nips26/multi_view/260402/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9/checkpoints/ep-0025000.pt
+  # ckpt: result_train/nips26/multi_view/260402/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-11/checkpoints/ep-0025000.pt
+  # ckpt: result_train/nips26/multi_view/260402/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-13/checkpoints/ep-0025000.pt
+
+
+
+  ### 260404 (blur001-03) (da3 hq point cloud training) (temp0.1)
+  # ckpt: result_train/nips26/multi_view/260404/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp01_cycle15-to-mvrm-enc-1/checkpoints/ep-0025000.pt
+  # ckpt: result_train/nips26/multi_view/260404/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp01_cycle15-to-mvrm-dec-9/checkpoints/ep-0025000.pt
+  # ckpt: result_train/nips26/multi_view/260404/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp01_cycle15-to-mvrm-dec-11/checkpoints/ep-0025000.pt
+  # ckpt: result_train/nips26/multi_view/260404/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp01_cycle15-to-mvrm-dec-13/checkpoints/ep-0025000.pt
+
+
+
+
+
+
   
-  # lqkernel200-gaussian__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__blur001-03
-  ckpt: result_train/nips26/multi_view/260329/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs5-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__blur001-03/checkpoints/ep-0040000.pt
-
-
-
+  
 
 
   
@@ -120,6 +132,9 @@ mvrm:
       vis_attn_map: false
       mvrm_attn_map:
         extract_idx: [1,3,5,7,9,11,13]
+    
+    # lq_start_denoise: true
+    lq_start_denoise: false
 
 
 
@@ -128,7 +143,8 @@ analysis_LQ:
   # vis_map: true
   vis_map: false
 
-  vis_pc: true
+  # vis_pc: true
+  vis_pc: false
   # vis_pc_temperature: 0.5
   # vis_pc_temperature: 0.1
   # vis_pc_temperature: 0.05
@@ -161,7 +177,8 @@ analysis_HQ:
   # vis_map: true
   vis_map: false
 
-  vis_pc: true
+  # vis_pc: true
+  vis_pc: false
   # vis_pc_temperature: 0.5
   # vis_pc_temperature: 0.1
   # vis_pc_temperature: 0.05
@@ -193,7 +210,8 @@ analysis_RES:
   # vis_map: true
   vis_map: false
 
-  vis_pc: true
+  # vis_pc: true
+  vis_pc: false
   # vis_pc_temperature: 0.5
   # vis_pc_temperature: 0.1
   # vis_pc_temperature: 0.05
@@ -258,48 +276,108 @@ workspace:
   # Working directory for outputs (model results, metrics, etc.)
 
 
+  ##################################
+  ###### FILTERED_CAM_BLUR100 ######
+  ##################################
 
-  ### 260328
 
-  ## lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__blur001-03
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_vis_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
-  
-  ## lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-enc-1__blur001-03
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_vis_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-enc-1/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
-
-  ## lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__blur001-03
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_vis_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-9/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
-
-  ## lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-11__blur001-03
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_vis_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-11/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
-
-  ## lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-13__blur001-03
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_vis_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-13/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
+  ### 260328 (blur001-03) (da3 hq attention map training)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03/a100_ckpt25k/filtered_cam_blur_100/cam_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-enc-1/a100_ckpt25k/filtered_cam_blur_100/cam_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-9/a100_ckpt25k/filtered_cam_blur_100/cam_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-11/a100_ckpt25k/filtered_cam_blur_100/cam_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-13/a100_ckpt25k/filtered_cam_blur_100/cam_saddle_maxview10_cfg1
 
 
 
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP__temp-01
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP__temp-005
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP__temp-001
-
-
-  # work_dir: /mnt/dataset1/MV_Restoration/TMPTMP_beforefix
-  # work_dir: /mnt/dataset1/MV_Restoration/TMPTMP_afterfix__temp05
-  # work_dir: /mnt/dataset1/MV_Restoration/TMPTMP_afterfix__temp01
-  # work_dir: /mnt/dataset1/MV_Restoration/TMPTMP_afterfix__temp001
-
-
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_vis_260331/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-13/a100_ckpt40k/filtered_cam_blur_100/ray_saddle_maxview6_cfg1
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_vis_260331/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-13/a100_ckpt40k/filtered_cam_blur_300/ray_saddle_maxview4_cfg1
-
-
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP
+  ### 260330 (blur001-03) (longest training 40k)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260330/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-9/a100_ckpt40k/filtered_cam_blur_100/cam_saddle_maxview10_cfg1
 
 
 
+  ### 260401 (blur001-03) (da3 hq point cloud training) (temp-1)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260401/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp-1_cycle15-to-mvrm-enc-1/a100_ckpt25k/filtered_cam_blur_100/cam_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260401/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp-1_cycle15-to-mvrm-dec-9/a100_ckpt25k/filtered_cam_blur_100/cam_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260401/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp-1_cycle15-to-mvrm-dec-11/a100_ckpt25k/filtered_cam_blur_100/cam_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260401/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp-1_cycle15-to-mvrm-dec-13/a100_ckpt25k/filtered_cam_blur_100/cam_saddle_maxview10_cfg1
 
-  
-  
+
+
+  ### 260402 (blur001-03) (da3 hq point cloud training) (temp0.01)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260402/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp001_cycle15-to-mvrm-enc-1/a100_ckpt25k/filtered_cam_blur_100/cam_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260402/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9/a100_ckpt25k/filtered_cam_blur_100/cam_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260402/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-11/a100_ckpt25k/filtered_cam_blur_100/cam_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260402/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-13/a100_ckpt25k/filtered_cam_blur_100/cam_saddle_maxview10_cfg1
+
+
+
+  ## CFG1.5 test
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260330/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-9/a100_ckpt40k/filtered_cam_blur_100/cam_saddle_maxview10_cfg15
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03/a100_ckpt25k/filtered_cam_blur_100/cam_saddle_maxview10_cfg15
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-enc-1/a100_ckpt25k/filtered_cam_blur_100/cam_saddle_maxview10_cfg15
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-9/a100_ckpt25k/filtered_cam_blur_100/cam_saddle_maxview10_cfg15
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260330/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-13/a100_ckpt40k/filtered_cam_blur_100/cam_saddle_maxview10_cfg15
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260401/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp-1_cycle15-to-mvrm-enc-1/a100_ckpt25k/filtered_cam_blur_100/cam_saddle_maxview10_cfg15
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260401/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp-1_cycle15-to-mvrm-dec-9/a100_ckpt25k/filtered_cam_blur_100/cam_saddle_maxview10_cfg15
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260402/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp001_cycle15-to-mvrm-enc-1/a100_ckpt25k/filtered_cam_blur_100/cam_saddle_maxview10_cfg15
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260402/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9/a100_ckpt25k/filtered_cam_blur_100/cam_saddle_maxview10_cfg15
+
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/attn_map_vis/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/attn_map_vis/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-9/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/attn_map_vis/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp-1_cycle15-to-mvrm-dec-9/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/attn_map_vis/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
+
+
+
+  ### 260404 (blur001-03) (da3 hq point cloud training) (temp0.1)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260404/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp01_cycle15-to-mvrm-enc-1/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260404/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp01_cycle15-to-mvrm-dec-9/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260404/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp01_cycle15-to-mvrm-dec-11/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260404/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp01_cycle15-to-mvrm-dec-13/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
+
+
+
+
+
+
+
+
+  ##################################
+  ###### FILTERED_CAM_BLUR300 ######
+  ##################################
+
+
+
+  ### 260401 (blur001-03) (da3 hq point cloud training) (temp-1)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260401/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp-1_cycle15-to-mvrm-enc-1/a100_ckpt25k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260401/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp-1_cycle15-to-mvrm-dec-9/a100_ckpt25k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260401/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp-1_cycle15-to-mvrm-dec-11/a100_ckpt25k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260401/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp-1_cycle15-to-mvrm-dec-13/a100_ckpt25k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
+
+
+
+
+  # 여기부터 마저 에발 !!!!!!!!!!!!!!!!!1
+
+
+  ### 260402 (blur001-03) (da3 hq point cloud training) (temp0.01)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260402/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp001_cycle15-to-mvrm-enc-1/a100_ckpt25k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260402/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9/a100_ckpt25k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260402/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-11/a100_ckpt25k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260402/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-13/a100_ckpt25k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
+
+
+
+
+  ### 260404 (blur001-03) (da3 hq point cloud training) (temp0.1)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260404/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp01_cycle15-to-mvrm-enc-1/a100_ckpt25k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260404/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp01_cycle15-to-mvrm-dec-9/a100_ckpt25k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260404/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp01_cycle15-to-mvrm-dec-11/a100_ckpt25k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260404/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__pcloss1__da3-pc_temp01_cycle15-to-mvrm-dec-13/a100_ckpt25k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
+
+
+
 
 
 
@@ -311,11 +389,12 @@ eval:
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
     - 7scenes
-    - dtu
-    # - scannetpp
-    # - hiroom
+    - dtu64
+    - scannetpp
+    - hiroom
     - eth3d
-    # - dtu64
+    - dtu
+    
 
 
   # Evaluation modes
@@ -334,16 +413,17 @@ eval:
 
   # Specific scenes to evaluate (null = all scenes)
   # Example: [courtyard, relief] for eth3d
-  scenes: [chess, redkitchen, scan4, courtyard]
-  # scenes: []
+  # scenes: [chess, redkitchen, scan4, courtyard]
+  # scenes: [chess, redkitchen, scan4]
+  scenes: []
 
   # Maximum number of frames per scene (for sampling)
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
   # max_frames: 100
   # max_frames: 50
-  # max_frames: 10
-  max_frames: 6
+  max_frames: 10
+  # max_frames: 6
   # max_frames: 4
   # max_frames: 1
 

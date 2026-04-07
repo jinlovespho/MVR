@@ -106,6 +106,9 @@ class ode:
 
 
     def sample(self, x, model, **model_kwargs):
+        
+        # x: pure_noise (gaussian noise)
+        
 
         # Reset per-scene step counter so attn map folders are iter10/iter20/...
         # for every scene rather than accumulating across scenes.
