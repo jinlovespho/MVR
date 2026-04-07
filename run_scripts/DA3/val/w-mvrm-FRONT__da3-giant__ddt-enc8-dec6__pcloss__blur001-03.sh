@@ -1,3 +1,3 @@
 
 
-time CUDA_VISIBLE_DEVICES=5 python -m depth_anything_3.bench.evaluator --config run_configs/DA3/val/w-mvrm-FRONT__da3-giant__ddt-enc8-dec6__pcloss__blur001-03.yaml
+time CUDA_VISIBLE_DEVICES=6 python -m depth_anything_3.bench.evaluator --config run_configs/DA3/val/w-mvrm-FRONT__da3-giant__ddt-enc8-dec6__pcloss__blur001-03.yaml

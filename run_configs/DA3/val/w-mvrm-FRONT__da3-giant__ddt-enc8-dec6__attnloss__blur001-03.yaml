@@ -52,7 +52,7 @@ denoiser:
   # ckpt: result_train/nips26/multi_view/260327/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-enc-1__blur001-03/checkpoints/ep-0025000.pt
   # ckpt: result_train/nips26/multi_view/260327/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__blur001-03/checkpoints/ep-0025000.pt
   # ckpt: result_train/nips26/multi_view/260327/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-11__blur001-03/checkpoints/ep-0025000.pt
-  ckpt: result_train/nips26/multi_view/260327/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-13__blur001-03/checkpoints/ep-0025000.pt
+  # ckpt: result_train/nips26/multi_view/260327/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-13__blur001-03/checkpoints/ep-0025000.pt
 
 
 
@@ -65,7 +65,7 @@ denoiser:
   # ckpt: result_train/nips26/multi_view/260403/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-enc-1__blur001-03/checkpoints/ep-0025000.pt
   # ckpt: result_train/nips26/multi_view/260403/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-dec-9__blur001-03/checkpoints/ep-0025000.pt
   # ckpt: result_train/nips26/multi_view/260403/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-dec-11__blur001-03/checkpoints/ep-0025000.pt
-  # ckpt: result_train/nips26/multi_view/260403/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-dec-13__blur001-03/checkpoints/ep-0025000.pt
+  ckpt: result_train/nips26/multi_view/260403/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-dec-13__blur001-03/checkpoints/ep-0025000.pt
 
 
 
@@ -229,7 +229,7 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-enc-1/a100_ckpt25k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-9/a100_ckpt25k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-11/a100_ckpt25k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-13/a100_ckpt25k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-17-to-mvrm-dec-13/a100_ckpt25k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
 
 
   ### 260330 (blur001-03) 
@@ -240,7 +240,7 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260403/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-19-to-mvrm-enc-1/a100_ckpt25k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260403/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-19-to-mvrm-dec-9/a100_ckpt25k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260403/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-19-to-mvrm-dec-11/a100_ckpt25k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260403/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-19-to-mvrm-dec-13/a100_ckpt25k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260403/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03__attnloss1__da3-19-to-mvrm-dec-13/a100_ckpt25k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
 
 
 

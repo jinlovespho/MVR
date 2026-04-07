@@ -46,7 +46,12 @@ denoiser:
     use_global_residual: false
   # ckpt: result_train/nips26/multi_view/260318/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview8-accum1__lr-2e-04__msg-lqkernel200__ema95__hyp1__ddt-enc8-1536-dec6-3072__lqdrop01_re/checkpoints/ep-0015000.pt
   # ckpt: result_train/nips26/multi_view/260326/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01/checkpoints/ep-0015000.pt
-  ckpt: result_train/nips26/multi_view/260405/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs5-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__blur001-03_re/checkpoints/ep-0040000.pt
+  
+  # 25k 
+  ckpt: result_train/nips26/multi_view/260327/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__blur001-03/checkpoints/ep-0025000.pt
+
+  # 40k 
+  # ckpt: result_train/nips26/multi_view/260405/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs5-maxview4-accum1__lr-2e-04__msg-lqkernel200-gaussian__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__blur001-03_re/checkpoints/ep-0040000.pt
   
 
 
@@ -229,11 +234,13 @@ workspace:
 
 
   # 260407 (filtered_cam_blur100)
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260407/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp-tar__maxview4__blur001-03/a100_ckpt40k/filtered_cam_blur_100/cam_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260407/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp-tar__maxview4__blur001-03/a100_ckpt40k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
 
 
   # 260407 (filtered_cam_blur300)
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260407/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp-tar__maxview4__blur001-03/a100_ckpt40k/filtered_cam_blur_300/cam_saddle_maxview10_cfg1
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260328/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp__maxview4__blur001-03/a100_ckpt25k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260407/da3_giant/w_mvrm_FRONT/ddt-enc8-dec6__hyp-tar__maxview4__blur001-03/a100_ckpt40k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
+
 
 
 

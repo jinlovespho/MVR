@@ -139,7 +139,8 @@ log:
   # result_root_dir: result_train/nips26/multi_view/260326
   # result_root_dir: result_train/nips26/multi_view/260327
   # result_root_dir: result_train/nips26/multi_view/260329
-  result_root_dir: result_train/nips26/multi_view/260403
+  # result_root_dir: result_train/nips26/multi_view/260403
+  result_root_dir: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260407
   # result_root_dir: result_train/TMP
   tracker:
     name: wandb
@@ -170,8 +171,12 @@ log:
       # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-enc-1__blur001-03'
       # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-dec-9__blur001-03'
       # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-dec-11__blur001-03'
-      msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-dec-13__blur001-03'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-dec-13__blur001-03'
       
+
+      ### 260407
+      # msg: 'lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9'
+      msg: 'lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-dec-9'
       
       # msg: 'TMPTMPTMPTMP'
       
@@ -194,8 +199,10 @@ data:
     hypersim:
       ann_path: metadata_images_split_scene_v1.csv
       hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data
-      lq_kernel_size: 200
-      lq_intensity_range: [0.01, 0.3]
+      # lq_kernel_size: 200
+      lq_kernel_size: [50, 300]
+      # lq_intensity_range: [0.01, 0.3]
+      lq_intensity_range: [0.0, 0.3]
       view_selection:
         # [random, near_random, near_camera]
         # strategy: random
@@ -208,8 +215,10 @@ data:
     tartanair:
       ann_path: 
       hq_root_path: /mnt/dataset1/MV_Restoration/tartanair/data
-      lq_kernel_size: 200
-      lq_intensity_range: [0.01, 0.3]
+      # lq_kernel_size: 200
+      lq_kernel_size: [50, 300]
+      # lq_intensity_range: [0.01, 0.3]
+      lq_intensity_range: [0.0, 0.3]
       view_selection:
         # [random, near_random]
         # strategy: random
@@ -290,9 +299,9 @@ mvrm:
       use: true
       lambda_coeff: 1.0
       # mvrm_layer_idx: 1    
-      # mvrm_layer_idx: 9
+      mvrm_layer_idx: 9
       # mvrm_layer_idx: 11
-      mvrm_layer_idx: 13
+      # mvrm_layer_idx: 13
 
 
       da3_attn_map:
@@ -320,9 +329,9 @@ mvrm:
     # vis_attn_map: false
     mvrm_attn_map:
       # extract_idx: [1]
-      # extract_idx: [9]
+      extract_idx: [9]
       # extract_idx: [11]
-      extract_idx: [13]
+      # extract_idx: [13]
 
 
 

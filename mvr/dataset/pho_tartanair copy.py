@@ -5,7 +5,7 @@ import numpy as np
 from torch.utils.data import Dataset 
 from depth_anything_3.utils.io.input_processor import InputProcessor
 from motionblur.motionblur import Kernel 
-import random
+
 
 
 
@@ -340,26 +340,85 @@ class PhoTartanAir(Dataset):
                 view_id = view.split('/')[-1].split('.')[0]
                 lq_view_id.append(f'tartanair_{scene_id}_{view_id}')
                 img_pil = self.convert_imgpath(view)
-
-                if isinstance(self.data_cfg.lq_kernel_size, int):
-                    KERNEL_SIZE = self.data_cfg.lq_kernel_size
-                else:
-                    range_start, range_end = self.data_cfg.lq_kernel_size
-                    mean = (range_start + range_end) // 2
-                    standard_deviation = (range_end - mean) / 1.96
-                    KERNEL_SIZE = int(np.clip(np.random.normal(mean, standard_deviation), range_start, range_end))
-
-                if isinstance(self.data_cfg.lq_intensity_range, (int, float)):
-                    BLUR_INTENSITY = float(self.data_cfg.lq_intensity_range)
-                else:
-                    BLUR_INTENSITY = random.uniform(*self.data_cfg.lq_intensity_range)     
-                # print(f"Using kernel size {KERNEL_SIZE} and intensity {BLUR_INTENSITY} for {view}")
+                # Sample kernel size from Gaussian centered at lq_kernel_size (SirDiff-style):
+                # 95% of samples fall within [mean//2, mean + mean//2]
+                lq_kernel_mean = self.data_cfg.lq_kernel_size
+                lq_kernel_std  = (lq_kernel_mean / 2) / 1.96
+                lq_kernel_min  = max(1, lq_kernel_mean // 2)
+                lq_kernel_max  = lq_kernel_mean + lq_kernel_mean // 2
+                KERNEL_SIZE = int(np.clip(np.random.normal(lq_kernel_mean, lq_kernel_std), lq_kernel_min, lq_kernel_max))
+                # Sample blur intensity log-uniformly over [lq_intensity_range[0], lq_intensity_range[1]]
+                lq_intensity_min, lq_intensity_max = self.data_cfg.lq_intensity_range
+                BLUR_INTENSITY = np.exp(np.random.uniform(np.log(lq_intensity_min), np.log(lq_intensity_max)))
                 kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
                 blurred = kernel.applyTo(img_pil, keep_image_dim=True)
                 blurred = np.array(blurred)
                 lq_view_list.append(self.resize(blurred))
             outputs['lq_ids'] = lq_view_id 
             outputs['lq_views'] = lq_view_list
+            
+            
+            
+            
+            
+        # # ----------------------------------
+        # #       get lq on the fly
+        # # ----------------------------------
+        # lq_view_id=[]
+        # lq_view_list=[]
+        
+        # if self.mode == 'train':
+        #     views = sorted([self.data['hq_img'][i] for i in frame_ids])
+        #     for view in views:
+        #         scene_id = view.split('/')[-5]
+        #         view_id = view.split('/')[-1].split('.')[0]
+        #         lq_view_id.append(f'tartanair_{scene_id}_{view_id}')
+        #         img_pil = self.convert_imgpath(view)
+        #         BLUR_INTENSITY=0.1
+        #         # Sample kernel size from Gaussian centered at lq_kernel_size (SirDiff-style):
+        #         # 95% of samples fall within [mean//2, mean + mean//2]
+        #         lq_kernel_mean = self.data_cfg.lq_kernel_size
+        #         lq_kernel_std  = (lq_kernel_mean / 2) / 1.96
+        #         lq_kernel_min  = max(1, lq_kernel_mean // 2)
+        #         lq_kernel_max  = lq_kernel_mean + lq_kernel_mean // 2
+        #         KERNEL_SIZE = int(np.clip(np.random.normal(lq_kernel_mean, lq_kernel_std), lq_kernel_min, lq_kernel_max))
+        #         kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
+        #         blurred = kernel.applyTo(img_pil, keep_image_dim=True)
+        #         blurred = np.array(blurred)
+        #         lq_view_list.append(self.resize(blurred))
+        #     outputs['lq_ids'] = lq_view_id 
+        #     outputs['lq_views'] = lq_view_list
+            
+            
+            
+            
+            
+            
+            
+            
+
+
+        # # ----------------------------------
+        # #       get lq on the fly
+        # # ----------------------------------
+        # lq_view_id=[]
+        # lq_view_list=[]
+        
+        # if self.mode == 'train':
+        #     views = sorted([self.data['hq_img'][i] for i in frame_ids])
+        #     for view in views:
+        #         scene_id = view.split('/')[-5]
+        #         view_id = view.split('/')[-1].split('.')[0]
+        #         lq_view_id.append(f'tartanair_{scene_id}_{view_id}')
+        #         img_pil = self.convert_imgpath(view)
+        #         KERNEL_SIZE = self.data_cfg.lq_kernel_size
+        #         BLUR_INTENSITY=0.1
+        #         kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
+        #         blurred = kernel.applyTo(img_pil, keep_image_dim=True)
+        #         blurred = np.array(blurred)
+        #         lq_view_list.append(self.resize(blurred))
+        #     outputs['lq_ids'] = lq_view_id 
+        #     outputs['lq_views'] = lq_view_list
 
 
 

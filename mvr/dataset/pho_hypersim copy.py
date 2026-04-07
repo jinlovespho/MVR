@@ -21,48 +21,58 @@ class PhoHypersim(Dataset):
         self.ds_name = 'hypersim'
         self.data_cfg = data_cfg 
         self.mode = mode 
-        
         self.data = {}
         
+        self.num_eval_img = data_cfg.get('num_eval_img', -1)
+
+        self.process_res = data_cfg.get('process_res', 504)
+        self.patch_size = data_cfg.get('patch_size', 14)
+
         
         # train/val/test annotations
         with open(data_cfg.ann_path) as f:
             anns = list(csv.DictReader(f))  # len: 82,900
-        train_anns = [ann for ann in anns if ann['split_partition_name']=='train']      # 59,543
-        val_anns = [ann for ann in anns if ann['split_partition_name']=='val']          # 7,386
-        test_anns = [ann for ann in anns if ann['split_partition_name']=='test']        # 7,690
+            
+            
+        if mode == 'train':
+            sampled_anns = [ann for ann in anns if ann['split_partition_name']=='train']      # 59,543        
+            sampled_scenes = set([ann['scene_name'] for ann in anns if ann['split_partition_name'] == 'train'])
         
-        train_scenes = [ann['scene_name'] for ann in anns if ann['split_partition_name'] == 'train']
-        train_scenes = list(set(train_scenes))
+        elif mode == 'val':
+            sampled_anns = [ann for ann in anns if ann['split_partition_name']=='val']      # 59,543        
+            sampled_scenes = set([ann['scene_name'] for ann in anns if ann['split_partition_name'] == 'val'])
         
-        
+
         # camera annotations (for view_sel)
         cam_ori_paths = sorted(glob.glob(f'{data_cfg.hq_root_path}/*/_detail/cam_*/camera_keyframe_orientations.hdf5')) # camera rotation
-        cam_ori_paths = sorted([path for path in cam_ori_paths if path.split('/')[-4] in train_scenes])
-        
         cam_pos_paths = sorted(glob.glob(f'{data_cfg.hq_root_path}/*/_detail/cam_*/camera_keyframe_positions.hdf5'))    # camera translation
-        cam_pos_paths = sorted([path for path in cam_pos_paths if path.split('/')[-4] in train_scenes])
-        
+        cam_ori_paths = sorted([path for path in cam_ori_paths if path.split('/')[-4] in sampled_scenes])
+        cam_pos_paths = sorted([path for path in cam_pos_paths if path.split('/')[-4] in sampled_scenes])
         assert len(cam_ori_paths) == len(cam_pos_paths)
+
+
+        def cam_key(p):
+            return (p.split('/')[-4], p.split('/')[-2])  # (scene_id, cam_xx)
+        ori_map = {cam_key(p): p for p in cam_ori_paths}
+        pos_map = {cam_key(p): p for p in cam_pos_paths}
+        
 
         self.camera_rankings = {}
         self.camera_num_frames = {}
-
-
-        for cam_ori_path, cam_pos_path in zip(cam_ori_paths, cam_pos_paths):
-            # ----------------------------
+        common_keys = ori_map.keys() & pos_map.keys()
+        
+        self.camera_extrinsics = {}
+        
+        for scene_id, camera_id in sorted(common_keys):
             # parse identifiers
-            # ----------------------------
-            scene_id  = cam_ori_path.split('/')[-4]   # e.g. ai_001_002
-            camera_id = cam_ori_path.split('/')[-2]   # e.g. cam_00
+            cam_ori_path = ori_map[(scene_id, camera_id)]
+            cam_pos_path = pos_map[(scene_id, camera_id)]
 
             cache_key = (scene_id, camera_id)
             if cache_key in self.camera_rankings:
                 continue  # already computed
 
-            # ----------------------------
             # load camera data
-            # ----------------------------
             with h5py.File(cam_ori_path, 'r') as f_ori:
                 ext_r = f_ori['dataset'][:]   # (N,3,3)
 
@@ -72,17 +82,15 @@ class PhoHypersim(Dataset):
             assert ext_r.shape[0] == ext_t.shape[0]
             N = ext_r.shape[0]
 
-            # ----------------------------
             # build extrinsics
-            # ----------------------------
             extrinsics = np.zeros((N, 4, 4), dtype=np.float32)
             extrinsics[:, :3, :3] = ext_r
             extrinsics[:, :3, 3]  = ext_t
             extrinsics[:, 3, 3]   = 1.0
+            
+            self.camera_extrinsics[(scene_id, camera_id)] = extrinsics
 
-            # ----------------------------
             # compute ranking
-            # ----------------------------
             ranking, _ = compute_ranking(
                 extrinsics,
                 lambda_t=1.0,
@@ -90,68 +98,28 @@ class PhoHypersim(Dataset):
                 batched=True
             )
 
-            # ----------------------------
             # cache
-            # ----------------------------
             self.camera_rankings[cache_key] = ranking
             self.camera_num_frames[cache_key] = N        
 
 
-
         # HQ 
-        train_hq_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_final_hdf5/frame.{int(ann['frame_id']):04}.color.hdf5" for ann in train_anns])
-        val_hq_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_final_hdf5/frame.{int(ann['frame_id']):04}.color.hdf5" for ann in val_anns])
-        test_hq_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_final_hdf5/frame.{int(ann['frame_id']):04}.color.hdf5" for ann in test_anns])
+        hq_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_final_hdf5/frame.{int(ann['frame_id']):04}.color.hdf5" for ann in sampled_anns])
 
 
         # depth 
-        train_depth_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_geometry_hdf5/frame.{int(ann['frame_id']):04}.depth_meters.hdf5" for ann in train_anns])
-        val_depth_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_geometry_hdf5/frame.{int(ann['frame_id']):04}.depth_meters.hdf5" for ann in val_anns])
-        test_depth_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_geometry_hdf5/frame.{int(ann['frame_id']):04}.depth_meters.hdf5" for ann in test_anns])
-        
+        depth_paths = sorted([f"{data_cfg.hq_root_path}/{ann['scene_name']}/images/scene_{ann['camera_name']}_geometry_hdf5/frame.{int(ann['frame_id']):04}.depth_meters.hdf5" for ann in sampled_anns])
 
-        if mode == 'train':
-            self.data['hq_img'] = sorted([path for path in train_hq_paths if os.path.exists(path)])
-            self.data['gt_depth'] = sorted([path for path in train_depth_paths if os.path.exists(path)])
-        elif mode == 'val':
-            # self.data['hq_img'] = sorted([path for path in val_hq_paths if os.path.exists(path)])[:data_cfg.num_eval_img]
-            # self.data['gt_depth'] = sorted([path for path in val_depth_paths if os.path.exists(path)])[:data_cfg.num_eval_img]
-
-            hq_imgs = sorted([p for p in val_hq_paths if os.path.exists(p)])
-            gt_depths = sorted([p for p in val_depth_paths if os.path.exists(p)])
-            assert len(hq_imgs) == len(gt_depths), "HQ and GT depth count mismatch"
-            idx = list(range(len(hq_imgs)))
-            random.seed(97)
-            random.shuffle(idx)
-            idx = idx[:data_cfg.num_eval_img]
-            self.data['hq_img'] = [hq_imgs[i] for i in idx]
-            self.data['gt_depth'] = [gt_depths[i] for i in idx]
-            
-            
-            # fix validation lq images
-            self.lq_ids = []
-            self.lq_imgs = []
-            for hq_view in self.data['hq_img']:
-                volume = hq_view.split('/')[-4].split('_')[-2]
-                scene = hq_view.split('/')[-4].split('_')[-1]
-                camera = hq_view.split('/')[-2].split('_')[-3]
-                view_id = hq_view.split('/')[-1].split('.')[-3]
-                self.lq_ids.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
-                img_pil = self.convert_hdf5_img(hq_view)
-                KERNEL_SIZE=50
-                BLUR_INTENSITY=0.1
-                kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
-                blurred = kernel.applyTo(img_pil, keep_image_dim=True)
-                blurred = np.array(blurred)
-                self.lq_imgs.append(self.resize(blurred))
-            
-        elif mode == 'test':
-            self.data['hq_img'] = sorted([path for path in test_hq_paths if os.path.exists(path)])
-            self.data['gt_depth'] = sorted([path for path in test_depth_paths if os.path.exists(path)])
-
-
-
-
+  
+        self.data['hq_img'] = sorted([path for path in hq_paths if os.path.exists(path)])
+        self.data['gt_depth'] = sorted([path for path in depth_paths if os.path.exists(path)])
+      
+      
+        # for validation
+        if self.num_eval_img != -1:                                                                              
+            self.data['hq_img']   = self.data['hq_img'][:self.num_eval_img]                                      
+            self.data['gt_depth'] = self.data['gt_depth'][:self.num_eval_img]
+              
 
         # ----------------------------------------
         # build index mapping: global idx <-> camera frame idx
@@ -171,7 +139,6 @@ class PhoHypersim(Dataset):
 
             self.camera_to_global_idx[key][frame_id] = global_idx
             self.global_to_camera_idx[global_idx] = (scene_id, camera_id, frame_id)
-
 
 
 
@@ -246,8 +213,8 @@ class PhoHypersim(Dataset):
         Returns:
             resized_img: np.ndarray [H', W', 3], uint8
         """
-        process_res = 504
-        patch_size = 14
+        process_res = self.process_res
+        patch_size = self.patch_size
         # -------------------------
         # 1. resize longest side
         # -------------------------
@@ -276,8 +243,8 @@ class PhoHypersim(Dataset):
         return img
 
     def resize_depth(self, depth: np.ndarray):
-        process_res = 504
-        patch_size = 14
+        process_res = self.process_res
+        patch_size = self.patch_size
         h, w = depth.shape
         longest = max(h, w)
         if longest != process_res:
@@ -310,6 +277,20 @@ class PhoHypersim(Dataset):
         return gt_depth.astype(np.float32)
 
 
+    def get_random_ids(self, anchor, num_frames):
+        """
+        Global random sampling baseline.
+        """
+        if num_frames == 1:
+            return np.array([anchor], dtype=np.int64)
+        N = len(self.data['hq_img'])
+        candidates = np.arange(N)
+        candidates = np.delete(candidates, anchor)
+        K = num_frames - 1
+        sampled = np.random.choice(candidates, size=K,replace=(len(candidates) < K),)
+        return np.concatenate([[anchor], sampled]).astype(np.int64)
+
+
     def get_nearby_ids_random(
         self,
         anchor,
@@ -320,36 +301,37 @@ class PhoHypersim(Dataset):
         low = max(0, anchor - expand_range)
         high = min(len(self.data['hq_img']), anchor + expand_range + 1)
         candidates = np.arange(low, high)
-        sampled = np.random.choice(
-            candidates,
-            size=num_frames - 1,
-            replace = (len(candidates) < num_frames - 1),
-        )
+        sampled = np.random.choice(candidates,size=num_frames - 1,replace = (len(candidates) < num_frames - 1),)
         return np.concatenate([[anchor], sampled])
 
 
-
     def get_nearby_ids_camera(self, anchor, num_frames, expand_ratio=2.0):
-
+        if num_frames == 1:
+            return np.array([anchor], dtype=np.int64)
         # ----------------------------
         # map global idx -> camera frame
         # ----------------------------
         scene_id, camera_id, cam_frame_idx = self.global_to_camera_idx[anchor]
-
-        ranking = self.camera_rankings[(scene_id, camera_id)]
+        tmp_camera_id = f"cam_{camera_id.split('_')[-3]}"
+        # get ranking
+        ranking = self.camera_rankings[(scene_id, tmp_camera_id)]
         cam_neighbors = ranking[cam_frame_idx]
-
         # skip itself
         cam_neighbors = cam_neighbors[1:]
-
+        # only keep frames that exist in dataset
+        valid_frames = self.camera_to_global_idx[(scene_id, camera_id)]
+        cam_neighbors = [i for i in cam_neighbors if i in valid_frames]
         # optionally expand candidate pool
         max_candidates = int(num_frames * expand_ratio)
         cam_neighbors = cam_neighbors[:max_candidates]
-
         # pick K-1 neighbors
         K = num_frames - 1
-        selected_cam_idxs = cam_neighbors[:K]
-
+        
+        # no randomness and only sample the closest views
+        # selected_cam_idxs = cam_neighbors[:K]
+        
+        # add randomness when sampling from neighboring views 
+        selected_cam_idxs = np.random.choice(cam_neighbors, size=K, replace=len(cam_neighbors) < K)
         # ----------------------------
         # map camera frame idx -> global idx
         # ----------------------------
@@ -357,9 +339,14 @@ class PhoHypersim(Dataset):
         for cam_i in selected_cam_idxs:
             global_i = self.camera_to_global_idx[(scene_id, camera_id)][cam_i]
             global_indices.append(global_i)
-
         return np.array(global_indices, dtype=np.int64)
 
+
+
+    def load_camera_pose(self, scene_id, camera_id, frame_idx):
+        camera_id = camera_id.split('_')[1:3]
+        camera_id = '_'.join(camera_id)
+        return self.camera_extrinsics[(scene_id, camera_id)][frame_idx]
 
 
 
@@ -369,9 +356,10 @@ class PhoHypersim(Dataset):
         # print(f'hypersim - {num_input_view}')
         
 
-        breakpoint()
         # view selection strategy        
-        if self.view_sel.strategy == 'near_random':
+        if self.view_sel.strategy == 'random':
+            frame_ids = self.get_random_ids(anchor=idx, num_frames=num_input_view)
+        elif self.view_sel.strategy == 'near_random':
             frame_ids = self.get_nearby_ids_random(anchor=idx, num_frames=num_input_view, expand_ratio=self.view_sel.expand_ratio)
         elif self.view_sel.strategy == 'near_camera':
             frame_ids = self.get_nearby_ids_camera(anchor=idx, num_frames=num_input_view, expand_ratio=self.view_sel.expand_ratio)
@@ -379,6 +367,18 @@ class PhoHypersim(Dataset):
         
         outputs={}
         outputs['frame_ids'] = frame_ids
+        
+
+        # =====================================================
+        #  camera poses
+        # =====================================================
+        pose_list = []
+        for global_i in frame_ids:
+            scene_id, camera_id, frame_id = self.global_to_camera_idx[global_i]
+            pose = self.load_camera_pose(scene_id, camera_id, frame_id)
+            pose_list.append(pose)
+
+        outputs['poses'] = np.stack(pose_list, axis=0)  # (V,4,4)
         
         
         # ----------------------
@@ -400,112 +400,140 @@ class PhoHypersim(Dataset):
             outputs['hq_views'] = hq_view_list
 
 
-        
-        # # ----------------------------------
-        # #       process hq latent 
-        # # ----------------------------------
-        # hq_latent_view_id=[]
-        # hq_latent_view_list=[]
-        # if 'hq_latent' in self.data.keys():
-        #     hq_latent_views = [self.data['hq_latent'][i] for i in frame_ids]
-        #     for hq_latent_view in hq_latent_views:
-        #         volume = hq_latent_view.split('/')[-3].split('_')[-2]
-        #         scene = hq_latent_view.split('/')[-3].split('_')[-1]
-        #         camera = hq_latent_view.split('/')[-2].split('_')[-1]
-        #         view_id = hq_latent_view.split('/')[-1].split('.')[-2]
-        #         hq_latent_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
-        #         hq_latent_view_list.append(torch.load(hq_latent_view))  # torch.Size([972, 3072])
-        #         outputs['hq_latent_ids'] = hq_latent_view_id
-        #         outputs['hq_latent_views'] = hq_latent_view_list
-            
-            
-            
-            
-        # # ----------------------
-        # #       process lq
-        # # ----------------------
-        # lq_view_id=[]
-        # lq_view_list=[]
-        # if 'lq_img' in self.data.keys():
-        #     lq_views = [self.data['lq_img'][i] for i in frame_ids]
-        #     for lq_view in lq_views:
-        #         volume = lq_view.split('/')[-4].split('_')[-2]
-        #         scene = lq_view.split('/')[-4].split('_')[-1]
-        #         camera = lq_view.split('/')[-3].split('_')[-3]
-        #         view_id = lq_view.split('/')[-1].split('.')[-2].split('_')[-2]
-        #         lq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
-        #         lq_view_list.append(self.resize(self.convert_imgpath(lq_view)))
-        #         outputs['lq_ids'] = lq_view_id 
-        #         outputs['lq_views'] = lq_view_list
-                
-
-
-
-
         # ----------------------------------
         #       get lq on the fly
         # ----------------------------------
         lq_view_id=[]
         lq_view_list=[]
         
-        if self.mode == 'train':
-            hq_views = [self.data['hq_img'][i] for i in frame_ids]
-            for hq_view in hq_views:
-                volume = hq_view.split('/')[-4].split('_')[-2]
-                scene = hq_view.split('/')[-4].split('_')[-1]
-                camera = hq_view.split('/')[-2].split('_')[-3]
-                view_id = hq_view.split('/')[-1].split('.')[-3]
-                lq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
-                img_pil = self.convert_hdf5_img(hq_view)
-                
-                
-                KERNEL_SIZE=50
-                BLUR_INTENSITY=0.1
-                kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
-                blurred = kernel.applyTo(img_pil, keep_image_dim=True)
-                blurred = np.array(blurred)
-                lq_view_list.append(self.resize(blurred))
-            outputs['lq_ids'] = lq_view_id 
-            outputs['lq_views'] = lq_view_list
+        hq_views = [self.data['hq_img'][i] for i in frame_ids]
+        for global_i, hq_view in zip(frame_ids, hq_views):
+            volume = hq_view.split('/')[-4].split('_')[-2]
+            scene = hq_view.split('/')[-4].split('_')[-1]
+            camera = hq_view.split('/')[-2].split('_')[-3]
+            view_id = hq_view.split('/')[-1].split('.')[-3]
+            lq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
+            img_pil = self.convert_hdf5_img(hq_view)
 
-        elif self.mode == 'val':
-            outputs['lq_ids'] = [self.lq_ids[i] for i in frame_ids]
-            outputs['lq_views'] = [self.lq_imgs[i] for i in frame_ids]
 
+            if self.mode == 'val':
+                np.random.seed(int(global_i))
+                random.seed(int(global_i))
+                KERNEL_SIZE = self.data_cfg.lq_kernel_size
+                BLUR_INTENSITY = 0.1
+            else:
+                # Sample kernel size from Gaussian centered at lq_kernel_size (SirDiff-style):
+                # 95% of samples fall within [mean//2, mean + mean//2]
+                lq_kernel_mean = self.data_cfg.lq_kernel_size
+                lq_kernel_std  = (lq_kernel_mean / 2) / 1.96
+                lq_kernel_min  = max(1, lq_kernel_mean // 2)
+                lq_kernel_max  = lq_kernel_mean + lq_kernel_mean // 2
+                KERNEL_SIZE = int(np.clip(np.random.normal(lq_kernel_mean, lq_kernel_std), lq_kernel_min, lq_kernel_max))
+                # Sample blur intensity log-uniformly over [lq_intensity_range[0], lq_intensity_range[1]]
+                lq_intensity_min, lq_intensity_max = self.data_cfg.lq_intensity_range
+                BLUR_INTENSITY = np.exp(np.random.uniform(np.log(lq_intensity_min), np.log(lq_intensity_max)))
+            kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
+            blurred = kernel.applyTo(img_pil, keep_image_dim=True)
+            blurred = np.array(blurred)
+            lq_view_list.append(self.resize(blurred))
+        outputs['lq_ids'] = lq_view_id 
+        outputs['lq_views'] = lq_view_list
+
+
+
+
+
+        # # ----------------------------------
+        # #       get lq on the fly
+        # # ----------------------------------
+        # lq_view_id=[]
+        # lq_view_list=[]
         
-        # -------------------------
-        #       process depth
-        # -------------------------
-        depth_view_id=[]
-        depth_view_list=[]
-        if 'gt_depth' in self.data.keys():
-            depth_views = [self.data['gt_depth'][i] for i in frame_ids]
-            for depth_view in depth_views:
-                volume = depth_view.split('/')[-4].split('_')[-2]
-                scene = depth_view.split('/')[-4].split('_')[-1]
-                camera = depth_view.split('/')[-2].split('_')[-3]
-                view_id = depth_view.split('/')[-1].split('.')[-3]
-                depth_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
-                depth_view_list.append(self.resize_depth(self.convert_hdf5_depth(depth_view)))
-            outputs['gt_depth_ids'] = depth_view_id
-            outputs['gt_depths'] = depth_view_list
+        # hq_views = [self.data['hq_img'][i] for i in frame_ids]
+        # for global_i, hq_view in zip(frame_ids, hq_views):
+        #     volume = hq_view.split('/')[-4].split('_')[-2]
+        #     scene = hq_view.split('/')[-4].split('_')[-1]
+        #     camera = hq_view.split('/')[-2].split('_')[-3]
+        #     view_id = hq_view.split('/')[-1].split('.')[-3]
+        #     lq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
+        #     img_pil = self.convert_hdf5_img(hq_view)
+
+
+        #     BLUR_INTENSITY=0.1
+        #     if self.mode == 'val':
+        #         np.random.seed(int(global_i))
+        #         random.seed(int(global_i))
+        #         KERNEL_SIZE = self.data_cfg.lq_kernel_size
+        #     else:
+        #         # Sample kernel size from Gaussian centered at lq_kernel_size (SirDiff-style):
+        #         # 95% of samples fall within [mean//2, mean + mean//2]
+        #         lq_kernel_mean = self.data_cfg.lq_kernel_size
+        #         lq_kernel_std  = (lq_kernel_mean / 2) / 1.96
+        #         lq_kernel_min  = max(1, lq_kernel_mean // 2)
+        #         lq_kernel_max  = lq_kernel_mean + lq_kernel_mean // 2
+        #         KERNEL_SIZE = int(np.clip(np.random.normal(lq_kernel_mean, lq_kernel_std), lq_kernel_min, lq_kernel_max))
+        #     kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
+        #     blurred = kernel.applyTo(img_pil, keep_image_dim=True)
+        #     blurred = np.array(blurred)
+        #     lq_view_list.append(self.resize(blurred))
+        # outputs['lq_ids'] = lq_view_id 
+        # outputs['lq_views'] = lq_view_list
+
+
+
+
+
+
+
+
+
+
+
+
+        # hq_views = [self.data['hq_img'][i] for i in frame_ids]
+        # for global_i, hq_view in zip(frame_ids, hq_views):
+        #     volume = hq_view.split('/')[-4].split('_')[-2]
+        #     scene = hq_view.split('/')[-4].split('_')[-1]
+        #     camera = hq_view.split('/')[-2].split('_')[-3]
+        #     view_id = hq_view.split('/')[-1].split('.')[-3]
+        #     lq_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
+        #     img_pil = self.convert_hdf5_img(hq_view)
+
+
+        #     KERNEL_SIZE = self.data_cfg.lq_kernel_size
+        #     BLUR_INTENSITY=0.1
+        #     if self.mode == 'val':
+        #         np.random.seed(int(global_i))
+        #         random.seed(int(global_i))
+        #     kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
+        #     blurred = kernel.applyTo(img_pil, keep_image_dim=True)
+        #     blurred = np.array(blurred)
+        #     lq_view_list.append(self.resize(blurred))
+        # outputs['lq_ids'] = lq_view_id 
+        # outputs['lq_views'] = lq_view_list
+
+
+
+        # # -------------------------
+        # #       process depth
+        # # -------------------------
+        # depth_view_id=[]
+        # depth_view_list=[]
+        # if 'gt_depth' in self.data.keys():
+        #     depth_views = [self.data['gt_depth'][i] for i in frame_ids]
+        #     for depth_view in depth_views:
+        #         volume = depth_view.split('/')[-4].split('_')[-2]
+        #         scene = depth_view.split('/')[-4].split('_')[-1]
+        #         camera = depth_view.split('/')[-2].split('_')[-3]
+        #         view_id = depth_view.split('/')[-1].split('.')[-3]
+        #         depth_view_id.append(f'hypersim_{volume}_{scene}_{camera}_{view_id}')
+        #         depth_view_list.append(self.resize_depth(self.convert_hdf5_depth(depth_view)))
+        #     outputs['gt_depth_ids'] = depth_view_id
+        #     outputs['gt_depths'] = depth_view_list
+
 
         return outputs
-        return {
-            "frame_ids": frame_ids,
-            
-            "hq_ids": hq_view_id,
-            "hq_views": hq_view_list,
-            
-            'hq_latent_ids': hq_latent_view_id,
-            'hq_latent_views': hq_latent_view_list,
-            
-            'lq_ids': lq_view_id,
-            'lq_views': lq_view_list,
-            
-            'gt_depth_ids': depth_view_id,
-            'gt_depths': depth_view_list,
-        }        
+       
 
     def __len__(self):
         return len(self.data['hq_img'])

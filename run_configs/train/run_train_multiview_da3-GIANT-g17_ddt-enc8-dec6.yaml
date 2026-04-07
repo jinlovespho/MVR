@@ -98,7 +98,7 @@ training:
   precision: fp32
   epochs: 10
  
-  global_batch_size: 5
+  global_batch_size: 1
   grad_accum_steps: 1
   ema_decay: 0.9995
   # ema_decay: 0.9999
@@ -106,7 +106,8 @@ training:
   shuffle: true
   log_interval: 1
 
-  ckpt_step_interval: 40000   # 40k
+  # ckpt_step_interval: 40000   # 40k
+  ckpt_step_interval: 25000   # 25k
 
   vis:
     train_depth_every: 1000   # 1k
@@ -137,7 +138,8 @@ log:
   # result_root_dir: result_train/nips26/multi_view/260318
   # result_root_dir: result_train/nips26/multi_view/260326
   # result_root_dir: result_train/nips26/multi_view/260327
-  result_root_dir: result_train/nips26/multi_view/260405
+  # result_root_dir: result_train/nips26/multi_view/260405
+  result_root_dir: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260407
   tracker:
     name: wandb
     wandb:
@@ -156,7 +158,14 @@ log:
       # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__blur001-03'
 
       ### 260405
-      msg: 'lqkernel200-gaussian__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__blur001-03_re'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__blur001-03_re'
+
+      ### 260407
+      msg: 'lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01'
+      
+      
+      
+      # msg: 'TMP'
       
       
       
@@ -170,15 +179,17 @@ data:
     # max_num_input_view: 8
     # max_num_input_view: 6
     max_num_input_view: 4
-    # list: [hypersim,]
+    list: [hypersim,]
     # list: [tartanair,]
-    list: [hypersim, tartanair,]
+    # list: [hypersim, tartanair,]
     
     hypersim:
       ann_path: metadata_images_split_scene_v1.csv
       hq_root_path: /mnt/dataset1/MV_Restoration/hypersim/data
-      lq_kernel_size: 200
-      lq_intensity_range: [0.01, 0.3]
+      # lq_kernel_size: 200
+      lq_kernel_size: [50, 300]
+      # lq_intensity_range: [0.01, 0.3]
+      lq_intensity_range: [0.0, 0.3]
       view_selection:
         # [random, near_random, near_camera]
         # strategy: random
@@ -191,8 +202,10 @@ data:
     tartanair:
       ann_path: 
       hq_root_path: /mnt/dataset1/MV_Restoration/tartanair/data
-      lq_kernel_size: 200
-      lq_intensity_range: [0.01, 0.3]
+      # lq_kernel_size: 200
+      lq_kernel_size: [50, 300]
+      # lq_intensity_range: [0.01, 0.3]
+      lq_intensity_range: [0.0, 0.3]
       view_selection:
         # [random, near_random]
         # strategy: random

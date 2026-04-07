@@ -257,7 +257,7 @@ class Evaluator:
         for data, scene in tqdm(tasks, desc=f"Inference (GPU {self.gpu_id})"):
             
             dataset = self.datasets[data]
-            scene_data = dataset.get_data(scene)
+            scene_data = dataset.get_data(scene)            
             scene_data = self._sample_frames(scene_data, scene)
             
 
@@ -268,13 +268,16 @@ class Evaluator:
                 
             #     # new_path = img_path.replace("/cam_blur_400/", "/filtered_cam_blur_400/")
             #     # new_path = img_path.replace("/cam_blur_500/", "/filtered_cam_blur_500/")
-            #     new_path = img_path.replace("/cam_blur_600/", "/filtered_cam_blur_600/")
+            #     # new_path = img_path.replace("/cam_blur_600/", "/filtered_cam_blur_600/")
+                
+            #     new_path = img_path.replace("/cam_blur_200/", "/filtered_cam_blur_200/")
                 
             #     new_dir = os.path.dirname(new_path)
             #     os.makedirs(new_dir, exist_ok=True)
             #     # Copy image
             #     shutil.copy2(img_path, new_path)  # copy2 preserves metadata
             # continue 
+        
 
 
             
@@ -1002,15 +1005,19 @@ class Evaluator:
 
         # Create new scene_data with sampled frames
         sampled = Dict()
+  
         
-        # breakpoint()
         
-        
+    
         
         # PHO
         sampled.lq_image_files = [scene_data.lq_image_files[i] for i in sampled_indices]
-        sampled.res_image_files = [scene_data.res_image_files[i] for i in sampled_indices]
-            
+
+
+        if self.full_cfg.MVRM_EVAL.load_res:
+            sampled.res_image_files = [scene_data.res_image_files[i] for i in sampled_indices]
+
+                    
         sampled.image_files = [scene_data.image_files[i] for i in sampled_indices]
         sampled.extrinsics = scene_data.extrinsics[sampled_indices]
         sampled.intrinsics = scene_data.intrinsics[sampled_indices]
