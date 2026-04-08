@@ -276,11 +276,8 @@ class Transport:
         # xt: noisy data point at t
         # ut: gt velocity at t 
         
-
-        t, x0, x1 = self.sample(x1)     # b v n+1 d
-        t, xt, ut = self.path_sampler.plan(t, x0, x1)
-
-
+        
+        
         # CFG training: randomly zero out lq conditioning so the model learns unconditional denoising
         lq_drop_prob = cfg.training.guidance.get('lq_drop', 0.0)
         if lq_drop_prob > 0.0:
@@ -289,12 +286,31 @@ class Transport:
             xcond[should_drop] = 0.0
 
 
-        # lq_latent conditioning method
-        if cfg.mvrm.lq_latent_cond == 'addition':
-            xt = xt + xcond                          # b v n+1 d
-        elif cfg.mvrm.lq_latent_cond == 'concat':
-            xt = torch.concat([xt, xcond], dim=-1)   # channel concat  (b v n+1 2d)
+
+        # lq2hq training w/ different noise levels
+        noise_lvl = cfg.mvrm.get('noise_lvl', None)     # typically 0.3
+
+        if noise_lvl is not None:
+            print('Using LQ2HQ wnoise: ', noise_lvl)
+            t, x0, x1 = self.sample(x1)     # b v n+1 d
+            
+            # lq_latent conditioning method
+            if cfg.mvrm.lq_latent_cond == 'addition':
+                x0 = x0 * noise_lvl + xcond 
+            
+            t, xt, ut = self.path_sampler.plan(t, x0, x1)
         
+        
+        else:
+            t, x0, x1 = self.sample(x1)     # b v n+1 d
+            t, xt, ut = self.path_sampler.plan(t, x0, x1)
+
+            # lq_latent conditioning method
+            if cfg.mvrm.lq_latent_cond == 'addition':
+                xt = xt + xcond                          # b v n+1 d
+            # elif cfg.mvrm.lq_latent_cond == 'concat':
+            #     xt = torch.concat([xt, xcond], dim=-1)   # channel concat  (b v n+1 2d)
+            
         
         # mvrm forward pass 
         model_output = model(xt, t, model_img_size, analysis=mvrm_analysis) # b v n+1 d

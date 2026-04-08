@@ -1032,17 +1032,26 @@ def main():
 
                     val_noise_generator.manual_seed(global_seed)
                     val_pure_noise = torch.randn(val_lq_latent.shape, generator=val_noise_generator, device=device, dtype=torch.float32)
-
-
-                    # lq_latent condition method
-                    # For 'addition': bake lq_latent into the initial ODE state (shapes stay d-dim throughout)
-                    # For 'concat': keep ODE state as d-dim pure noise; lq_latent is injected inside the drift call
-                    if full_cfg.mvrm.lq_latent_cond == 'addition':
-                        val_xt = val_pure_noise + val_lq_latent
+                    
+                                        
+                    # lq2hq training w/ different noise levels
+                    noise_lvl = full_cfg.mvrm.get('noise_lvl', None)     # typically 0.3
+                    
+                    
+                    if noise_lvl is not None:
+                        val_xt = val_pure_noise * noise_lvl + val_lq_latent
                         val_lq_latent_for_kwargs = None
-                    elif full_cfg.mvrm.lq_latent_cond == 'concat':
-                        val_xt = val_pure_noise
-                        val_lq_latent_for_kwargs = val_lq_latent
+                    
+                    else:
+                        # lq_latent condition method
+                        # For 'addition': bake lq_latent into the initial ODE state (shapes stay d-dim throughout)
+                        # For 'concat': keep ODE state as d-dim pure noise; lq_latent is injected inside the drift call
+                        if full_cfg.mvrm.lq_latent_cond == 'addition':
+                            val_xt = val_pure_noise + val_lq_latent
+                            val_lq_latent_for_kwargs = None
+                        elif full_cfg.mvrm.lq_latent_cond == 'concat':
+                            val_xt = val_pure_noise
+                            val_lq_latent_for_kwargs = val_lq_latent
 
 
                     val_model_kwargs={
@@ -1051,6 +1060,7 @@ def main():
                         'lq_latent': val_lq_latent_for_kwargs,
                         'lq_latent_cond': full_cfg.mvrm.lq_latent_cond,
                     }
+                    
                     
                     
                     with torch.no_grad():
