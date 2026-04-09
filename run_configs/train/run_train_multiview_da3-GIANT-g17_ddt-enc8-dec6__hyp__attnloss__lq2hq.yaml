@@ -29,6 +29,7 @@ stage_2:
     in_channels: 1536
     
 
+
     # hidden_size: [1536, 3072]
     # depth: [28, 2]
 
@@ -37,6 +38,7 @@ stage_2:
 
     # hidden_size: [1536, 3072]
     # depth: [12, 6]
+
 
     hidden_size: [1536, 3072]
     depth: [8, 6]
@@ -105,7 +107,6 @@ training:
   shuffle: true
   log_interval: 1
 
-  # ckpt_step_interval: 40000   # 40k
   ckpt_step_interval: 25000   # 25k
 
   vis:
@@ -137,10 +138,11 @@ log:
   # result_root_dir: result_train/nips26/multi_view/260318
   # result_root_dir: result_train/nips26/multi_view/260326
   # result_root_dir: result_train/nips26/multi_view/260327
-  # result_root_dir: result_train/nips26/multi_view/260405
+  # result_root_dir: result_train/nips26/multi_view/260329
+  # result_root_dir: result_train/nips26/multi_view/260403
   # result_root_dir: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260407
   result_root_dir: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260408
-  # result_root_dir: /media/data1/MV_Restoration/pho_mvr/TMP
+  # result_root_dir: result_train/TMP
   tracker:
     name: wandb
     wandb:
@@ -150,28 +152,40 @@ log:
       project: nips26_mvr
       
       ## 260317
-      # msg: 'lqkernel200__ema95__hyp1__ddt-enc8-1536-dec6-3072__lqdrop01_re'
+      # msg: 'lqkernel200__ema95__hyp1__ddt-enc12-1536-dec6-3072__lqdrop01_re'
+      
+      ## 260326
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-enc-1'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-11'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-13'
 
-      ## 260326 
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01'
 
       ## 260327
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__blur001-03'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-enc-1__blur001-03'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__blur001-03'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-11__blur001-03'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-13__blur001-03'
 
-      ### 260405
-      # msg: 'lqkernel200-gaussian__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__blur001-03_re'
+
+      ## 260403 
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-enc-1__blur001-03'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-dec-9__blur001-03'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-dec-11__blur001-03'
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-dec-13__blur001-03'
+      
 
       ### 260407
-      # msg: 'lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01'
+      # msg: 'lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9'
+      # msg: 'lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-dec-9'
 
 
-      ### 260408
-      # msg: 'lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__lq2hq-wnoise0'
-      msg: 'lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__lq2hq-wnoise03'
+      ### 260408 
+      # msg: 'lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__lq2hq-wnoise03'
+      msg: 'lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-11__lq2hq-wnoise03'
+
       
-      
-  
-      # msg: 'TMPT'
+      # msg: 'TMPTMPTMPTMP'
       
       
       
@@ -261,8 +275,6 @@ data:
 
 
 
-
-
 mvrm:
   # noise_lvl: 0.0
   noise_lvl: 0.3
@@ -279,8 +291,6 @@ mvrm:
     guidance:
       use_cfg: false
       cfg_scale: 1.0
-
-
   loss:
     velocity_direction:
       use: false
@@ -290,37 +300,47 @@ mvrm:
       use: true 
       lambda_coeff: 1.0
     cam_tkn_weight: 1.0
-
-
-
-
+    
 
 
     # ATTENTION ALIGNMENT LOSS
     attn_align:
-      use: false
+      use: true
       lambda_coeff: 1.0
       # mvrm_layer_idx: 1    
       # mvrm_layer_idx: 9
-      # mvrm_layer_idx: 11
-      mvrm_layer_idx: 13
+      mvrm_layer_idx: 11
+      # mvrm_layer_idx: 13
 
 
-      da3_layer_idx: 17    
+      da3_attn_map:
+        use: true
+        da3_layer_idx: 17   
+        # da3_layer_idx: 19
+
+
+      da3_point_cloud:
+        # use: true
+        use: false
+        vis_pc_temperature: 0.1
+        visibility_mask: none              # [none, cycle_consistency, reprojection]
+        reprojection_depth_threshold: 0.1  # relative depth error threshold (reprojection only)
+
       
+
 
 
 
 
   # MVRM ATTENTION MAP EXTRACTION 
   analysis:
-    # vis_attn_map: true 
-    vis_attn_map: false
+    vis_attn_map: true 
+    # vis_attn_map: false
     mvrm_attn_map:
       # extract_idx: [1]
       # extract_idx: [9]
-      # extract_idx: [11]
-      extract_idx: [13]
+      extract_idx: [11]
+      # extract_idx: [13]
 
 
 
@@ -329,9 +349,10 @@ mvrm:
 
 # HQ ATTENTION MAP EXTRACTION
 analysis_HQ:
-  # vis_map: true
-  vis_map: false
+  vis_map: true
+  # vis_map: false
   da3_attn_map:
     extract_idx: [17]
+    # extract_idx: [19]
 
 

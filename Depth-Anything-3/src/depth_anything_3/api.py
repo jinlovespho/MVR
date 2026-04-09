@@ -618,15 +618,23 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             
             
             
-            
-            lq_start_denoise = cfg.mvrm.val.get('lq_start_denoise', False)
-            if lq_start_denoise:
-                x0 = pure_noise + lq_latent 
+            noise_lvl = cfg.mvrm.get('noise_lvl', None)    
+            if noise_lvl is not None:
+                print('Using LQ2HQ wnoise: ', noise_lvl)
+                x0 = pure_noise * noise_lvl + lq_latent
             else:
                 x0 = pure_noise
             
             
             
+            lq_cond_sampling = cfg.mvrm.val.get('lq_cond_sampling', True)
+            if lq_cond_sampling:          
+                print('COND sampling !!')
+            else:
+                print('UNCOND sampling !!')
+
+                
+                            
             model_kwargs={
                 'mvrm_cfg': cfg.mvrm, 
                 'model_img_size': (model_H, model_W),

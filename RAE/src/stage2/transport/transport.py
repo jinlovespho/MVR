@@ -455,6 +455,7 @@ class Transport:
 
         def velocity_ode(x, t, model, **model_kwargs):
             
+            
             _step_counter[0] += 1
             
                                                           
@@ -475,11 +476,22 @@ class Transport:
                 model_img_size = mvrm_vis['model_img_size']
                 lq_imgs = mvrm_vis['lq_imgs'] 
                 ref_b_idx = mvrm_vis['ref_b_idx']
-            
 
-            # lq condition
-            if mvrm_cfg.lq_latent_cond == 'addition':
-                x_in = x + lq_latent
+            
+            
+            lq_cond_sampling = mvrm_cfg.val.get('lq_cond_sampling', True)
+
+
+            if lq_cond_sampling:          
+
+                # lq condition
+                if mvrm_cfg.lq_latent_cond == 'addition':
+                    x_in = x + lq_latent
+                    
+                    
+            else:
+                # print('UNCOND sampling!! ')
+                x_in = x
 
 
             if guidance.use_cfg and guidance.cfg_scale > 1.0:
