@@ -126,8 +126,8 @@ mvrm:
 
 
     ## set to false for UNCOND samping inference !!
-    # lq_cond_sampling: true
-    lq_cond_sampling: false
+    lq_cond_sampling: true
+    # lq_cond_sampling: false
 
 
 
@@ -238,8 +238,8 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260407/da3_giant/w_mvrm_FRONT/JAE_KERNEL_BLUR-ddt-enc8-dec6__hyp__maxview4__attnloss1__da3-19-to-mvrm-dec-9/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
 
 
-  ### 260407 (JAE_KERNEL_BLUR__LQ2HQ)
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260407/da3_giant/w_mvrm_FRONT/JAE_KERNEL_BLUR-ddt-enc8-dec6__hyp__maxview4__attnloss1__da3-17-to-mvrm-dec-9__lq2hq-wnoise03/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
+  ### 260408 (JAE_KERNEL_BLUR__LQ2HQ)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260408/da3_giant/w_mvrm_FRONT/JAE_KERNEL_BLUR-ddt-enc8-dec6__hyp__maxview4__attnloss1__da3-17-to-mvrm-dec-9__lq2hq-wnoise03__LQCOND/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
 
 
 
@@ -272,8 +272,8 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260407/da3_giant/w_mvrm_FRONT/JAE_KERNEL_BLUR-ddt-enc8-dec6__hyp__maxview4__attnloss1__da3-19-to-mvrm-dec-9/a100_ckpt25k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
 
 
-  ### 260407 (JAE_KERNEL_BLUR__LQ2HQ)
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260407/da3_giant/w_mvrm_FRONT/JAE_KERNEL_BLUR-ddt-enc8-dec6__hyp__maxview4__attnloss1__da3-17-to-mvrm-dec-9__lq2hq-wnoise03/a100_ckpt25k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
+  ### 260408 (JAE_KERNEL_BLUR__LQ2HQ)
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260408/da3_giant/w_mvrm_FRONT/JAE_KERNEL_BLUR-ddt-enc8-dec6__hyp__maxview4__attnloss1__da3-17-to-mvrm-dec-9__lq2hq-wnoise03__LQCOND/a100_ckpt25k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
 
 
   

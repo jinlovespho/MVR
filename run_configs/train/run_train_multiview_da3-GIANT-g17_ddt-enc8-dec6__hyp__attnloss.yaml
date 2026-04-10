@@ -55,11 +55,9 @@ stage_2:
     wo_shift: false
     use_pos_embed: false
     use_global_residual: false
-  # ckpt: 
-  # ckpt: NVIDIA_SERVER/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-mvrm__bs8-maxview8-accum1__lr-2e-04__msg-lqkernel-50__global-17__ddp/checkpoints/ep-0025000.pt
-  # ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel100/kernel100_0074000.pt
-  # ckpt: /media/data1/MV_Restoration/JIHYE2_CKPT/da3/lqkernel200/kernel200_0074000.pt
-  ckpt: 
+
+  # 260407__lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__25k
+  ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260407/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9/checkpoints/ep-0025000.pt
 
 
 transport:
@@ -140,7 +138,8 @@ log:
   # result_root_dir: result_train/nips26/multi_view/260327
   # result_root_dir: result_train/nips26/multi_view/260329
   # result_root_dir: result_train/nips26/multi_view/260403
-  result_root_dir: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260407
+  # result_root_dir: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260407
+  result_root_dir: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260411
   # result_root_dir: result_train/TMP
   tracker:
     name: wandb
@@ -176,7 +175,12 @@ log:
 
       ### 260407
       # msg: 'lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9'
-      msg: 'lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-dec-9'
+      # msg: 'lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-19-to-mvrm-dec-9'
+
+      
+      ###260411
+      msg: 'lqkernel50-300__blur00-03__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__cont25k'
+
       
       # msg: 'TMPTMPTMPTMP'
       
@@ -192,9 +196,9 @@ data:
     # max_num_input_view: 8
     # max_num_input_view: 6
     max_num_input_view: 4
-    list: [hypersim,]
+    # list: [hypersim,]
     # list: [tartanair,]
-    # list: [hypersim, tartanair,]
+    list: [hypersim, tartanair,]
     
     hypersim:
       ann_path: metadata_images_split_scene_v1.csv
@@ -306,8 +310,8 @@ mvrm:
 
       da3_attn_map:
         use: true
-        # da3_layer_idx: 17   
-        da3_layer_idx: 19
+        da3_layer_idx: 17   
+        # da3_layer_idx: 19
 
 
       da3_point_cloud:
@@ -343,7 +347,7 @@ analysis_HQ:
   vis_map: true
   # vis_map: false
   da3_attn_map:
-    # extract_idx: [17]
-    extract_idx: [19]
+    extract_idx: [17]
+    # extract_idx: [19]
 
 
