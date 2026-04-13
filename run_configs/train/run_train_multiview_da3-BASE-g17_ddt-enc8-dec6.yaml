@@ -1,6 +1,6 @@
 stage_1:
   model: da3
-  model_size: GIANT
+  model_size: BASE
   rae:
     target: 
     params:
@@ -14,7 +14,8 @@ stage_1:
       reshape_to_2d: 
       normalization_stat_path: 
   da3:
-    ckpt: depth-anything/DA3-GIANT-1.1
+    # ckpt: depth-anything/DA3-GIANT-1.1
+    ckpt: depth-anything/DA3-BASE
   vggt:
     ckpt: facebook/VGGT-1B
 
@@ -26,7 +27,8 @@ stage_2:
     # input_size: [27, 36]  # feat_H, feat_W
     input_size: 
     patch_size: 1
-    in_channels: 1536
+    # in_channels: 1536
+    in_channels: 768
     
 
 
@@ -39,7 +41,7 @@ stage_2:
     # hidden_size: [1536, 3072]
     # depth: [12, 6]
 
-
+    # hidden_size: [1536, 3072]
     hidden_size: [1536, 3072]
     depth: [8, 6]
 
@@ -56,9 +58,10 @@ stage_2:
     use_pos_embed: false
     use_global_residual: false
 
-  ### 260407__lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__25k
-  # ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260407/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9/checkpoints/ep-0025000.pt
+  # 260407__lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__25k
+  # ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260407/hypersim/TRAIN__fp32__hypersim__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01/checkpoints/ep-0025000.pt
   ckpt: 
+
 
 
 transport:
@@ -89,7 +92,8 @@ guidance:
 misc:
   latent_size: 
   num_classes: 
-  time_dist_shift_dim: 1492992  # 1536*27*36
+  # time_dist_shift_dim: 1492992  # 1536*27*36
+  time_dist_shift_dim: 746496  # 768*27*36
   time_dist_shift_base: 4096
 
 
@@ -98,7 +102,7 @@ training:
   precision: fp32
   epochs: 10
  
-  global_batch_size: 1
+  global_batch_size: 4
   grad_accum_steps: 1
   ema_decay: 0.9995
   # ema_decay: 0.9999
@@ -106,7 +110,9 @@ training:
   shuffle: true
   log_interval: 1
 
+  # ckpt_step_interval: 40000   # 40k
   ckpt_step_interval: 25000   # 25k
+  # ckpt_step_interval: 5000   # 5k
 
   vis:
     train_depth_every: 1000   # 1k
@@ -137,13 +143,11 @@ log:
   # result_root_dir: result_train/nips26/multi_view/260318
   # result_root_dir: result_train/nips26/multi_view/260326
   # result_root_dir: result_train/nips26/multi_view/260327
-  # result_root_dir: result_train/nips26/multi_view/260328
-  # result_root_dir: result_train/nips26/multi_view/260401
-  # result_root_dir: result_train/nips26/multi_view/260402
-  # result_root_dir: result_train/nips26/multi_view/260404
+  # result_root_dir: result_train/nips26/multi_view/260405
   # result_root_dir: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260407
-  result_root_dir: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260411
-  # result_root_dir: result_train/TMP
+  # result_root_dir: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260411
+  result_root_dir: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260413
+  # result_root_dir: /media/data1/MV_Restoration/pho_mvr/result_train/TMP
   tracker:
     name: wandb
     wandb:
@@ -151,50 +155,34 @@ log:
       entity: jinlovespho
       # project: eccv26_mv_restoration
       project: nips26_mvr
+      
+      ## 260317
+      # msg: 'lqkernel200__ema95__hyp1__ddt-enc8-1536-dec6-3072__lqdrop01_re'
 
+      ## 260326 
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01'
 
+      ## 260327
+      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__blur001-03'
 
-      # 260328
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss01-temp01__da3-17-to-mvrm-enc-1__blur001-03'
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss01-temp01__da3-17-to-mvrm-dec-9__blur001-03'
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss01-temp01__da3-17-to-mvrm-dec-11__blur001-03'
-      # msg: 'lqkernel200-gaussian__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss01-temp01__da3-17-to-mvrm-dec-13__blur001-03'
+      ### 260405
+      # msg: 'lqkernel200-gaussian__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__blur001-03_re'
 
-
-      # 260401
-      # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp-1_cycle15-to-mvrm-enc-1'
-      # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp-1_cycle15-to-mvrm-dec-9'
-      # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp-1_cycle15-to-mvrm-dec-11'
-      # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp-1_cycle15-to-mvrm-dec-13'
-
-
-      # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-enc-1'
-      # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9'
-      # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-11'
-      # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-13'
-
-      ## 260404
-      # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp01_cycle15-to-mvrm-enc-1'
-      # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp01_cycle15-to-mvrm-dec-9'
-      # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp01_cycle15-to-mvrm-dec-11'
-      # msg: 'lqkernel200-gaussian-blur001-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp01_cycle15-to-mvrm-dec-13'
-
-
-      ### 260407 
-      # msg: 'lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp-1_cycle15-to-mvrm-dec-9'
-      # msg: 'lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9'
-
+      ### 260407
+      # msg: 'lqkernel50-300__blur00-03__ema95__hyp1__ddt-enc8-dec6__lqdrop01'
 
       ### 260411
-      # msg: 'lqkernel50-300__blur00-03__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__cont25k'
-      msg: 'lqkernel50-300__blur00-03__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-11'
+      # msg: 'lqkernel50-300__blur00-03__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__cont25k'
 
-
-
-      # msg: 'TMP'
+      ### 260413
+      msg: 'lqkernel50-300__blur00-03__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01'
+      
+      # msg: 'TMPP'
       
       
       
+          
+    
 
 
 data:
@@ -203,6 +191,7 @@ data:
     # max_num_input_view: 8
     # max_num_input_view: 6
     max_num_input_view: 4
+    # max_num_input_view: 1
     # list: [hypersim,]
     # list: [tartanair,]
     list: [hypersim, tartanair,]
@@ -279,20 +268,24 @@ data:
 
 
 
+
+
 mvrm:
   lq_latent_cond: addition    # [addition, concat]
   train:
-    # DPT Head input feats = [19, 27, 33, 39]
-    extract_feat_layers: [17]
+    # DPT Head input feats = [5, 7, 9, 11]
+    extract_feat_layers: [3]
     concat_feat: False
     break_and_return_feat: false
   val:
-    restore_feat_layers: [17]
+    restore_feat_layers: [3]
     concat_feat: False 
     skip_and_input_feat: false
     guidance:
       use_cfg: false
       cfg_scale: 1.0
+
+
   loss:
     velocity_direction:
       use: false
@@ -302,29 +295,30 @@ mvrm:
       use: true 
       lambda_coeff: 1.0
     cam_tkn_weight: 1.0
-    
-
 
 
     # ATTENTION ALIGNMENT LOSS
     attn_align:
-      use: true
+      # use: true
+      use: false
       lambda_coeff: 1.0
       # mvrm_layer_idx: 1    
-      # mvrm_layer_idx: 9
-      mvrm_layer_idx: 11
+      mvrm_layer_idx: 9
+      # mvrm_layer_idx: 11
       # mvrm_layer_idx: 13
 
 
       da3_attn_map:
         # use: true
         use: false
-        da3_layer_idx: 17   
+        da3_layer_idx: 3   
+        # da3_layer_idx: 17   
+        # da3_layer_idx: 19
 
 
       da3_point_cloud:
-        use: true
-        # use: false
+        # use: true
+        use: false
         # vis_pc_temperature: -1
         vis_pc_temperature: 0.01
         # vis_pc_temperature: 0.1
@@ -333,20 +327,20 @@ mvrm:
         reprojection_depth_threshold: 0.1     # relative depth error threshold (reprojection only)
 
       
+    
+
+
 
 
   # MVRM ATTENTION MAP EXTRACTION 
   analysis:
-    vis_attn_map: true 
-    # vis_attn_map: false
+    # vis_attn_map: true 
+    vis_attn_map: false
     mvrm_attn_map:
       # extract_idx: [1]
-      # extract_idx: [9]
-      extract_idx: [11]
+      extract_idx: [9]
+      # extract_idx: [11]
       # extract_idx: [13]
-
-
-
 
 
 
@@ -356,8 +350,7 @@ analysis_HQ:
   # vis_map: true
   vis_map: false
   da3_attn_map:
-    extract_idx: [17]
-  
-
+    # extract_idx: [17]
+    extract_idx: [3]
 
 
