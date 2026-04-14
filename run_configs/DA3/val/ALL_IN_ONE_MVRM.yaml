@@ -46,7 +46,7 @@ denoiser:
   
 
   ## 125k__enc8-dec6
-  ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260411/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel50-300__blur00-03__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__cont25k/checkpoints/ep-0125000.pt
+  # ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260411/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel50-300__blur00-03__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__cont25k/checkpoints/ep-0125000.pt
   
   ## 125k__enc8-dec6__lq2hq
   # ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260411/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel50-300__blur00-03__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__lq2hq-wnoise03__cont25k/checkpoints/ep-0125000.pt
@@ -58,7 +58,7 @@ denoiser:
   # ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260411/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel50-300__blur00-03__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__attnloss1__da3-17-to-mvrm-dec-9__lq2hq-wnoise03__cont25k/checkpoints/ep-0125000.pt
 
   ## 125k__enc8-dec6__pcloss__da3-pc-temp001-to-mvrm-dec9
-  # ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260411/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel50-300__blur00-03__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__cont25k/checkpoints/ep-0125000.pt
+  ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260411/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel50-300__blur00-03__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__cont25k/checkpoints/ep-0125000.pt
 
   ## 125k__enc8-dec6__pcloss__da3-pc-temp001-to-mvrm-dec9__lq2hq
   # ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260411/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cont25k/checkpoints/ep-0125000.pt
@@ -294,7 +294,7 @@ workspace:
 
 
   ## 260411 (125k__enc8-dec6) (and lq2hq_wnoise03)
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260411/da3_giant/w_mvrm_FRONT/hyp1tar1__ddt-enc8-dec6/a100_ckpt125k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260411/da3_giant/w_mvrm_FRONT/hyp1tar1__ddt-enc8-dec6/a100_ckpt125k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260411/da3_giant/w_mvrm_FRONT/hyp1tar1__ddt-enc8-dec6__lqdrop01__lq2hq-wnoise03/a100_ckpt125k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
 
 
@@ -304,7 +304,7 @@ workspace:
 
 
   ## 260411 (125k__enc8-dec6__pcloss__da3-pc-temp001-to-mvrm-dec9) (and lq2hq_wnoise03)
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260411/da3_giant/w_mvrm_FRONT/hyp1tar1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9/a100_ckpt125k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260411/da3_giant/w_mvrm_FRONT/hyp1tar1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9/a100_ckpt125k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260411/da3_giant/w_mvrm_FRONT/hyp1tar1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03/a100_ckpt125k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
   
 
@@ -348,7 +348,7 @@ eval:
     - pose
     - depth
     - recon_unposed
-    - recon_posed
+    # - recon_posed
     
 
   # Reference view selection strategy for inference
