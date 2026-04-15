@@ -366,9 +366,9 @@ class DinoVisionTransformer(nn.Module):
 
 
             
-
+            use_gt_cam_tkn = False
             if self.alt_start != -1 and i == self.alt_start:
-                # print(f'{i} add camera token')
+                print(f'{i} add camera token')
                 if kwargs.get("cam_token", None) is not None:  
                     logger.info("Using camera conditions provided by the user")
                     cam_token = kwargs.get("cam_token")
@@ -381,7 +381,7 @@ class DinoVisionTransformer(nn.Module):
                     ref_token = self.camera_token[:, :1].expand(B, -1, -1)
                     src_token = self.camera_token[:, 1:].expand(B, S - 1, -1)
                     cam_token = torch.cat([ref_token, src_token], dim=1)
-                    use_gt_cam_tkn = False
+                    # use_gt_cam_tkn = False
                     
                 x[:, :, 0] = cam_token  # overrides the cls_token with cam_token
 
@@ -444,8 +444,6 @@ class DinoVisionTransformer(nn.Module):
                         return None, None, mvrm_output
                 
             
-
-
             # collect feat layers for DPT Head
             if i in blocks_to_take:
                 # print(f'DPT head {i}')
@@ -466,6 +464,8 @@ class DinoVisionTransformer(nn.Module):
                 #     aux_x = restore_original_order(x, b_idx)
                 
                 aux_output.append(x)
+            
+            
         
         if use_gt_cam_tkn:
             return output, aux_output, mvrm_output, None 

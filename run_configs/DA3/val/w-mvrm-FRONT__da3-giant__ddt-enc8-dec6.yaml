@@ -61,7 +61,7 @@ denoiser:
 
 
   ### 260411 (125k__enc8-dec6)
-  # ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260411/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel50-300__blur00-03__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__cont25k/checkpoints/ep-0125000.pt
+  ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260411/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel50-300__blur00-03__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__cont25k/checkpoints/ep-0125000.pt
 
 
 

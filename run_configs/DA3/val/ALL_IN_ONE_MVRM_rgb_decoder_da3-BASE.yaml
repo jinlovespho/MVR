@@ -1,0 +1,380 @@
+
+# ==============================================================================
+# MVRM Configuration
+# ==============================================================================
+MVRM_EVAL:
+  # [wo_mvrm_HQ, wo_mvrm_LQ, wo_mvrm_IR, w_mvrm]
+  eval_method: w_mvrm
+  load_lq: true
+  load_res: false
+  
+  rgb_decoder: 
+    stage_1:
+      target: GLD.src.stage1.rae_da3.RAE_DA3
+      params:
+        encoder_pretrained_path: 'depth-anything/DA3-Base'
+        encoder_input_size: 252  # DA3 standard input size
+        encoder_type: 'DA3EncoderDirect'
+        decoder_config_path: 'GLD/configs/decoder/ViTXL'
+        dpt_decoder_path: 'GLD/pretrained_models/da3/dpt_decoder.pt'
+        da3_weights_path: 'GLD/pretrained_models/da3/model.safetensors'
+        dpt_model_type: 'da3-base'
+        mae_weight: 'GLD/pretrained_models/mae_decoder.pt'
+        noise_tau: 0.0
+        reshape_to_2d: true
+        normalization_stat_path: 'model_stats/da3/normalization_stats_level0.pt'
+  
+    vis_rgb_LQ: true 
+    vis_rgb_HQ: true 
+    vis_rgb_RES: true
+
+
+# ==============================================================================
+# Denoiser Configuration
+# ==============================================================================
+denoiser:
+  model: DiTwDDTHeadMVRM_Multiview
+  target: RAE.src.stage2.models.DDT_MVRM_multiview.DiTwDDTHeadMVRM_Multiview
+  params:
+    # input_size: [27, 36]  # feat_H, feat_W
+    input_size: 
+    patch_size: 1
+    # in_channels: 1536
+    in_channels: 768
+    
+
+    # hidden_size: [1536, 3072]
+    # depth: [28, 2]
+
+    # hidden_size: [1536, 3072]
+    # depth: [22, 4]
+
+    # hidden_size: [1536, 3072]
+    # depth: [12, 6]
+
+    # hidden_size: [1536, 3072]
+    hidden_size: [1536, 3072]
+    depth: [8, 6]
+
+
+    num_heads: [16, 16]
+    mlp_ratio: 4.0
+    class_dropout_prob:
+    num_classes: 
+    use_qknorm: true 
+    use_swiglu: true
+    use_rope: true
+    use_rmsnorm: true
+    wo_shift: false
+    use_pos_embed: false
+    use_global_residual: false
+
+
+
+
+  ##################
+  ##### 260413 #####
+  ##################
+
+  ## 25k__enc8-dec6__DA3-BASE
+  ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260413/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-BASE-extractfeat3-mvrm__bs4-maxview4-accum1__lr-2e-04__msg-lqkernel50-300__blur00-03__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01/checkpoints/ep-0025000.pt
+
+
+
+
+
+
+
+
+mvrm:
+  lq_latent_cond: addition    # [addition, concat]
+  train:
+    # DPT Head input feats = [5, 7, 9, 11]
+    extract_feat_layers: [3]
+    concat_feat: False
+    break_and_return_feat: false
+  val:
+    restore_feat_layers: [3]
+    concat_feat: False 
+    skip_and_input_feat: false
+    guidance:
+      use_cfg: false
+      cfg_scale: 1.0
+
+    analysis:
+      # vis_attn_map: true 
+      vis_attn_map: false
+      mvrm_attn_map:
+        extract_idx: [1,3,5,7,9,11,13]
+    
+
+
+
+analysis_LQ:
+  # vis_map: true
+  vis_map: false
+
+  # vis_pc: true
+  vis_pc: false
+  # vis_pc_temperature: 0.5
+  # vis_pc_temperature: 0.1
+  # vis_pc_temperature: 0.05
+  vis_pc_temperature: 0.01
+  # vis_pc_temperature: 0.005
+  # vis_pc_temperature: 0.001
+  # vis_pc_temperature: -1
+
+  # vis_pc_reproj_depth_threshold: 0.1   # relative depth error threshold for reprojection mask
+  vis_pc_reproj_depth_threshold: 0.05
+  # vis_pc_reproj_depth_threshold: 0.01
+
+  
+
+  # vis_pc_cycle_threshold: 5
+  # vis_pc_cycle_threshold: 2
+  vis_pc_cycle_threshold: 1.5
+  # vis_pc_cycle_threshold: 1
+  # vis_pc_cycle_threshold: 0   # 0=strict, 1=1-patch Chebyshev radius, 2=2-patch, etc.
+
+
+  da3_attn_map:
+    # extract_idx: [15, 19, 23, 27,  31,  35, 39]
+    extract_idx: [15, 17, 19, 21,]
+
+
+
+
+
+analysis_HQ:
+  # vis_map: true
+  vis_map: false
+
+  # vis_pc: true
+  vis_pc: false
+  # vis_pc_temperature: 0.5
+  # vis_pc_temperature: 0.1
+  # vis_pc_temperature: 0.05
+  vis_pc_temperature: 0.01
+  # vis_pc_temperature: 0.005
+  # vis_pc_temperature: 0.001
+  # vis_pc_temperature: -1
+
+
+  # vis_pc_reproj_depth_threshold: 0.1   # relative depth error threshold for reprojection mask
+  vis_pc_reproj_depth_threshold: 0.05
+  # vis_pc_reproj_depth_threshold: 0.01
+
+
+
+  # vis_pc_cycle_threshold: 5
+  # vis_pc_cycle_threshold: 2
+  vis_pc_cycle_threshold: 1.5
+  # vis_pc_cycle_threshold: 1
+  # vis_pc_cycle_threshold: 0   # 0=strict, 1=1-patch Chebyshev radius, 2=2-patch, etc.
+
+
+  da3_attn_map:
+    # extract_idx: [15, 19, 23, 27,  31,  35, 39]
+    extract_idx: [15, 17, 19, 21,]
+
+
+
+analysis_RES:
+  # vis_map: true
+  vis_map: false
+
+  # vis_pc: true
+  vis_pc: false
+  # vis_pc_temperature: 0.5
+  # vis_pc_temperature: 0.1
+  # vis_pc_temperature: 0.05
+  # vis_pc_temperature: 0.01
+  # vis_pc_temperature: 0.005
+  # vis_pc_temperature: 0.001
+  vis_pc_temperature: -1
+
+
+  # vis_pc_reproj_depth_threshold: 0.1   # relative depth error threshold for reprojection mask
+  vis_pc_reproj_depth_threshold: 0.05
+  # vis_pc_reproj_depth_threshold: 0.01
+
+
+  # vis_pc_cycle_threshold: 5
+  # vis_pc_cycle_threshold: 2
+  vis_pc_cycle_threshold: 1.5
+  # vis_pc_cycle_threshold: 1
+  # vis_pc_cycle_threshold: 0   # 0=strict, 1=1-patch Chebyshev radius, 2=2-patch, etc.
+
+
+  da3_attn_map:
+    # extract_idx: [15, 19, 23, 27,  31,  35, 39]
+    extract_idx: [15, 17, 19, 21,]
+
+
+
+transport:
+  params:
+    path_type: 'Linear'
+    prediction: 'velocity'
+    loss_weight: null
+    time_dist_type: 'logit-normal_0_1'
+sampler:
+  mode: ODE
+  params:
+    sampling_method: 'euler'
+    num_steps: 50
+    atol: 1.0e-6
+    rtol: 1.0e-3
+    reverse: false
+misc:
+  latent_size: 
+  num_classes: 
+  # time_dist_shift_dim: 1492992  # 1536*27*36
+  time_dist_shift_dim: 746496  # 768*27*36
+  time_dist_shift_base: 4096
+
+
+
+# ==============================================================================
+# Model Configuration
+# ==============================================================================
+model:
+  # Path to model checkpoint or HuggingFace model ID
+  # path: depth-anything/DA3-GIANT-1.1
+  path: depth-anything/DA3-BASE
+  use_ray_pose: true
+  # use_ray_pose: false
+
+
+# ==============================================================================
+# Workspace Configuration
+# ==============================================================================
+workspace:
+  # Working directory for outputs (model results, metrics, etc.)
+
+
+
+  ##################################
+  ###### FILTERED_CAM_BLUR100 ######
+  ##################################
+
+  ## 260413 (25k__da3-BASE__hyp1tar1__ddt-enc8-dec6)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260413/da3_base/w_mvrm_FRONT/lqkernel50-300__blur00-03__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
+
+
+
+
+
+
+  ##################################
+  ###### FILTERED_CAM_BLUR300 ######
+  ##################################
+
+  ## 260413 (25k__da3-BASE__hyp1tar1__ddt-enc8-dec6)
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260413/da3_base/w_mvrm_FRONT/lqkernel50-300__blur00-03__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01/a100_ckpt25k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
+
+
+
+
+  # work_dir: /mnt/dataset1/MV_Restoration/TMP
+
+
+
+
+
+
+
+
+
+
+# ==============================================================================
+# Evaluation Configuration
+# ==============================================================================
+eval:
+  # Datasets to evaluate
+  # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
+  datasets:
+    - 7scenes
+    - dtu64
+    - scannetpp
+    - hiroom
+    - eth3d
+    - dtu
+    
+    
+
+
+  # Evaluation modes
+  # Options: pose, recon_unposed, recon_posed, view_syn
+  modes:
+    - pose
+    - depth
+    - recon_unposed
+    # - recon_posed
+    
+
+  # Reference view selection strategy for inference
+  # Options: first, saddle_balanced, auto, mid
+  # ref_view_strategy: "first"
+  ref_view_strategy: "saddle_balanced"
+
+  # Specific scenes to evaluate (null = all scenes)
+  # Example: [courtyard, relief] for eth3d
+  # scenes: [chess, redkitchen, office, heads, scan4, scan15, scan23]
+  scenes: []
+  # scenes: [scan4]
+
+  # Maximum number of frames per scene (for sampling)
+  # If a scene has more frames, randomly sample to this limit.
+  # Set to -1 to disable sampling.
+  # max_frames: 100
+  # max_frames: 50
+  max_frames: 10
+  # max_frames: 4
+  # max_frames: 5
+  # max_frames: 1
+
+  # Only run evaluation (skip inference)
+  # eval_only: true
+  eval_only: false
+
+  # Only print saved metrics (skip inference and evaluation)
+  print_only: false
+
+# ==============================================================================
+# Inference Configuration
+# ==============================================================================
+inference:
+  # Number of parallel workers for TSDF fusion
+  num_fusion_workers: 2
+
+  # Enable debug mode with verbose output
+  debug: false
+  # debug: true
+
+# ==============================================================================
+# Preset Configurations
+# ==============================================================================
+# These can be activated via command line: --preset full_eval
+
+presets:
+  # Full evaluation on all 6 datasets
+  full_eval:
+    datasets: [eth3d, 7scenes, scannetpp, hiroom, dtu, dtu64]
+    modes: [pose, recon_unposed, recon_posed]
+
+  # Pose-only evaluation
+  pose_only:
+    datasets: [eth3d, 7scenes, scannetpp, hiroom, dtu64]
+    modes: [pose]
+
+  # Reconstruction-only evaluation (5 datasets, excluding dtu64)
+  recon_only:
+    datasets: [eth3d, 7scenes, scannetpp, hiroom, dtu]
+    modes: [recon_unposed, recon_posed]
+
+  # Quick test (single scene per dataset)
+  quick_test:
+    datasets: [eth3d]
+    modes: [pose, recon_unposed]
+    scenes: [courtyard]

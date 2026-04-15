@@ -39,6 +39,7 @@ from depth_anything_3.utils.logger import logger
 from depth_anything_3.utils.pose_align import align_poses_umeyama
 
 from torchvision.utils import save_image 
+import torchvision.transforms.functional as TF
 
 from mvr.utils.featsim_utils import *
 from mvr.utils.metric_utils import *
@@ -191,7 +192,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         mode=None,
         ref_b_idx=None,
         front_connect_back_mvrm_cfg=None,
-        analysis=None
+        analysis=None,
+        export_rgb_feat_layers=False
     ) -> dict[str, torch.Tensor]:
         """
         Forward pass through the model.
@@ -213,7 +215,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         with torch.no_grad():
             with torch.autocast(device_type=image.device.type, dtype=autocast_dtype):
                 return self.model(
-                    image, extrinsics, intrinsics, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg, mvrm_result, mode, ref_b_idx, front_connect_back_mvrm_cfg, analysis
+                    image, extrinsics, intrinsics, export_feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg, mvrm_result, mode, ref_b_idx, front_connect_back_mvrm_cfg, analysis, export_rgb_feat_layers
                     )
 
     def inference(
@@ -247,7 +249,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         noise_generator=None,
         cfg=None,
         scene_info=None,
-        use_pose=None
+        use_pose=None,
+        rgb_decoder = None
     ) -> Prediction:
         """
         Run inference on input images.
@@ -328,13 +331,41 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         b, v, c, model_H, model_W = imgs.shape
 
 
+
+
+
+        if 'DA3' in cfg.model.path:
+            if 'BASE' in cfg.model.path:
+                export_feat_layers=[4, 6, 8, 10]    
+            elif 'GIANT' in cfg.model.path:
+                export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]    
+        else:
+            pass
+    
+    
+    
+    
+        
+        if rgb_decoder is None:    
+            vis_rgb_LQ = False
+            vis_rgb_HQ = False
+            vis_rgb_RES = False
+        else:
+            vis_rgb_LQ = cfg.MVRM_EVAL.rgb_decoder.vis_rgb_LQ
+            vis_rgb_HQ = cfg.MVRM_EVAL.rgb_decoder.vis_rgb_HQ
+            vis_rgb_RES = cfg.MVRM_EVAL.rgb_decoder.vis_rgb_RES
+            
+        
+        
+        
+        
+
         # Apply W_MVRM restoration
         if cfg.MVRM_EVAL.eval_method == 'w_mvrm':       
             print('-'*70)      
             print('APPLYING MVRM O')
             print('-'*70)
             
-            export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]
 
             to_vis_imgs_list = []
             to_vis_attn_maps_list = []
@@ -344,7 +375,6 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             to_vis_pc_maps_reproj_list = []  # (name, pc_maps)  pc_maps: {('pc', 0, 'global_reproj'): (1, v*n, v*n)}
             
             
-
 
             # (W_MVRM) LQ FORWARD PASS
             print("LQ FORWARD PASS")
@@ -360,7 +390,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                                             mvrm_result=None, 
                                             mode='train',
                                             ref_b_idx=None,
-                                            analysis = cfg.analysis_LQ
+                                            analysis = cfg.analysis_LQ,
+                                            export_rgb_feat_layers=vis_rgb_LQ
                                         )
             # lq_pred_pose_enc = lq_encoder_out.pose_enc      # 1 v 9
             lq_pred_pose = lq_encoder_out['extrinsics']     # 1 v 3 4
@@ -461,6 +492,31 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
 
 
             
+            
+            if rgb_decoder is not None and vis_rgb_LQ:
+                mae_feats = []
+                for (patches, cls_token) in lq_encoder_out.feat:
+                    # patches: (B, V, N, C)
+                    mae_feats.append(patches)       # b v n d  (1 10 972 1536)
+                # cat dim=-1 => (B, V, N, C*4)
+                z_cat = torch.cat(mae_feats, dim=-1)
+                # Reshape to (B*V, N, C_total)
+                b, v, n, c_tot = z_cat.shape
+                z_cat = z_cat.reshape(b*v, n, c_tot)         
+                       
+                # Run MAE decoder
+                with torch.no_grad():
+                    with torch.autocast(device_type=z_cat.device.type, enabled=True, dtype=torch.bfloat16):
+                        # MAE decoder forward
+                        # forward(hidden_states, input_size, drop_cls_token=False)
+                        mae_out_logits = rgb_decoder(z_cat, input_size=(model_H, model_W), drop_cls_token=False).logits
+                        # Unpatchify
+                        x_rec = rgb_decoder.unpatchify(mae_out_logits, (model_H, model_W)) # (B*V, 3, H, W)
+                        # Reshape to (B, V, 3, H, W) to match DPT format for consistency in denorm block below
+                        x_rec = x_rec.reshape(b, v, 3, model_H, model_W)
+                        rgb_lq = x_rec
+                    
+            
 
             # # (W_MVRM) QUAL_RESTORMER FORWARD PASS
             # print("QUAL_RESTORMER FORWARD PASS")
@@ -501,7 +557,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                                             mode='train',
                                             ref_b_idx=lq_ref_b_idx,
                                             # ref_b_idx=None
-                                            analysis = cfg.analysis_HQ
+                                            analysis = cfg.analysis_HQ,
+                                            export_rgb_feat_layers=vis_rgb_HQ
                                         )
             # hq_pred_pose_enc = hq_encoder_out.pose_enc      # 1 v 9
             hq_pred_pose = hq_encoder_out['extrinsics']     # 1 v 3 4
@@ -612,6 +669,35 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             
             
             
+            
+            
+            if rgb_decoder is not None and vis_rgb_HQ:
+                mae_feats = []
+                for (patches, cls_token) in hq_encoder_out.feat:
+                    # patches: (B, V, N, C)
+                    mae_feats.append(patches)       # b v n d  (1 10 972 1536)
+                # cat dim=-1 => (B, V, N, C*4)
+                z_cat = torch.cat(mae_feats, dim=-1)
+                # Reshape to (B*V, N, C_total)
+                b, v, n, c_tot = z_cat.shape
+                z_cat = z_cat.reshape(b*v, n, c_tot)         
+                       
+                # Run MAE decoder
+                with torch.no_grad():
+                    with torch.autocast(device_type=z_cat.device.type, enabled=True, dtype=torch.bfloat16):
+                        # MAE decoder forward
+                        # forward(hidden_states, input_size, drop_cls_token=False)
+                        mae_out_logits = rgb_decoder(z_cat, input_size=(model_H, model_W), drop_cls_token=False).logits
+                        # Unpatchify
+                        x_rec = rgb_decoder.unpatchify(mae_out_logits, (model_H, model_W)) # (B*V, 3, H, W)
+                        # Reshape to (B, V, 3, H, W) to match DPT format for consistency in denorm block below
+                        x_rec = x_rec.reshape(b, v, 3, model_H, model_W)
+                        rgb_hq = x_rec
+            
+            
+            
+            
+            
             # generate pure noise
             noise_generator.manual_seed(42)
             pure_noise = torch.randn(lq_latent.shape, generator=noise_generator, device=imgs.device, dtype=torch.float32)
@@ -704,7 +790,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                                             mvrm_result=mvrm_result, 
                                             mode='val',
                                             ref_b_idx=lq_ref_b_idx,
-                                            analysis = cfg.analysis_RES
+                                            analysis = cfg.analysis_RES,
+                                            export_rgb_feat_layers=vis_rgb_RES
                                         )
             res_pred_pose_enc = raw_output.pose_enc      # 1 v 9
             res_pred_pose = raw_output['extrinsics']     # 1 v 3 4
@@ -798,8 +885,57 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                 T = 'none'
                 depth_thr = 'none'
                 cycle_thresh = 'none'
-                
+            
+            
+            
+            
+            if rgb_decoder is not None and vis_rgb_RES:
+                mae_feats = []
+                for (patches, cls_token) in raw_output.feat:
+                    # patches: (B, V, N, C)
+                    mae_feats.append(patches)       # b v n d  (1 10 972 1536)
+                # cat dim=-1 => (B, V, N, C*4)
+                z_cat = torch.cat(mae_feats, dim=-1)
+                # Reshape to (B*V, N, C_total)
+                b, v, n, c_tot = z_cat.shape
+                z_cat = z_cat.reshape(b*v, n, c_tot)         
+                       
+                # Run MAE decoder
+                with torch.no_grad():
+                    with torch.autocast(device_type=z_cat.device.type, enabled=True, dtype=torch.bfloat16):
+                        # MAE decoder forward
+                        # forward(hidden_states, input_size, drop_cls_token=False)
+                        mae_out_logits = rgb_decoder(z_cat, input_size=(model_H, model_W), drop_cls_token=False).logits
+                        # Unpatchify
+                        x_rec = rgb_decoder.unpatchify(mae_out_logits, (model_H, model_W)) # (B*V, 3, H, W)
+                        # Reshape to (B, V, 3, H, W) to match DPT format for consistency in denorm block below
+                        x_rec = x_rec.reshape(b, v, 3, model_H, model_W)
+                        rgb_res = x_rec
 
+
+
+
+            if vis_rgb_LQ and vis_rgb_HQ and vis_rgb_RES:
+                
+                vis_rgb_recon_root = os.path.join(cfg.workspace.work_dir, 'pho_rgb_recon_results',  data, pose_setting)
+                os.makedirs(vis_rgb_recon_root, exist_ok=True)                                                           
+                mean = torch.tensor([0.485, 0.456, 0.406], device=rgb_hq.device, dtype=rgb_hq.dtype).view(1, 3, 1, 1) 
+                std  = torch.tensor([0.229, 0.224, 0.225], device=rgb_hq.device, dtype=rgb_hq.dtype).view(1, 3, 1, 1)  
+                def denorm(x):  
+                    return (x * std + mean).clamp(0, 1)                                                                 
+                rgb_hq_dn  = denorm(rgb_hq.squeeze(0).float())   # [v, 3, 378, 504]
+                rgb_lq_dn  = denorm(rgb_lq.squeeze(0).float())                                                                   
+                rgb_res_dn = denorm(rgb_res.squeeze(0).float())                                                                  
+                # Each row: all 10 frames concatenated horizontally → [3, 378*v, 504]                                
+                row_lq  = torch.cat([rgb_lq_dn[i]  for i in range(10)], dim=-2)
+                row_hq  = torch.cat([rgb_hq_dn[i]  for i in range(10)], dim=-2)                                        
+                row_res = torch.cat([rgb_res_dn[i] for i in range(10)], dim=-2)  
+                # Stack 3 rows vertically → [3, 378*v, 504*3]                                                        
+                combined = torch.cat([row_hq, row_lq, row_res], dim=-1)                                                                                                                              
+                img = TF.to_pil_image(combined.cpu())
+                img.save(os.path.join(vis_rgb_recon_root, f'{scene}.png'))
+            
+            
                                                                         
             # import torch.nn.functional as F                                                                                         
                                                                                                                                     
@@ -949,7 +1085,6 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             print('APPLYING MVRM_FRONT_BACK O')
             print('-'*70)
             
-            export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]
             
 
             # (W_MVRM FRONT BACK) LQ FORWARD PASS
@@ -1107,8 +1242,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             print('APPLYING W_MVRM_FRONT_CONNECT_BACK O')
             print('-'*70)
             
-            export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]
-            
+
 
 
             # (W_MVRM FRONT_CONNECT_BACK) LQ FORWARD PASS
@@ -1288,8 +1422,6 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             print('WO_MVRM_IR')
             print('-'*70)
             
-            export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]
-
 
             # (WO_MVRM_IR) LQ FORWARD PASS
             print("LQ FORWARD PASS")
@@ -1386,9 +1518,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             print('WO_MVRM_LQ')
             print('-'*70)
 
-            export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]
-            
-            
+
 
             # (WO_MVRM_LQ) LQ FORWARD PASS
             print("LQ FORWARD PASS")
@@ -1491,8 +1621,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             print('WO_MVRM_HQ')
             print('-'*70)
 
-            export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]
-            
+
             # (WO_MVRM_HQ) HQ FORWARD PASS
             print("HQ FORWARD PASS")
             raw_output, _ = self._run_model_forward(
@@ -1722,7 +1851,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         mode=None,
         ref_b_idx=None,
         front_connect_back_mvrm_cfg=None,
-        analysis=None
+        analysis=None,
+        export_rgb_feat_layers=False
     ) -> dict[str, torch.Tensor]:
         """Run model forward pass."""
         device = imgs.device
@@ -1735,7 +1865,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             torch.cuda.synchronize(device)
         start_time = time.time()
         feat_layers = list(export_feat_layers) if export_feat_layers is not None else None
-        output, mvrm_out = self.forward(imgs, ex_t, in_t, feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg, mvrm_result, mode, ref_b_idx, front_connect_back_mvrm_cfg, analysis)
+        output, mvrm_out = self.forward(imgs, ex_t, in_t, feat_layers, infer_gs, use_ray_pose, ref_view_strategy, mvrm_cfg, mvrm_result, mode, ref_b_idx, front_connect_back_mvrm_cfg, analysis, export_rgb_feat_layers)
         if need_sync:
             torch.cuda.synchronize(device)
         end_time = time.time()

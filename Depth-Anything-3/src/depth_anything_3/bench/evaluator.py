@@ -171,6 +171,24 @@ class Evaluator:
         else:
             self.eval_sampler = None 
             self.denoiser = None 
+            
+        
+        
+        
+        
+        
+        self.rgb_dec_cfg = full_cfg.MVRM_EVAL.get('rgb_decoder', None)    
+        if self.rgb_dec_cfg is not None:
+            if self.rgb_dec_cfg.stage_1.params.dpt_model_type == 'da3-base':
+                self.rae = instantiate_from_config(self.rgb_dec_cfg.stage_1)
+                self.rae.eval()
+            
+            elif self.rgb_dec_cfg.stage_1.params.dpt_model_type == 'da3-giant':
+                pass
+                
+        
+    
+        
 
 
     # -------------------- Public APIs -------------------- #
@@ -251,8 +269,19 @@ class Evaluator:
         else:
             self.denoiser = None 
             self.denoiser2 = None
-
+            
         
+        
+        
+        # load rgb decoder
+        if self.rgb_dec_cfg is not None:
+            self.rgb_decoder = self.rae.mae_decoder.to(device)
+        
+        else:
+            self.rgb_decoder = None
+            
+            
+            
 
         for data, scene in tqdm(tasks, desc=f"Inference (GPU {self.gpu_id})"):
             
@@ -296,6 +325,12 @@ class Evaluator:
                 print('=========== USING RAY POSE ===========')
             else:
                 print('=========== USING CAMERA POSE ===========')
+                
+            
+            
+                
+            if self.rgb_dec_cfg is not None:
+                print('--- LOADED RGB DECODER ---')
             
             
 
@@ -315,6 +350,7 @@ class Evaluator:
                     scene_info = (data,scene),
                     use_pose=False,
                     use_ray_pose = self.full_cfg.model.use_ray_pose,
+                    rgb_decoder = self.rgb_decoder
                 )
                 # breakpoint()
                 self._save_gt_meta(export_dir, scene_data)
@@ -336,7 +372,8 @@ class Evaluator:
                     cfg=self.full_cfg,
                     scene_info = (data,scene),
                     use_pose=True,
-                    use_ray_pose = self.full_cfg.model.use_ray_pose
+                    use_ray_pose = self.full_cfg.model.use_ray_pose,
+                    rgb_decoder = self.rgb_decoder
                 )
                 self._save_gt_meta(export_dir, scene_data)
 

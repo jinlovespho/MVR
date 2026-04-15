@@ -112,7 +112,8 @@ class DepthAnything3Net(nn.Module):
         mode=None,
         ref_b_idx=None,
         front_connect_back_mvrm_cfg=None,
-        analysis=None
+        analysis=None,
+        export_rgb_feat_layers=False
     ) -> Dict[str, torch.Tensor]:
         """
         Forward pass through the network.
@@ -140,7 +141,16 @@ class DepthAnything3Net(nn.Module):
 
         # dinov2 backbone
         feats, aux_feats, mvrm_output, ref_b_idx = self.backbone(
-            x, cam_token=cam_token, export_feat_layers=export_feat_layers, ref_view_strategy=ref_view_strategy, mvrm_cfg=mvrm_cfg, mvrm_result=mvrm_result, mode=mode, ref_b_idx=ref_b_idx, front_connect_back_mvrm_cfg=front_connect_back_mvrm_cfg, analysis=analysis
+            x, cam_token=cam_token, 
+            export_feat_layers=export_feat_layers, 
+            ref_view_strategy=ref_view_strategy, 
+            mvrm_cfg=mvrm_cfg, 
+            mvrm_result=mvrm_result, 
+            mode=mode, 
+            ref_b_idx=ref_b_idx, 
+            front_connect_back_mvrm_cfg=front_connect_back_mvrm_cfg, 
+            analysis=analysis, 
+            export_rgb_feat_layers=export_rgb_feat_layers
         )
         # MVRM 
         if mode == 'train':
@@ -179,6 +189,12 @@ class DepthAnything3Net(nn.Module):
         # Extract auxiliary features if requested
         output.aux = self._extract_auxiliary_features(aux_feats, export_feat_layers, H, W)
         output.ref_b_idx = ref_b_idx
+        
+
+        if export_rgb_feat_layers:
+            output.feat = feats
+                
+        
         return output, mvrm_output
     
 
