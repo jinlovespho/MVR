@@ -1,5 +1,4 @@
 # Copyright (c) 2025 ByteDance Ltd. and/or its affiliates
-#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -84,27 +83,46 @@ DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered
 # =============================================================================
 
 
-# MOCE_IR
+
+## INSTRUCT_IR
+# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_100'
+DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_200'
+# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_300'
+
+
+
+
+## HI_DIFF
+# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_100'
+# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_200'
+# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_300'
+
+
+
+
+## MOCE_IR
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_moceir/filtered_cam_blur_100'
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_moceir/filtered_cam_blur_300'
 
 
 
-# RESTORMER 
+## RESTORMER 
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_50'
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_100'
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_200'
-DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_300'
+# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_300'
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_400'
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_500'
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_600'
 
 
-# RESTORMER (resized degradation)
+
+## RESTORMER (resized degradation)
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/only50_filtered_cam_blur_300_resize'
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/only50_filtered_cam_blur_500_resize'
 
-# RESTORMER 
+
+## RESTORMER 
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_100_resize_640'
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_300_resize_640'
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_500_resize_640'
@@ -114,18 +132,14 @@ DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restore
 
 
 
-
-
-# VRT 
+## VRT 
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_vrt/filtered_cam_blur_50'
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_vrt/filtered_cam_blur_100'
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_vrt/filtered_cam_blur_300'
 
 
 
-
-
-# DiT4SR
+## DiT4SR
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_dit4sr/filtered_cam_blur_50'
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_dit4sr/filtered_cam_blur_100'
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_dit4sr/filtered_cam_blur_300'

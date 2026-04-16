@@ -200,6 +200,8 @@ class SevenScenes(Dataset):
             # PHO (RES)
             res_img_path = os.path.join(res_data_folder, f"frame-{i:06d}.color.png")
             if not os.path.exists(res_img_path):
+                res_img_path = os.path.join(res_data_folder, f"frame-{i:06d}.color.jpg")
+            if not os.path.exists(res_img_path):
                 continue
             out.res_image_files.append(res_img_path)
             

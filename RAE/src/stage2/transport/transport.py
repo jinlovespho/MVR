@@ -290,15 +290,28 @@ class Transport:
         # lq2hq training w/ different noise levels
         noise_lvl = cfg.mvrm.get('noise_lvl', None)     # typically 0.3
 
+
+
         if noise_lvl is not None:
-            print('Using LQ2HQ wnoise: ', noise_lvl)
             t, x0, x1 = self.sample(x1)     # b v n+1 d
-            
+
             # lq_latent conditioning method
+            # for CFG-dropped samples (xcond==0), skip noise scaling to keep x0 as pure noise
             if cfg.mvrm.lq_latent_cond == 'addition':
-                x0 = x0 * noise_lvl + xcond 
-            
+                cond_mask = (xcond.abs().sum(dim=(-1, -2, -3), keepdim=True) > 0).float()  # (b,1,1,1): 1=conditioned, 0=dropped
+                x0 = x0 * (1.0 - cond_mask * (1.0 - noise_lvl)) + xcond  # conditioned: x0*noise_lvl + xcond | dropped: x0*1.0 + 0
+
             t, xt, ut = self.path_sampler.plan(t, x0, x1)
+
+
+            # for lq2hq cfg
+            training_lq_cond = cfg.mvrm.get('training_lq_cond', False)
+            
+            if training_lq_cond:
+                print('LQ2HQ: Using double conditioning for training !!')
+                xt = xt + xcond
+            else:
+                print('LQ2HQ: Using single conditioning for training !!')
         
         
         else:
@@ -310,6 +323,12 @@ class Transport:
                 xt = xt + xcond                          # b v n+1 d
             # elif cfg.mvrm.lq_latent_cond == 'concat':
             #     xt = torch.concat([xt, xcond], dim=-1)   # channel concat  (b v n+1 2d)
+        
+        
+        
+
+        
+        
             
         
         # mvrm forward pass 

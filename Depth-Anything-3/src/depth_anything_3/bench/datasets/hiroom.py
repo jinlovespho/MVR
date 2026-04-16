@@ -177,6 +177,8 @@ class HiRoomDataset(Dataset):
             # PHO (RES)
             res_img_path = os.path.join(res_image_dir, img_name.replace('.jpg', '.png'))
             if not os.path.exists(res_img_path):
+                res_img_path = os.path.join(res_image_dir, img_name.replace('.png', '.jpg'))
+            if not os.path.exists(res_img_path):
                 continue
             out.res_image_files.append(res_img_path)
             

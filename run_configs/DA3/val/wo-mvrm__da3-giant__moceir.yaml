@@ -88,11 +88,42 @@ workspace:
   # Working directory for outputs (model results, metrics, etc.)
 
 
-  # 260330 
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/wo_mvrm_IR/moceir/filtered_cam_blur_100/ray_saddle_maxview10
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/wo_mvrm_IR/moceir/filtered_cam_blur_300/ray_saddle_maxview10
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/wo_mvrm_IR/moceir/filtered_cam_blur_100/ray_saddle_maxview50
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS/pho_val/da3_giant/wo_mvrm_IR/moceir/filtered_cam_blur_300/ray_saddle_maxview50
+
+  ##################################
+  ###### FILTERED_CAM_BLUR100 ######
+  ##################################
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/moceir/filtered_cam_blur_100/ray_saddle_maxview10
+
+
+
+
+  ##################################
+  ###### FILTERED_CAM_BLUR200 ######
+  ##################################
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/moceir/filtered_cam_blur_200/ray_saddle_maxview10
+
+
+
+
+
+  ##################################
+  ###### FILTERED_CAM_BLUR300 ######
+  ##################################
+
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/moceir/filtered_cam_blur_300/ray_saddle_maxview10
+
+
+
+
+
+  ##################################
+  ###### FILTERED_CAM_BLUR600 ######
+  ##################################
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/moceir/filtered_cam_blur_600/ray_saddle_maxview10
+
 
 
 
@@ -117,7 +148,7 @@ eval:
   modes:
     - pose
     - depth
-    # - recon_unposed
+    - recon_unposed
     # - recon_posed
     
 
@@ -134,8 +165,8 @@ eval:
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
   # max_frames: 100
-  max_frames: 50
-  # max_frames: 10
+  # max_frames: 50
+  max_frames: 10
   # max_frames: 5
   # max_frames: 1
 
@@ -154,8 +185,8 @@ inference:
   num_fusion_workers: 2
 
   # Enable debug mode with verbose output
-  # debug: false
-  debug: true
+  debug: false
+  # debug: true
 
 # ==============================================================================
 # Preset Configurations

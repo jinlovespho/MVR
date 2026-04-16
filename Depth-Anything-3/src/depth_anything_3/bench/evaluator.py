@@ -1044,9 +1044,6 @@ class Evaluator:
         sampled = Dict()
   
         
-        
-    
-        
         # PHO
         sampled.lq_image_files = [scene_data.lq_image_files[i] for i in sampled_indices]
 

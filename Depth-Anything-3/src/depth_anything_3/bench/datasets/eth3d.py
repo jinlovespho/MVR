@@ -249,6 +249,8 @@ class ETH3D(Dataset):
             # PHO (RES)
             res_image_path = os.path.join(res_scene_dir, "images", image_name.replace('.JPG', '.png'))
             if not os.path.exists(res_image_path):
+                res_image_path = os.path.join(res_scene_dir, "images", image_name.replace('.JPG', '.jpg'))
+            if not os.path.exists(res_image_path):
                 continue
             out.res_image_files.append(res_image_path)
 

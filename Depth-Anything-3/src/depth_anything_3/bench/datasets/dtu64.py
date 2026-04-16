@@ -140,6 +140,8 @@ class DTU64(Dataset):
         # PHO (RES)
         res_folder = os.path.join(self.da3_res_root, scene, "image")
         res_files = sorted(glob.glob(os.path.join(res_folder, "*.png")))
+        if len(res_files) == 0:
+            res_files = sorted(glob.glob(os.path.join(res_folder, "*.jpg")))
         if len(res_files) > 33:
             res_files = [res_files[33]] + res_files[:33] + res_files[34:]
 

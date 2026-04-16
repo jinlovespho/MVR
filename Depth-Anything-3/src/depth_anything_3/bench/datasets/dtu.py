@@ -131,6 +131,8 @@ class DTU(Dataset):
         # PHO (RES)
         res_folder = os.path.join(self.da3_res_root, "Rectified", scene)
         res_files = sorted(glob.glob(os.path.join(res_folder, "*.png")))
+        if len(res_files) == 0:
+            res_files = sorted(glob.glob(os.path.join(res_folder, "*.jpg")))
         # Reorder: place index 33 first (reference view convention)
         res_files = [res_files[33]] + res_files[:33] + res_files[34:]
         
