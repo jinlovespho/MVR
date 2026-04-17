@@ -41,6 +41,7 @@ from depth_anything_3.utils.pose_align import align_poses_umeyama
 from torchvision.utils import save_image 
 import torchvision.transforms.functional as TF
 
+# from RAE.src import analysis
 from mvr.utils.featsim_utils import *
 from mvr.utils.metric_utils import *
 from mvr.utils.freq_utils import *
@@ -250,7 +251,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         cfg=None,
         scene_info=None,
         use_pose=None,
-        rgb_decoder = None
+        rgb_decoder = None,
+        proj_adapter = None
     ) -> Prediction:
         """
         Run inference on input images.
@@ -329,8 +331,6 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
 
         # image input info
         b, v, c, model_H, model_W = imgs.shape
-
-
 
 
 
@@ -492,7 +492,6 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
 
 
             
-            
             if rgb_decoder is not None and vis_rgb_LQ:
                 mae_feats = []
                 for (patches, cls_token) in lq_encoder_out.feat:
@@ -509,6 +508,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                     with torch.autocast(device_type=z_cat.device.type, enabled=True, dtype=torch.bfloat16):
                         # MAE decoder forward
                         # forward(hidden_states, input_size, drop_cls_token=False)
+                        if proj_adapter is not None:
+                            z_cat = proj_adapter(z_cat)
                         mae_out_logits = rgb_decoder(z_cat, input_size=(model_H, model_W), drop_cls_token=False).logits
                         # Unpatchify
                         x_rec = rgb_decoder.unpatchify(mae_out_logits, (model_H, model_W)) # (B*V, 3, H, W)
@@ -687,6 +688,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                     with torch.autocast(device_type=z_cat.device.type, enabled=True, dtype=torch.bfloat16):
                         # MAE decoder forward
                         # forward(hidden_states, input_size, drop_cls_token=False)
+                        if proj_adapter is not None:
+                            z_cat = proj_adapter(z_cat)
                         mae_out_logits = rgb_decoder(z_cat, input_size=(model_H, model_W), drop_cls_token=False).logits
                         # Unpatchify
                         x_rec = rgb_decoder.unpatchify(mae_out_logits, (model_H, model_W)) # (B*V, 3, H, W)
@@ -704,13 +707,24 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             
             
             
+
             noise_lvl = cfg.mvrm.get('noise_lvl', None)    
             if noise_lvl is not None:
                 print('Using LQ2HQ wnoise: ', noise_lvl)
                 x0 = pure_noise * noise_lvl + lq_latent
             else:
                 x0 = pure_noise
+
+
+
+
+            guidance = cfg.mvrm.val.get('guidance', None)
+            if guidance.use_cfg and guidance.cfg_scale > 1.0:
+                print('Using CFG sampling with scale: ', guidance.cfg_scale)
+            else:
+                print('Using non-CFG sampling')
             
+
             
             
             lq_cond_sampling = cfg.mvrm.val.get('lq_cond_sampling', True)
@@ -726,6 +740,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                 'model_img_size': (model_H, model_W),
                 'lq_latent': lq_latent         
             }
+
             
             
             if cfg.mvrm.val.analysis.vis_attn_map:
@@ -905,6 +920,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                     with torch.autocast(device_type=z_cat.device.type, enabled=True, dtype=torch.bfloat16):
                         # MAE decoder forward
                         # forward(hidden_states, input_size, drop_cls_token=False)
+                        if proj_adapter is not None:
+                            z_cat = proj_adapter(z_cat)
                         mae_out_logits = rgb_decoder(z_cat, input_size=(model_H, model_W), drop_cls_token=False).logits
                         # Unpatchify
                         x_rec = rgb_decoder.unpatchify(mae_out_logits, (model_H, model_W)) # (B*V, 3, H, W)

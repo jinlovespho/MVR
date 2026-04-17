@@ -568,7 +568,8 @@ class GeneralDecoder(nn.Module):
         self.num_patches = num_patches
         self.initialize_weights(num_patches)
         self.decoder_config = decoder_config
-        self.set_trainable_cls_token()
+        self.set_trainable_cls_token()        
+        
     def set_trainable_cls_token(self, tensor: Optional[torch.Tensor] = None):
         # register a trainable CLS token
         tensor = torch.zeros(1, 1, self.decoder_config.hidden_size) if tensor is None else tensor
@@ -694,6 +695,10 @@ class GeneralDecoder(nn.Module):
         patches_h: int = None,
         patches_w: int = None,
     ):
+        
+        
+        
+        
         # embed tokens
         x = self.decoder_embed(hidden_states)
         
@@ -864,6 +869,7 @@ class GeneralDecoder_Variable(nn.Module):
         interpolate_pos_encoding: bool = True,
         drop_cls_token: bool = False,   # default: assume NO CLS in input
         ):
+        
         x = self.decoder_embed(hidden_states)  # (B, L, Ddec)
 
         # target patch grid from input pixel size

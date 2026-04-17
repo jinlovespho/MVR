@@ -16,6 +16,22 @@ from safetensors.torch import load_file
 from .decoders.decoder import GeneralDecoder_Variable
 from transformers import AutoConfig
 
+
+
+class FeatureProjectionAdapter(nn.Module):
+    """Project DA3-GIANT concatenated features to DA3-BASE decoder dimension."""
+
+    def __init__(self, in_dim: int, out_dim: int, use_layernorm: bool = True):
+        super().__init__()
+        self.norm = nn.LayerNorm(in_dim) if use_layernorm else nn.Identity()
+        self.proj = nn.Linear(in_dim, out_dim)
+
+    def forward(self, z: torch.Tensor) -> torch.Tensor:
+        # z: (B*V, N, C)
+        return self.proj(self.norm(z))
+
+
+
 class RAE_DA3(nn.Module):
     """
     RAE using DA3 encoder for multi-level feature extraction.
@@ -114,27 +130,66 @@ class RAE_DA3(nn.Module):
             # We assume 504x504 as standard for now, or use encoder input size if 504
             base_size = (504, 504)
             
+            
             self.mae_decoder = GeneralDecoder_Variable(decoder_config, base_image_size=base_size)
+            
             
             # Load weights
             ckpt = torch.load(mae_weight, map_location='cpu')
-            if 'ema' in ckpt:
-                state_dict = ckpt['ema']
-            elif 'model' in ckpt:
-                state_dict = ckpt['model']
-            else:
-                state_dict = ckpt # Assume direct state dict
+            
+            
+            # load adapter weights
+            if 'ema_adapter' in ckpt:
                 
-            # Filter for decoder keys only
-            decoder_state = {}
-            for k, v in state_dict.items():
-                if k.startswith('decoder.'):
-                    decoder_state[k.replace('decoder.', '')] = v
+                # load feature projection adapter
+                decoder_input_hidden_size = 12288
+                adapter_out_dim = 6144
+                adapter_use_layernorm = True
+                self.adapter = FeatureProjectionAdapter(
+                    in_dim=decoder_input_hidden_size,
+                    out_dim=adapter_out_dim,
+                    use_layernorm=adapter_use_layernorm,
+                )
+                adapter_state = ckpt['ema_adapter']
+                adapter_missing, adapter_unexpected = self.adapter.load_state_dict(adapter_state, strict=False)
+                print(f"Adapter - Missing keys: {adapter_missing} ...")
+                print(f"Adapter - Unexpected keys: {adapter_unexpected} ...")
+                self.adapter.eval()
+            else:
+                print(f"No EMA adapter weights found in {mae_weight}")
+                
+            
+            # load mae decoder weights 
+            if 'ema_decoder' in ckpt:
+                print('Loading RGB decoder weights from DA3-Giant')
+                state_dict = ckpt['ema_decoder']
+                decoder_state = state_dict
+            else:
+                print('Loading RGB decoder weights from DA3-Base')
+                state_dict = ckpt['ema']
+                # if 'ema' in ckpt:
+                #     state_dict = ckpt['ema']
+                # elif 'model' in ckpt:
+                #     state_dict = ckpt['model']
+                # else:
+                #     state_dict = ckpt # Assume direct state dict
+            
+                # Filter for decoder keys only
+                decoder_state = {}
+                for k, v in state_dict.items():
+                    if k.startswith('decoder.'):
+                        decoder_state[k.replace('decoder.', '')] = v
             
             missing, unexpected = self.mae_decoder.load_state_dict(decoder_state, strict=False)
-            if len(missing) > 0:
-                print(f"MAE Decoder Missing keys: {missing[:5]} ...")
-            
+            print(f"MAE Decoder - Missing keys: {missing[:5]} ...")
+            print(f"MAE Decoder - Unexpected keys: {unexpected[:5]} ...")
+                
+
+            # tmp = torch.load(mae_weight, map_location='cpu')
+            # tmp2 = torch.load('GLD/pretrained_models/mae_decoder.pt', map_location='cpu')
+
+            # breakpoint()
+
             self.mae_decoder.eval()
             for p in self.mae_decoder.parameters():
                 p.requires_grad = False

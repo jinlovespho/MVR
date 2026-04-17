@@ -276,9 +276,13 @@ class Evaluator:
         # load rgb decoder
         if self.rgb_dec_cfg is not None:
             self.rgb_decoder = self.rae.mae_decoder.to(device)
-        
+                        
+            if getattr(self.rae, 'adapter', None) is not None:
+                self.proj_adapter = self.rae.adapter.to(device)
+                
         else:
             self.rgb_decoder = None
+            self.proj_adapter = None
             
             
             
@@ -350,7 +354,8 @@ class Evaluator:
                     scene_info = (data,scene),
                     use_pose=False,
                     use_ray_pose = self.full_cfg.model.use_ray_pose,
-                    rgb_decoder = self.rgb_decoder
+                    rgb_decoder = self.rgb_decoder,
+                    proj_adapter = self.proj_adapter
                 )
                 # breakpoint()
                 self._save_gt_meta(export_dir, scene_data)
@@ -373,7 +378,8 @@ class Evaluator:
                     scene_info = (data,scene),
                     use_pose=True,
                     use_ray_pose = self.full_cfg.model.use_ray_pose,
-                    rgb_decoder = self.rgb_decoder
+                    rgb_decoder = self.rgb_decoder,
+                    proj_adapter = self.proj_adapter
                 )
                 self._save_gt_meta(export_dir, scene_data)
 
