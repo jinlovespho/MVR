@@ -40,9 +40,9 @@ stage_2:
     # hidden_size: [1536, 3072]
     # depth: [12, 6]
 
-    # hidden_size: [1536, 3072]
+    hidden_size: [1536, 3072]
     # hidden_size: [1152, 2048]
-    hidden_size: [768, 2048]
+    # hidden_size: [768, 2048]
     depth: [8, 6]
 
 
@@ -103,13 +103,13 @@ training:
   grad_accum_steps: 1
   ema_decay: 0.9995
   # ema_decay: 0.9999
-  num_workers: 4
+  num_workers: 16
   shuffle: true
   log_interval: 1
 
   # ckpt_step_interval: 40000   # 40k
-  ckpt_step_interval: 25000   # 25k
-  # ckpt_step_interval: 5000   # 5k
+  # ckpt_step_interval: 25000   # 25k
+  ckpt_step_interval: 5000   # 5k
 
   vis:
     train_depth_every: 1000   # 1k
@@ -144,16 +144,26 @@ log:
   # result_root_dir: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260407
   # result_root_dir: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260411
   # result_root_dir: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260413
-  result_root_dir: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/JIHYE9/da3-base
+  # result_root_dir: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/JIHYE9-1/da3-base
   # result_root_dir: /media/data1/MV_Restoration/pho_mvr/result_train/TMP
+  result_root_dir: result_train/nips26/multi_view/JIHYE9-1/da3-base
+  
+  # tracker:
+  #   name: wandb
+  #   wandb:
+  #     key: e32eed0c2509bf898b850b0065ab62345005fb73
+  #     entity: jinlovespho
+  #     # project: eccv26_mv_restoration
+  #     project: nips26_mvr
+
   tracker:
-    name: wandb
+    name: 
     wandb:
-      key: e32eed0c2509bf898b850b0065ab62345005fb73
-      entity: jinlovespho
-      # project: eccv26_mv_restoration
-      project: nips26_mvr
-      
+      key: 
+      entity: 
+      project: 
+
+
       ## 260317
       # msg: 'lqkernel200__ema95__hyp1__ddt-enc8-1536-dec6-3072__lqdrop01_re'
 
@@ -177,9 +187,11 @@ log:
       # msg: ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03
       
       # msg: 'JIHYE9__enc8-dec6-1536-3072__hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond'
-      msg: 'JIHYE9__enc8-dec6-768-2048__hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond'
+      # msg: 'JIHYE9__enc8-dec6-768-2048__hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond'
           
       # msg: 'TMPP'
+
+      msg: 'JIHYE9-1__enc8-dec6-1536-3072__hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond'
       
       
       

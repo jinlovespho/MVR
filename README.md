@@ -163,6 +163,37 @@ bash run_scripts/train/JIHYE4_run_train_multiview_da3-GIANT_ddt_g17_ddt-enc20-de
 ---
 
 
+
+# 🔥 Training (260418)
+
+### 1. Training bash script 
+```bash
+## (Exp1-GPU8). da3-giant__enc8-dec6-1536-3072__hyp-tar__pcloss__lq2hq__cond
+bash run_scripts/train/JIHYE8_run_train_multiview_da3-GIANT-g17_ddt-enc8-dec6__hyp__pcloss__lq2hq__cond.sh 
+
+## (Exp2-GPU4). da3-base__enc8-dec6-1536-3072__hyp-tar__pcloss__lq2hq__cond
+bash run_scripts/train/JIHYE9-1_run_train_multiview_da3-BASE-g17_ddt-enc8-dec6__pcloss__lq2hq__cond.sh 
+
+## (Exp3-GPU4). da3-base__enc8-dec6-768-2048__hyp-tar__pcloss__lq2hq__cond
+bash run_scripts/train/JIHYE9-2_run_train_multiview_da3-BASE-g17_ddt-enc8-dec6__pcloss__lq2hq__cond.sh 
+```
+
+### 2. Training config yaml file
+- Config yaml file for [(Exp1)](run_configs/train/JIHYE8_run_train_multiview_da3-GIANT-g17_ddt-enc8-dec6__hyp__pcloss__lq2hq__cond.yaml)
+- Config yaml file for [(Exp2)](run_configs/train/JIHYE9-1_run_train_multiview_da3-BASE-g17_ddt-enc8-dec6__pcloss__lq2hq__cond.yaml)
+- Config yaml file for [(Exp3)](run_configs/train/JIHYE9-2_run_train_multiview_da3-BASE-g17_ddt-enc8-dec6__pcloss__lq2hq__cond.yaml)
+---
+
+
+### 2. DL3DV dataset download 
+```bash 
+bash dl3dv_download_script.sh
+```
+
+
+
+
+
 <!-- # 🚀 Inference Demo
 ### Demo Script 
 Download the released UniT weight from [google drive](https://drive.google.com/drive/folders/1JJOdEgM-rdu9GYGifG4kFxKF66JMeagR?usp=drive_link), and set the corresponding path in the demo [configuration file](run_configs/val/val_unit_demo.yaml). Then, run the script below to perform text-aware image restoration on low-quality image samples. The results will be saved in result_val/ by default.
