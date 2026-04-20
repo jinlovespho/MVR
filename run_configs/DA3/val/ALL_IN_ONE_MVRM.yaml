@@ -21,7 +21,8 @@ MVRM_EVAL:
         da3_weights_path: 'GLD/pretrained_models/da3/model.safetensors'
         dpt_model_type: 'da3-base'
         # mae_weight: 'GLD/pretrained_models/mae_decoder.pt'
-        mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-da3-giant-adapter/001-RAE_DA3_MAE-bf16/checkpoints/0031000.pt
+        # mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-da3-giant-adapter/001-RAE_DA3_MAE-bf16/checkpoints/0031000.pt
+        mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-adapter/001-RAE_DA3_MAE_ADAPTER-bf16/checkpoints/0115000.pt
         noise_tau: 0.0
         reshape_to_2d: true
         normalization_stat_path: 'model_stats/da3/normalization_stats_level0.pt'
@@ -83,7 +84,7 @@ denoiser:
   # ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260411/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-lqkernel50-300__blur00-03__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__cont25k/checkpoints/ep-0125000.pt
 
   ## 125k__enc8-dec6__pcloss__da3-pc-temp001-to-mvrm-dec9__lq2hq-wnoise03
-  ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260411/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cont25k/checkpoints/ep-0125000.pt
+  # ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260411/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-ddt-enc8-dec6__lqdrop01__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cont25k/checkpoints/ep-0125000.pt
 
   ## 125k__enc8-dec6__pcloss__da3-pc-temp001-to-mvrm-dec11
   # ckpt: 
@@ -102,7 +103,8 @@ denoiser:
   # ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/JIHYE8/da3-giant/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-JIHYE8__enc8-dec6__hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/checkpoints/ep-0025000.pt
 
 
-
+  ### JIHYE8 (giant), JIHYE9-2(base)
+  ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/JIHYE_SAMSUNG/ep-0145000_jihye8.pt
 
 
 
@@ -144,8 +146,8 @@ mvrm:
     
 
     ## set to false for UNCOND samping inference !!
-    # lq_cond_sampling: true
-    lq_cond_sampling: false
+    lq_cond_sampling: true
+    # lq_cond_sampling: false
 
 
 
@@ -326,6 +328,9 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview10_cfg15
 
 
+  ## JIHYE8 (epoch10)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
+
 
 
 
@@ -367,7 +372,8 @@ workspace:
 
 
 
-
+  ## JIHYE8 (epoch10)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_200/ray_saddle_maxview10_cfg1
 
 
 
@@ -409,9 +415,11 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/a100_ckpt25k/filtered_cam_blur_300/ray_saddle_maxview10_cfg15
 
 
+  ## JIHYE8 (epoch10)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
 
 
-  work_dir: /mnt/dataset1/MV_Restoration/TMPTMPTMPTMP
+  work_dir: /mnt/dataset1/MV_Restoration/TMP
 
 
 
