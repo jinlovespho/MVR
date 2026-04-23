@@ -140,7 +140,6 @@ class RAE_DA3(nn.Module):
             
             # load adapter weights
             if 'ema_adapter' in ckpt:
-                
                 # load feature projection adapter
                 decoder_input_hidden_size = 12288
                 adapter_out_dim = 6144

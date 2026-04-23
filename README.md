@@ -192,6 +192,25 @@ bash dl3dv_download_script.sh
 
 
 
+# 🔥 Training (260423)
+
+### 1. Training bash script 
+```bash
+## (gpu4) JIHYE8-2_da3-GIANT-g17_ddt-enc8-dec6__hyp__lq2hq__cond
+bash run_scripts/train/JIHYE8-2_run_train_multiview_da3-GIANT-g17_ddt-enc8-dec6__hyp__lq2hq__cond.sh 
+
+## (gpu4) JIHYE8-3_run_train_multiview_da3-GIANT-g17_ddt-enc8-dec6__hyp__pcloss
+bash bash run_scripts/train/JIHYE8-3_run_train_multiview_da3-GIANT-g17_ddt-enc8-dec6__hyp__pcloss.sh 
+
+```
+
+### 2. Training config yaml file
+- Config yaml file for [JIHYE8-2](run_configs/train/JIHYE8-2_run_train_multiview_da3-GIANT-g17_ddt-enc8-dec6__hyp__lq2hq__cond.yaml)
+- Config yaml file for [JIHYE8-3](run_configs/train/JIHYE8-3_run_train_multiview_da3-GIANT-g17_ddt-enc8-dec6__hyp__pcloss.yaml)
+---
+
+
+
 
 
 <!-- # 🚀 Inference Demo

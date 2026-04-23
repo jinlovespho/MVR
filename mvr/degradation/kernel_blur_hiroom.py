@@ -12,7 +12,8 @@ scenes = glob.glob(f'{hq_root_path}/data/20241230/*')
 
 BLUR_INTENSITY=0.1
 # for KERNEL_SIZE in [100, 300]:
-for KERNEL_SIZE in [200]:
+# for KERNEL_SIZE in [200]:
+for KERNEL_SIZE in [150]:
 
     print('Applying kernel: ', KERNEL_SIZE)
     for scene in tqdm(scenes):

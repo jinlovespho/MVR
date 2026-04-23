@@ -124,8 +124,8 @@ class DTU(Dataset):
         # PHO (LQ)
         lq_folder = os.path.join(self.da3_lq_root, "Rectified", scene)
         lq_files = sorted(glob.glob(os.path.join(lq_folder, "*.jpg")))
-        # Reorder: place index 33 first (reference view convention)
-        lq_files = [lq_files[33]] + lq_files[:33] + lq_files[34:]
+        # # Reorder: place index 33 first (reference view convention)
+        # lq_files = [lq_files[33]] + lq_files[:33] + lq_files[34:]
         
         
         # PHO (RES)
@@ -133,8 +133,8 @@ class DTU(Dataset):
         res_files = sorted(glob.glob(os.path.join(res_folder, "*.png")))
         if len(res_files) == 0:
             res_files = sorted(glob.glob(os.path.join(res_folder, "*.jpg")))
-        # Reorder: place index 33 first (reference view convention)
-        res_files = [res_files[33]] + res_files[:33] + res_files[34:]
+        # # Reorder: place index 33 first (reference view convention)
+        # res_files = [res_files[33]] + res_files[:33] + res_files[34:]
         
 
         out = Dict(

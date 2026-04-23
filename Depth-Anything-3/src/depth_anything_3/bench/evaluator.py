@@ -279,6 +279,9 @@ class Evaluator:
                         
             if getattr(self.rae, 'adapter', None) is not None:
                 self.proj_adapter = self.rae.adapter.to(device)
+            else:
+                self.proj_adapter = None
+            
                 
         else:
             self.rgb_decoder = None
@@ -1035,6 +1038,7 @@ class Evaluator:
         
         # PHO
         num_frames = len(scene_data.lq_image_files)
+            
         if num_frames <= self.max_frames:
             return scene_data
 
@@ -1054,14 +1058,32 @@ class Evaluator:
         sampled.lq_image_files = [scene_data.lq_image_files[i] for i in sampled_indices]
 
 
+
         if self.full_cfg.MVRM_EVAL.load_res:
-            sampled.res_image_files = [scene_data.res_image_files[i] for i in sampled_indices]
+            if len(scene_data.res_image_files) == self.max_frames:
+                sampled.res_image_files = scene_data.res_image_files
+            else:
+                sampled.res_image_files = [scene_data.res_image_files[i] for i in sampled_indices]
 
-                    
-        sampled.image_files = [scene_data.image_files[i] for i in sampled_indices]
-        sampled.extrinsics = scene_data.extrinsics[sampled_indices]
-        sampled.intrinsics = scene_data.intrinsics[sampled_indices]
 
+        if len(scene_data.image_files) == self.max_frames:
+            sampled.image_files = scene_data.image_files
+        else:
+            sampled.image_files = [scene_data.image_files[i] for i in sampled_indices]
+
+
+
+        if len(scene_data.extrinsics) == self.max_frames:
+            sampled.extrinsics = scene_data.extrinsics
+        else:
+            sampled.extrinsics = scene_data.extrinsics[sampled_indices]
+        
+        
+        
+        if len(scene_data.intrinsics) == self.max_frames:
+            sampled.intrinsics = scene_data.intrinsics
+        else:
+            sampled.intrinsics = scene_data.intrinsics[sampled_indices]
 
 
 

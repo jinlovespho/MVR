@@ -1,2 +1,2 @@
 
-CUDA_VISIBLE_DEVICES=4 python -m mvr.degradation.kernel_blur_hiroom.py 
+CUDA_VISIBLE_DEVICES=0 python -m mvr.degradation.kernel_blur_hiroom.py 

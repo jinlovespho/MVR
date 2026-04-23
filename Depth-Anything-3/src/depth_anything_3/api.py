@@ -542,7 +542,6 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
 
 
 
-
             # (W_MVRM) HQ FORWARD PASS 
             print("HQ FORWARD PASS")
             hq_encoder_out, hq_mvrm_out = self._run_model_forward(
@@ -567,7 +566,22 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             hq_latent = hq_mvrm_out[('extract_feat', cfg.mvrm.train.extract_feat_layers[0])]         # b v n+1 d
             hq_depth = hq_encoder_out.depth.unsqueeze(2)    # 1 v 1 h w
 
-            
+            hq_encoder_out_test, hq_mvrm_out_test = self._run_model_forward(
+                                imgs, 
+                                ex_t_norm, 
+                                in_t, 
+                                [5, 7, 9, 11], 
+                                infer_gs, 
+                                use_ray_pose, 
+                                ref_view_strategy, 
+                                mvrm_cfg=cfg.mvrm.train, 
+                                mvrm_result=None, 
+                                mode='train',
+                                ref_b_idx=lq_ref_b_idx,
+                                # ref_b_idx=None
+                                analysis = cfg.analysis_HQ,
+                                export_rgb_feat_layers=vis_rgb_HQ
+                            )
 
             # HQ attn_map extraction 
             hq_maps = {} 
@@ -667,9 +681,6 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                 T = 'none'
                 depth_thr = 'none'
                 cycle_thresh = 'none'
-            
-            
-            
             
             
             if rgb_decoder is not None and vis_rgb_HQ:
@@ -953,6 +964,62 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                 img.save(os.path.join(vis_rgb_recon_root, f'{scene}.png'))
             
             
+            # ## calculate image metrics (PSNR, SSIM, LPIPS and FID)
+            # if vis_rgb_LQ and vis_rgb_HQ and vis_rgb_RES:
+            #     from lpips import LPIPS as LPIPSMetric
+            #     from torchmetrics.functional.image import structural_similarity_index_measure
+            #     from torch_fidelity.feature_extractor_inceptionv3 import FeatureExtractorInceptionV3
+            #     import scipy.linalg
+
+            #     # denorm imgs (ImageNet-normalized) → [0, 1], shape [v, 3, H, W]
+            #     imgs_dn = denorm(imgs.squeeze(0).float())
+            #     device = imgs_dn.device
+
+            #     def _psnr(a, b):
+            #         mse = ((a - b) ** 2).mean(dim=[1, 2, 3]).clamp(min=1e-10)
+            #         return (20.0 * torch.log10(1.0 / mse.sqrt())).mean().item()
+
+            #     def _ssim(a, b):
+            #         return structural_similarity_index_measure(a, b, data_range=1.0).item()
+
+            #     lpips_fn = LPIPSMetric(net="vgg").to(device).eval()
+            #     def _lpips(a, b):
+            #         a11 = a * 2.0 - 1.0
+            #         b11 = b * 2.0 - 1.0
+            #         with torch.no_grad():
+            #             return lpips_fn(a11, b11).mean().item()
+
+            #     fe = FeatureExtractorInceptionV3(name="inception-v3-compat", features_list=["2048"]).to(device).eval()
+            #     def _fid(a, b):
+            #         def _feats(t):
+            #             u8 = (t.clamp(0, 1) * 255).byte()
+            #             with torch.no_grad():
+            #                 return fe(u8)[0].double().cpu().numpy()
+            #         fa, fb = _feats(a), _feats(b)
+            #         mu_a, sig_a = fa.mean(0), np.cov(fa, rowvar=False)
+            #         mu_b, sig_b = fb.mean(0), np.cov(fb, rowvar=False)
+            #         diff = mu_a - mu_b
+            #         cov = scipy.linalg.sqrtm(sig_a @ sig_b)
+            #         if np.iscomplexobj(cov):
+            #             cov = cov.real
+            #         return float(max(diff @ diff + np.trace(sig_a + sig_b - 2.0 * cov), 0.0))
+
+            #     print(f"\n[Image Metrics] scene={scene}")
+            #     print(f"  --- imgs vs rgb_hq (HQ) ---")
+            #     print(f"  PSNR : {_psnr(imgs_dn, rgb_hq_dn):.4f} dB")
+            #     print(f"  SSIM : {_ssim(imgs_dn, rgb_hq_dn):.4f}")
+            #     print(f"  LPIPS: {_lpips(imgs_dn, rgb_hq_dn):.4f}")
+            #     print(f"  FID  : {_fid(imgs_dn, rgb_hq_dn):.4f}")
+            #     print(f"  --- imgs vs rgb_res (RES) ---")
+            #     print(f"  PSNR : {_psnr(imgs_dn, rgb_res_dn):.4f} dB")
+            #     print(f"  SSIM : {_ssim(imgs_dn, rgb_res_dn):.4f}")
+            #     print(f"  LPIPS: {_lpips(imgs_dn, rgb_res_dn):.4f}")
+            #     print(f"  FID  : {_fid(imgs_dn, rgb_res_dn):.4f}")
+
+
+
+
+
                                                                         
             # import torch.nn.functional as F                                                                                         
                                                                                                                                     

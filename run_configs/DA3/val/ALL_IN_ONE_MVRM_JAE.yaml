@@ -22,7 +22,9 @@ MVRM_EVAL:
         dpt_model_type: 'da3-base'
         # mae_weight: 'GLD/pretrained_models/mae_decoder.pt'
         # mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-da3-giant-adapter/001-RAE_DA3_MAE-bf16/checkpoints/0031000.pt
-        mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-adapter/001-RAE_DA3_MAE_ADAPTER-bf16/checkpoints/0115000.pt
+        # mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-adapter-giant-final/000-RAE_DA3_MAE_ADAPTER-bf16/checkpoints/0070000.pt
+        # mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-adapter-giant-final/001-RAE_DA3_MAE_ADAPTER-bf16/checkpoints/0070000.pt
+        mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-adapter-giant-final/002-RAE_DA3_MAE_ADAPTER-bf16/checkpoints/0125000.pt
         noise_tau: 0.0
         reshape_to_2d: true
         normalization_stat_path: 'model_stats/da3/normalization_stats_level0.pt'
@@ -419,7 +421,7 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
 
 
-  work_dir: /mnt/dataset1/MV_Restoration/TMP
+  work_dir: /mnt/dataset1/MV_Restoration/TMP_125k
 
 
 
