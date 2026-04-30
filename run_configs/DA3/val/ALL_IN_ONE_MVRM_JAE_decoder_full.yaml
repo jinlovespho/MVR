@@ -24,7 +24,8 @@ MVRM_EVAL:
         # mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-da3-giant-adapter/001-RAE_DA3_MAE-bf16/checkpoints/0031000.pt
         # mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-adapter-giant-final/000-RAE_DA3_MAE_ADAPTER-bf16/checkpoints/0070000.pt
         # mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-adapter-giant-final/001-RAE_DA3_MAE_ADAPTER-bf16/checkpoints/0070000.pt
-        mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-adapter-giant-final/002-RAE_DA3_MAE_ADAPTER-bf16/checkpoints/0125000.pt
+        mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-adapter-giant-final-full-finetuning/002-RAE_DA3_MAE_ADAPTER-bf16/checkpoints/0370000.pt
+        # mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-adapter-giant-final-full-finetuning/002-RAE_DA3_MAE_ADAPTER-bf16/checkpoints/0370000.pt
         noise_tau: 0.0
         reshape_to_2d: true
         normalization_stat_path: 'model_stats/da3/normalization_stats_level0.pt'
@@ -424,13 +425,37 @@ workspace:
 
   # work_dir: /mnt/dataset1/MV_Restoration/TMP_125k
 
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_150/ray_saddle_maxview10_cfg1
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_600/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_200/ray_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_400/ray_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_500/ray_saddle_maxview10_cfg1
 
+  # Decode by Frame (frame 10)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_200/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_400/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_500/ray_saddle_maxview10_cfg1
 
+  # Decode by Frame (frame 50)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100/ray_saddle_maxview50_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_200/ray_saddle_maxview50_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_300/ray_saddle_maxview50_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_400/ray_saddle_maxview50_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_500/ray_saddle_maxview50_cfg1
 
+  # Decode by Frame (frame 10, full finetune decoder)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_full/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_full/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_200/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_full/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_full/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_400/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_full/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_500/ray_saddle_maxview10_cfg1
+
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_full/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_150/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_full/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_200/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_full/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_full/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_400/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_full/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_500/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_full/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_600/ray_saddle_maxview10_cfg1
 
 
 # ==============================================================================
@@ -441,9 +466,9 @@ eval:
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
     - 7scenes
-    - dtu64
-    - scannetpp
-    - hiroom
+    # - dtu64
+    # - scannetpp
+    # - hiroom
     # - eth3d
     # - dtu
     
@@ -453,9 +478,9 @@ eval:
   # Evaluation modes
   # Options: pose, recon_unposed, recon_posed, view_syn
   modes:
-    - pose
+    # - pose
     - depth
-    - recon_unposed
+    # - recon_unposed
     # - recon_posed
     
 
@@ -481,8 +506,8 @@ eval:
   # max_frames: 1
 
   # Only run evaluation (skip inference)
-  eval_only: true
-  # eval_only: false
+  # eval_only: true
+  eval_only: false
 
   # Only print saved metrics (skip inference and evaluation)
   print_only: false

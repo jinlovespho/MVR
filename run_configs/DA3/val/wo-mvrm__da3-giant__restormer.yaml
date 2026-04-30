@@ -96,6 +96,12 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/restormer/filtered_cam_blur_100/ray_saddle_maxview10
 
 
+  ##################################
+  ###### FILTERED_CAM_BLUR150 ######
+  ##################################
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/restormer/filtered_cam_blur_150/ray_saddle_maxview10
+
 
 
 
@@ -104,7 +110,17 @@ workspace:
   ##################################
 
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/restormer/filtered_cam_blur_200/ray_saddle_maxview10
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/restormer/filtered_cam_blur_200/ray_saddle_maxview50
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/restormer/filtered_cam_blur_200/ray_saddle_maxview50
+
+
+
+
+  ##################################
+  ###### FILTERED_CAM_BLUR250 ######
+  ##################################
+
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/restormer/filtered_cam_blur_250/ray_saddle_maxview10
+
 
 
 
@@ -115,6 +131,24 @@ workspace:
   ##################################
 
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/restormer/filtered_cam_blur_300/ray_saddle_maxview10
+
+
+  ##################################
+  ###### FILTERED_CAM_BLUR400 ######
+  ##################################
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/restormer/filtered_cam_blur_400/ray_saddle_maxview10
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/restormer/filtered_cam_blur_400/ray_saddle_maxview50
+
+
+
+  ##################################
+  ###### FILTERED_CAM_BLUR500 ######
+  ##################################
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/restormer/filtered_cam_blur_500/ray_saddle_maxview10
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/restormer/filtered_cam_blur_500/ray_saddle_maxview50
+
 
 
 
@@ -135,12 +169,12 @@ eval:
   # Datasets to evaluate
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
-    - 7scenes
-    - scannetpp
+    # - 7scenes
+    # - scannetpp
     - hiroom
-    - eth3d
-    - dtu
-    - dtu64
+    # - eth3d
+    # - dtu
+    # - dtu64
 
 
   # Evaluation modes
@@ -165,8 +199,8 @@ eval:
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
   # max_frames: 100
-  max_frames: 50
-  # max_frames: 10
+  # max_frames: 50
+  max_frames: 10
   # max_frames: 5
   # max_frames: 1
 

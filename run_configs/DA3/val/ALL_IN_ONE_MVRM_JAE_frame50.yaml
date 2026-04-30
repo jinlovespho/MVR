@@ -424,11 +424,13 @@ workspace:
 
   # work_dir: /mnt/dataset1/MV_Restoration/TMP_125k
 
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_150/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_150/ray_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_600/ray_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_400/ray_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_500/ray_saddle_maxview10_cfg1
 
+  # frame50
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_150/ray_saddle_maxview50_cfg1
 
 
 
@@ -444,8 +446,8 @@ eval:
     - dtu64
     - scannetpp
     - hiroom
-    # - eth3d
-    # - dtu
+    - eth3d
+    - dtu
     
     
 
@@ -474,15 +476,15 @@ eval:
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
   # max_frames: 100
-  # max_frames: 50
-  max_frames: 10
+  max_frames: 50
+  # max_frames: 10
   # max_frames: 4
   # max_frames: 5
   # max_frames: 1
 
   # Only run evaluation (skip inference)
-  eval_only: true
-  # eval_only: false
+  # eval_only: true
+  eval_only: false
 
   # Only print saved metrics (skip inference and evaluation)
   print_only: false

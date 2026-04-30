@@ -32,6 +32,7 @@ MVRM_EVAL:
   #   vis_rgb_LQ: true 
   #   vis_rgb_HQ: true 
   #   vis_rgb_RES: true
+  #   vis_rgb_framewise: true
 
 
 # ==============================================================================
@@ -338,6 +339,7 @@ workspace:
 
   ## JIHYE8 (epoch20)
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100/ray_saddle_maxview30_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100/ray_saddle_maxview50_cfg1
 
 
@@ -388,7 +390,20 @@ workspace:
 
   ## JIHYE8 (epoch20)
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_200/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_200/ray_saddle_maxview30_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_200/ray_saddle_maxview50_cfg1
+
+
+
+
+
+
+  ##################################
+  ###### FILTERED_CAM_BLUR 250 #####
+  ##################################
+
+  ## JIHYE8 (epoch20)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_250/ray_saddle_maxview10_cfg1
 
 
 
@@ -434,13 +449,14 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_300/ray_saddle_maxview50_cfg1
 
   ## JIHYE8 (epoch20)
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_300/ray_saddle_maxview50_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_300/ray_saddle_maxview30_cfg1
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_300/ray_saddle_maxview50_cfg1
 
 
 
 
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO
+  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOPHO
 
 
 
@@ -492,8 +508,9 @@ eval:
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
   # max_frames: 100
-  # max_frames: 50
-  max_frames: 10
+  max_frames: 50
+  # max_frames: 30
+  # max_frames: 10
   # max_frames: 4
   # max_frames: 5
   # max_frames: 1

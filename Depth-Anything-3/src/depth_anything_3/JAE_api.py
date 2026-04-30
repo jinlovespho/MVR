@@ -37,6 +37,7 @@ from depth_anything_3.utils.io.input_processor import InputProcessor
 from depth_anything_3.utils.io.output_processor import OutputProcessor
 from depth_anything_3.utils.logger import logger
 from depth_anything_3.utils.pose_align import align_poses_umeyama
+from depth_anything_3.utils.io.mvrm_rgb_frame_saver import save_mvrm_decoder_rgb_frames
 
 from torchvision.utils import save_image 
 import torchvision.transforms.functional as TF
@@ -505,19 +506,16 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                 b, v, n, c_tot = z_cat.shape
                 z_cat = z_cat.reshape(b*v, n, c_tot)         
                        
-                # Run MAE decoder
-                with torch.no_grad():
-                    with torch.autocast(device_type=z_cat.device.type, enabled=True, dtype=torch.bfloat16):
-                        # MAE decoder forward
-                        # forward(hidden_states, input_size, drop_cls_token=False)
-                        if proj_adapter is not None:
-                            z_cat = proj_adapter(z_cat)
-                        mae_out_logits = rgb_decoder(z_cat, input_size=(model_H, model_W), drop_cls_token=False).logits
-                        # Unpatchify
-                        x_rec = rgb_decoder.unpatchify(mae_out_logits, (model_H, model_W)) # (B*V, 3, H, W)
-                        # Reshape to (B, V, 3, H, W) to match DPT format for consistency in denorm block below
-                        x_rec = x_rec.reshape(b, v, 3, model_H, model_W)
-                        rgb_lq = x_rec
+                rgb_lq = self._run_rgb_decoder_in_chunks(
+                    rgb_decoder,
+                    z_cat,
+                    b,
+                    v,
+                    model_H,
+                    model_W,
+                    proj_adapter=proj_adapter,
+                    chunk_size=10,
+                )
                     
             
 
@@ -696,19 +694,16 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                 b, v, n, c_tot = z_cat.shape
                 z_cat = z_cat.reshape(b*v, n, c_tot)         
                        
-                # Run MAE decoder
-                with torch.no_grad():
-                    with torch.autocast(device_type=z_cat.device.type, enabled=True, dtype=torch.bfloat16):
-                        # MAE decoder forward
-                        # forward(hidden_states, input_size, drop_cls_token=False)
-                        if proj_adapter is not None:
-                            z_cat = proj_adapter(z_cat)
-                        mae_out_logits = rgb_decoder(z_cat, input_size=(model_H, model_W), drop_cls_token=False).logits
-                        # Unpatchify
-                        x_rec = rgb_decoder.unpatchify(mae_out_logits, (model_H, model_W)) # (B*V, 3, H, W)
-                        # Reshape to (B, V, 3, H, W) to match DPT format for consistency in denorm block below
-                        x_rec = x_rec.reshape(b, v, 3, model_H, model_W)
-                        rgb_hq = x_rec
+                rgb_hq = self._run_rgb_decoder_in_chunks(
+                    rgb_decoder,
+                    z_cat,
+                    b,
+                    v,
+                    model_H,
+                    model_W,
+                    proj_adapter=proj_adapter,
+                    chunk_size=10,
+                )
             
             
             
@@ -928,24 +923,22 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                 b, v, n, c_tot = z_cat.shape
                 z_cat = z_cat.reshape(b*v, n, c_tot)         
                        
-                # Run MAE decoder
-                with torch.no_grad():
-                    with torch.autocast(device_type=z_cat.device.type, enabled=True, dtype=torch.bfloat16):
-                        # MAE decoder forward
-                        # forward(hidden_states, input_size, drop_cls_token=False)
-                        if proj_adapter is not None:
-                            z_cat = proj_adapter(z_cat)
-                        mae_out_logits = rgb_decoder(z_cat, input_size=(model_H, model_W), drop_cls_token=False).logits
-                        # Unpatchify
-                        x_rec = rgb_decoder.unpatchify(mae_out_logits, (model_H, model_W)) # (B*V, 3, H, W)
-                        # Reshape to (B, V, 3, H, W) to match DPT format for consistency in denorm block below
-                        x_rec = x_rec.reshape(b, v, 3, model_H, model_W)
-                        rgb_res = x_rec
+                rgb_res = self._run_rgb_decoder_in_chunks(
+                    rgb_decoder,
+                    z_cat,
+                    b,
+                    v,
+                    model_H,
+                    model_W,
+                    proj_adapter=proj_adapter,
+                    chunk_size=10,
+                )
 
 
 
 
             if vis_rgb_LQ and vis_rgb_HQ and vis_rgb_RES:
+                
                 vis_rgb_recon_root = os.path.join(cfg.workspace.work_dir, 'pho_rgb_recon_results',  data, pose_setting)
                 os.makedirs(vis_rgb_recon_root, exist_ok=True)                                                           
                 mean = torch.tensor([0.485, 0.456, 0.406], device=rgb_hq.device, dtype=rgb_hq.dtype).view(1, 3, 1, 1) 
@@ -963,10 +956,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                 combined = torch.cat([row_hq, row_lq, row_res], dim=-1)                                                                                                                              
                 img = TF.to_pil_image(combined.cpu())
                 img.save(os.path.join(vis_rgb_recon_root, f'{scene}.png'))
-                
-                
-                
-                
+            
             if vis_rgb_framewise:
                 vis_rgb_recon_frame_root = os.path.join(
                     cfg.workspace.work_dir,
@@ -982,9 +972,6 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                     image_files=image.image_files,
                     output_root=vis_rgb_recon_frame_root,
                 )
-                
-            
-
             
             # ## calculate image metrics (PSNR, SSIM, LPIPS and FID)
             # if vis_rgb_LQ and vis_rgb_HQ and vis_rgb_RES:
@@ -1248,17 +1235,16 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             
             # generate pure noise
             noise_generator.manual_seed(42)
-            pure_noise1 = torch.randn(lq_latent_mvrm1.shape, generator=noise_generator, device=imgs.device, dtype=torch.float32)
-            # lq_latent condition method
-            if cfg.mvrm.lq_latent_cond == 'addition':
-                xt = pure_noise1 + lq_latent_mvrm1
-            model_kwargs={
-                'model_img_size': (model_H, model_W)
-            }
-            autocast_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-            with torch.no_grad():
-                with torch.autocast(device_type=imgs.device.type, dtype=autocast_dtype):                
-                    restored_samples_mvrm1 = eval_sampler(xt, denoiser.forward, **model_kwargs)[-1]     # b v n d
+            restored_samples_mvrm1 = self._run_mvrm_sampling(
+                lq_latent_mvrm1,
+                eval_sampler,
+                denoiser,
+                model_H,
+                model_W,
+                imgs.device,
+                noise_generator,
+                cfg.mvrm.lq_latent_cond,
+            )
             mvrm_result={}
             mvrm_result[('restored_latent', first_extract_layer_idx)] = restored_samples_mvrm1
             # mvrm_result['restored_latent'] = hq_latent
@@ -1268,17 +1254,16 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             lq_latent_mvrm2 = lq_mvrm_out[('extract_feat', second_extract_layer_idx)]         # b v n+1 d
             # generate pure noise
             noise_generator.manual_seed(42)
-            pure_noise2 = torch.randn(lq_latent_mvrm2.shape, generator=noise_generator, device=imgs.device, dtype=torch.float32)
-            # lq_latent condition method
-            if cfg.mvrm.lq_latent_cond == 'addition':
-                xt = pure_noise2 + lq_latent_mvrm2
-            model_kwargs={
-                'model_img_size': (model_H, model_W)
-            }
-            autocast_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-            with torch.no_grad():
-                with torch.autocast(device_type=imgs.device.type, dtype=autocast_dtype):                
-                    restored_samples_mvrm2 = eval_sampler(xt, denoiser2.forward, **model_kwargs)[-1]     # b v n d
+            restored_samples_mvrm2 = self._run_mvrm_sampling(
+                lq_latent_mvrm2,
+                eval_sampler,
+                denoiser2,
+                model_H,
+                model_W,
+                imgs.device,
+                noise_generator,
+                cfg.mvrm.lq_latent_cond,
+            )
 
             mvrm_result[('restored_latent', second_extract_layer_idx)] = restored_samples_mvrm2
             # mvrm_result['restored_latent'] = hq_latent
@@ -1399,17 +1384,16 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             
             # generate pure noise
             noise_generator.manual_seed(42)
-            pure_noise1 = torch.randn(lq_latent_mvrm1.shape, generator=noise_generator, device=imgs.device, dtype=torch.float32)
-            # lq_latent condition method
-            if cfg.mvrm.lq_latent_cond == 'addition':
-                xt = pure_noise1 + lq_latent_mvrm1
-            model_kwargs={
-                'model_img_size': (model_H, model_W)
-            }
-            autocast_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-            with torch.no_grad():
-                with torch.autocast(device_type=imgs.device.type, dtype=autocast_dtype):                
-                    restored_samples_mvrm1 = eval_sampler(xt, denoiser.forward, **model_kwargs)[-1]     # b v n d
+            restored_samples_mvrm1 = self._run_mvrm_sampling(
+                lq_latent_mvrm1,
+                eval_sampler,
+                denoiser,
+                model_H,
+                model_W,
+                imgs.device,
+                noise_generator,
+                cfg.mvrm.lq_latent_cond,
+            )
             mvrm_result={}
             mvrm_result[('restored_latent', cfg.mvrm.train.extract_feat_layers[0])] = restored_samples_mvrm1
             # mvrm_result['restored_latent'] = hq_latent
@@ -1443,17 +1427,16 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             
             # generate pure noise
             noise_generator.manual_seed(42)
-            pure_noise2 = torch.randn(lq_latent_mvrm2.shape, generator=noise_generator, device=imgs.device, dtype=torch.float32)
-            # lq_latent condition method
-            if cfg.mvrm.lq_latent_cond == 'addition':
-                xt = pure_noise2 + lq_latent_mvrm2
-            model_kwargs={
-                'model_img_size': (model_H, model_W)
-            }
-            autocast_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-            with torch.no_grad():
-                with torch.autocast(device_type=imgs.device.type, dtype=autocast_dtype):                
-                    restored_samples_mvrm2 = eval_sampler(xt, denoiser2.forward, **model_kwargs)[-1]     # b v n d
+            restored_samples_mvrm2 = self._run_mvrm_sampling(
+                lq_latent_mvrm2,
+                eval_sampler,
+                denoiser2,
+                model_H,
+                model_W,
+                imgs.device,
+                noise_generator,
+                cfg.mvrm.lq_latent_cond,
+            )
 
             mvrm_result[('restored_latent', cfg.mvrm2.train.extract_feat_layers[0])] = restored_samples_mvrm2
             # mvrm_result['restored_latent'] = hq_latent
@@ -1977,6 +1960,76 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         end_time = time.time()
         logger.info(f"Model Forward Pass Done. Time: {end_time - start_time} seconds")
         return output, mvrm_out
+
+    def _run_mvrm_sampling(
+        self,
+        latent: torch.Tensor,
+        eval_sampler,
+        denoiser,
+        model_H: int,
+        model_W: int,
+        imgs_device: torch.device,
+        noise_generator,
+        lq_latent_cond: str,
+    ) -> torch.Tensor:
+        """Run sampler with minimal temporary allocations."""
+        if imgs_device.type == "cuda":
+            torch.cuda.empty_cache()
+
+        xt = torch.randn(
+            latent.shape,
+            generator=noise_generator,
+            device=imgs_device,
+            dtype=torch.float32,
+        )
+        if lq_latent_cond == "addition":
+            xt.add_(latent)
+
+        model_kwargs = {"model_img_size": (model_H, model_W)}
+        autocast_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+
+        with torch.inference_mode():
+            with torch.autocast(device_type=imgs_device.type, dtype=autocast_dtype):
+                restored_samples = eval_sampler(xt, denoiser.forward, **model_kwargs)[-1]
+
+        del xt, model_kwargs
+        if imgs_device.type == "cuda":
+            torch.cuda.empty_cache()
+
+        return restored_samples
+
+    def _run_rgb_decoder_in_chunks(
+        self,
+        rgb_decoder,
+        z_cat: torch.Tensor,
+        b: int,
+        v: int,
+        model_H: int,
+        model_W: int,
+        proj_adapter=None,
+        chunk_size: int = 5,
+    ) -> torch.Tensor:
+        """Decode RGB features in small chunks to avoid attention OOM."""
+        decoded_chunks = []
+        with torch.no_grad():
+            with torch.autocast(device_type=z_cat.device.type, enabled=True, dtype=torch.bfloat16):
+                for start in range(0, z_cat.shape[0], chunk_size):
+                    chunk = z_cat[start : start + chunk_size]
+                    # Only apply proj_adapter once to the whole chunk
+                    if proj_adapter is not None:
+                        chunk = proj_adapter(chunk)
+                    mae_out_logits = rgb_decoder(
+                        chunk,
+                        input_size=(model_H, model_W),
+                        drop_cls_token=False,
+                    ).logits
+                    x_chunk = rgb_decoder.unpatchify(mae_out_logits, (model_H, model_W))
+                    decoded_chunks.append(x_chunk)
+                    # Free intermediate memory
+                    del x_chunk, mae_out_logits, chunk
+
+        x_rec = torch.cat(decoded_chunks, dim=0)
+        return x_rec.reshape(b, v, 3, model_H, model_W)
 
     def _convert_to_prediction(self, raw_output: dict[str, torch.Tensor]) -> Prediction:
         """Convert raw model output to Prediction object."""

@@ -289,107 +289,104 @@ class Evaluator:
             
             
             
-
-        for data, scene in tqdm(tasks, desc=f"Inference (GPU {self.gpu_id})"):
-            
-            dataset = self.datasets[data]
-            scene_data = dataset.get_data(scene)            
-            scene_data = self._sample_frames(scene_data, scene)
-            
-
-            # for img_path in scene_data.lq_image_files:
-            #     # new_path = img_path.replace("/cam_blur_100_resize_640/", "/filtered_cam_blur_100_resize_640/")
-            #     # new_path = img_path.replace("/cam_blur_300_resize_640/", "/filtered_cam_blur_300_resize_640/")
-            #     # new_path = img_path.replace("/cam_blur_500_resize_640/", "/filtered_cam_blur_500_resize_640/")
+        with torch.no_grad():
+            for data, scene in tqdm(tasks, desc=f"Inference (GPU {self.gpu_id})"):
                 
-            #     # new_path = img_path.replace("/cam_blur_400/", "/filtered_cam_blur_400/")
-            #     # new_path = img_path.replace("/cam_blur_500/", "/filtered_cam_blur_500/")
-            #     # new_path = img_path.replace("/cam_blur_600/", "/filtered_cam_blur_600/")
+                dataset = self.datasets[data]
+                scene_data = dataset.get_data(scene)            
+                scene_data = self._sample_frames(scene_data, scene)
                 
-            #     # new_path = img_path.replace("/cam_blur_200/", "/filtered_cam_blur_200/")
-            #     # new_path = img_path.replace("/cam_blur_150/", "/filtered_cam_blur_150/")
-            #     # new_path = img_path.replace("/cam_blur_250/", "/filtered_cam_blur_250/")
-            #     # new_path = img_path.replace("/cam_blur_700/", "/filtered_cam_blur_700/")
-            #     new_path = img_path.replace("/cam_blur_800/", "/filtered_cam_blur_800/")
 
-            #     new_dir = os.path.dirname(new_path)
-            #     os.makedirs(new_dir, exist_ok=True)
-            #     # Copy image
-            #     shutil.copy2(img_path, new_path)  # copy2 preserves metadata
-            # continue 
-        
+                # for img_path in scene_data.lq_image_files:
+                #     # new_path = img_path.replace("/cam_blur_100_resize_640/", "/filtered_cam_blur_100_resize_640/")
+                #     # new_path = img_path.replace("/cam_blur_300_resize_640/", "/filtered_cam_blur_300_resize_640/")
+                #     # new_path = img_path.replace("/cam_blur_500_resize_640/", "/filtered_cam_blur_500_resize_640/")
+                    
+                #     # new_path = img_path.replace("/cam_blur_400/", "/filtered_cam_blur_400/")
+                #     # new_path = img_path.replace("/cam_blur_500/", "/filtered_cam_blur_500/")
+                #     # new_path = img_path.replace("/cam_blur_600/", "/filtered_cam_blur_600/")
+                    
+                #     # new_path = img_path.replace("/cam_blur_200/", "/filtered_cam_blur_200/")
+                #     new_path = img_path.replace("/cam_blur_150/", "/filtered_cam_blur_150/")
 
-
+                #     new_dir = os.path.dirname(new_path)
+                #     os.makedirs(new_dir, exist_ok=True)
+                #     # Copy image
+                #     shutil.copy2(img_path, new_path)  # copy2 preserves metadata
+                # continue 
             
-            # for img_path in scene_data.image_files:
-            #     new_path = img_path.replace("/clean/", "/filtered_clean/")
-            #     # new_path = img_path.replace("/cam_blur_50/", "/filtered_cam_blur_50/")
-            #     # new_path = img_path.replace("/cam_blur_100/", "/filtered_cam_blur_100/")
-            #     # new_path = img_path.replace("/cam_blur_300/", "/filtered_cam_blur_300/")
-            #     new_dir = os.path.dirname(new_path)
-            #     os.makedirs(new_dir, exist_ok=True)
-            #     # Copy image
-            #     shutil.copy2(img_path, new_path)  # copy2 preserves metadata
-            # continue 
-            
-            if self.full_cfg.model.use_ray_pose:
-                print('=========== USING RAY POSE ===========')
-            else:
-                print('=========== USING CAMERA POSE ===========')
+
+
                 
-            
-            
+                # for img_path in scene_data.image_files:
+                #     new_path = img_path.replace("/clean/", "/filtered_clean/")
+                #     # new_path = img_path.replace("/cam_blur_50/", "/filtered_cam_blur_50/")
+                #     # new_path = img_path.replace("/cam_blur_100/", "/filtered_cam_blur_100/")
+                #     # new_path = img_path.replace("/cam_blur_300/", "/filtered_cam_blur_300/")
+                #     new_dir = os.path.dirname(new_path)
+                #     os.makedirs(new_dir, exist_ok=True)
+                #     # Copy image
+                #     shutil.copy2(img_path, new_path)  # copy2 preserves metadata
+                # continue 
                 
-            if self.rgb_dec_cfg is not None:
-                print('--- LOADED RGB DECODER ---')
-            
-            
+                if self.full_cfg.model.use_ray_pose:
+                    print('=========== USING RAY POSE ===========')
+                else:
+                    print('=========== USING CAMERA POSE ===========')
+                    
+                
+                
+                    
+                if self.rgb_dec_cfg is not None:
+                    print('--- LOADED RGB DECODER ---')
+                
+                
 
-            if need_unposed:    # t
-                print('------------ UNPOSED!! ------------ ')
-                export_dir = self._export_dir(data, scene, posed=False)
-                api.inference(
-                    scene_data,
-                    export_dir=export_dir,             
-                    export_format=export_format,                # export_format: 'mini_npz-glb'
-                    ref_view_strategy=self.ref_view_strategy,
-                    eval_sampler=self.eval_sampler,
-                    denoiser=self.denoiser,
-                    denoiser2 = self.denoiser2,
-                    noise_generator=noise_generator,
-                    cfg=self.full_cfg,
-                    scene_info = (data,scene),
-                    use_pose=False,
-                    use_ray_pose = self.full_cfg.model.use_ray_pose,
-                    rgb_decoder = self.rgb_decoder,
-                    proj_adapter = self.proj_adapter
-                )
-                # breakpoint()
-                self._save_gt_meta(export_dir, scene_data)
+                if need_unposed:    # t
+                    print('------------ UNPOSED!! ------------ ')
+                    export_dir = self._export_dir(data, scene, posed=False)
+                    api.inference(
+                        scene_data,
+                        export_dir=export_dir,             
+                        export_format=export_format,                # export_format: 'mini_npz-glb'
+                        ref_view_strategy=self.ref_view_strategy,
+                        eval_sampler=self.eval_sampler,
+                        denoiser=self.denoiser,
+                        denoiser2 = self.denoiser2,
+                        noise_generator=noise_generator,
+                        cfg=self.full_cfg,
+                        scene_info = (data,scene),
+                        use_pose=False,
+                        use_ray_pose = self.full_cfg.model.use_ray_pose,
+                        rgb_decoder = self.rgb_decoder,
+                        proj_adapter = self.proj_adapter
+                    )
+                    # breakpoint()
+                    self._save_gt_meta(export_dir, scene_data)
 
-            if need_posed:
-                print('------------ POSED!! ------------ ')
-                export_dir = self._export_dir(data, scene, posed=True)
-                api.inference(
-                    scene_data,
-                    scene_data.extrinsics,      # provide extrinsics
-                    scene_data.intrinsics,      # provide intrinsics
-                    export_dir=export_dir,
-                    export_format=export_format,
-                    ref_view_strategy=self.ref_view_strategy,
-                    eval_sampler=self.eval_sampler,
-                    denoiser=self.denoiser,
-                    denoiser2 = self.denoiser2,
-                    noise_generator=noise_generator,
-                    cfg=self.full_cfg,
-                    scene_info = (data,scene),
-                    use_pose=True,
-                    use_ray_pose = self.full_cfg.model.use_ray_pose,
-                    rgb_decoder = self.rgb_decoder,
-                    proj_adapter = self.proj_adapter
-                )
-                self._save_gt_meta(export_dir, scene_data)
-        
+                if need_posed:
+                    print('------------ POSED!! ------------ ')
+                    export_dir = self._export_dir(data, scene, posed=True)
+                    api.inference(
+                        scene_data,
+                        scene_data.extrinsics,      # provide extrinsics
+                        scene_data.intrinsics,      # provide intrinsics
+                        export_dir=export_dir,
+                        export_format=export_format,
+                        ref_view_strategy=self.ref_view_strategy,
+                        eval_sampler=self.eval_sampler,
+                        denoiser=self.denoiser,
+                        denoiser2 = self.denoiser2,
+                        noise_generator=noise_generator,
+                        cfg=self.full_cfg,
+                        scene_info = (data,scene),
+                        use_pose=True,
+                        use_ray_pose = self.full_cfg.model.use_ray_pose,
+                        rgb_decoder = self.rgb_decoder,
+                        proj_adapter = self.proj_adapter
+                    )
+                    self._save_gt_meta(export_dir, scene_data)
+            
             
     def eval(self) -> TDict[str, dict]:
         """
@@ -1057,19 +1054,15 @@ class Evaluator:
   
         
         # PHO
-        if hasattr(scene_data, 'lq_image_files') and len(scene_data.lq_image_files) == num_frames:
-            sampled.lq_image_files = [scene_data.lq_image_files[i] for i in sampled_indices]
-        elif hasattr(scene_data, 'lq_image_files'):
-            sampled.lq_image_files = scene_data.lq_image_files
+        sampled.lq_image_files = [scene_data.lq_image_files[i] for i in sampled_indices]
 
 
 
         if self.full_cfg.MVRM_EVAL.load_res:
-            if hasattr(scene_data, 'res_image_files'):
-                if len(scene_data.res_image_files) == self.max_frames:
-                    sampled.res_image_files = scene_data.res_image_files
-                else:
-                    sampled.res_image_files = [scene_data.res_image_files[i] for i in sampled_indices]
+            if len(scene_data.res_image_files) == self.max_frames:
+                sampled.res_image_files = scene_data.res_image_files
+            else:
+                sampled.res_image_files = [scene_data.res_image_files[i] for i in sampled_indices]
 
 
         if len(scene_data.image_files) == self.max_frames:
@@ -1408,7 +1401,7 @@ Examples:
         # else:   # t
             
         # Single GPU or worker process
-        from depth_anything_3.api import DepthAnything3
+        from depth_anything_3.JAE_api import DepthAnything3
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         api = DepthAnything3.from_pretrained(model_path)

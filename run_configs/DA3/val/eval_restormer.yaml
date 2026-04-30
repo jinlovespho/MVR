@@ -96,8 +96,11 @@ workspace:
 
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/restored_restormer/filtered_cam_blur_50/eval_full_10
   # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/restored_restormer/filtered_cam_blur_100/eval_full_10
-  work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/restored_restormer/filtered_cam_blur_300/eval_full_10
+  # work_dir: /mnt/dataset1/MV_Restoration/ECCV26_RESULTS/pho_result_val_FINAL/restored_restormer/filtered_cam_blur_300/eval_full_10
 
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/restormer/filtered_cam_blur_150
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/restormer/filtered_cam_blur_400
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/restormer/filtered_cam_blur_500
 
 # ==============================================================================
 # Evaluation Configuration

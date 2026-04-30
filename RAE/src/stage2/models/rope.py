@@ -60,7 +60,7 @@ class PositionGetter:
             self.position_cache[height, width] = positions
 
         cached_positions = self.position_cache[height, width]
-        return cached_positions.view(1, height * width, 2).expand(batch_size, -1, -1).clone()
+        return cached_positions.view(1, height * width, 2).expand(batch_size, -1, -1)
 
 
 class RotaryPositionEmbedding2D(nn.Module):
@@ -155,8 +155,16 @@ class RotaryPositionEmbedding2D(nn.Module):
         # Embed positions with frequency components
         cos = F.embedding(positions, cos_comp)[:, None, :, :]
         sin = F.embedding(positions, sin_comp)[:, None, :, :]
-        # Apply rotation
-        return (tokens * cos) + (self._rotate_features(tokens) * sin)
+
+        half_dim = tokens.shape[-1] // 2
+        left = tokens[..., :half_dim]
+        right = tokens[..., half_dim:]
+        out = torch.empty_like(tokens)
+
+        # Write directly into the output buffer to avoid keeping two full products alive.
+        out[..., :half_dim] = left * cos[..., :half_dim] - right * sin[..., :half_dim]
+        out[..., half_dim:] = left * sin[..., :half_dim] + right * cos[..., :half_dim]
+        return out
 
     def forward(self, tokens: torch.Tensor, positions: torch.Tensor) -> torch.Tensor:
         """Applies 2D rotary position embeddings to input tokens.

@@ -11,6 +11,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Constants for Depth Anything 3.
+
+USER-SPECIFIC SETTINGS (for collaborative work):
+  Set environment variables to override default paths without merge conflicts:
+    export DA3_LQ_ROOT_PATH='/your/lq/path'
+    export DA3_RES_ROOT_PATH='/your/res/path'
+  
+  Then these will be used instead of the defaults below.
+  
+  Example (.bashrc or .zshrc):
+    export DA3_LQ_ROOT_PATH='/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100'
+    export DA3_RES_ROOT_PATH='/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_100'
+"""
+
 import os
 
 DEFAULT_MODEL = "depth-anything/DA3NESTED-GIANT-LARGE-1.1"
@@ -34,137 +49,36 @@ EVAL_REF_VIEW_STRATEGY = "saddle_balanced"
 
 
 # =============================================================================
-# CLEAN ROOT PATH (dont change)
+# CLEAN ROOT PATH (shared, don't change)
 # =============================================================================
 DA3_CLEAN_ROOT_PATH = f"/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/clean"
 
 
+# =============================================================================
+# LQ ROOT PATH (USER-SPECIFIC via environment variable)
+# =============================================================================
+# Check if DA3_LQ_ROOT_PATH is set in bash/shell
+# If yes, use that value. Otherwise use default below.
 
-
+_DA3_LQ_DEFAULT = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_200'
+DA3_LQ_ROOT_PATH = os.environ.get('DA3_LQ_ROOT_PATH', _DA3_LQ_DEFAULT)
 
 
 # =============================================================================
-# LQ ROOT PATH (CHANGE!!!!!!!!!)
+# IMG RESTORED ROOT PATH (USER-SPECIFIC via environment variable)
 # =============================================================================
+# Check if DA3_RES_ROOT_PATH is set in bash/shell
+# If yes, use that value. Otherwise use default below.
 
-# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_50'
-# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100'
-# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_150'
-# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_200'
-# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_250'
-DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_300'
-# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_400'
-# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_500'
-# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_600'
-# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_800'
-# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_700'
-
-
-
-# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/cam_blur_100_resize'
-# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/cam_blur_300_resize'
-# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/cam_blur_500_resize'
-
-
-
-# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100_resize'
-# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_300_resize'
-# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_500_resize'
-
-
-
-# FINAL? 
-# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100_resize_640'
-# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_300_resize_640'
-# DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_500_resize_640'
-
-
-DA3_LQ_ROOT_PATH = os.environ.get("DA3_LQ_ROOT_PATH", DA3_LQ_ROOT_PATH)
-
-
+_DA3_RES_DEFAULT = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_100'
+DA3_RES_ROOT_PATH = os.environ.get('DA3_RES_ROOT_PATH', _DA3_RES_DEFAULT)
 
 
 # =============================================================================
-# IMG RESTORED ROOT PATH (restormer, vrt, dit4sr)
-# =============================================================================
-
-
-
-## SIRDIFF
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_sirdiff/ckpt_40k/filtered_cam_blur_100/max_view_10'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_sirdiff/ckpt_40k/filtered_cam_blur_300/max_view_10'
-
-
-
-
-
-## INSTRUCT_IR
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_100'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_200'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_300'
-
-
-
-
-## HI_DIFF
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_100'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_200'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_300'
-
-
-
-
-## MOCE_IR
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_moceir/filtered_cam_blur_100'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_moceir/filtered_cam_blur_300'
-
-
-
-## RESTORMER 
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_50'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_250'
-DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_300'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_400'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_500'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_600'
-
-
-
-## RESTORMER (resized degradation)
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/only50_filtered_cam_blur_300_resize'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/only50_filtered_cam_blur_500_resize'
-
-
-## RESTORMER 
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_100_resize_640'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_300_resize_640'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_500_resize_640'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_400'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_500'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_600'
-
-
-
-## VRT 
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_vrt/filtered_cam_blur_50'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_vrt/filtered_cam_blur_100'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_vrt/filtered_cam_blur_300'
-
-
-
-## DiT4SR
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_dit4sr/filtered_cam_blur_50'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_dit4sr/filtered_cam_blur_100'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_dit4sr/filtered_cam_blur_300'
-
-DA3_RES_ROOT_PATH = os.environ.get("DA3_RES_ROOT_PATH", DA3_RES_ROOT_PATH)
-
-
-# -----------------------------------------------------------------------------
 # DTU Dataset Configuration
+# =============================================================================
 # Reference: https://roboimagedata.compute.dtu.dk/
 # Note: DepthAnything3 was never trained on any images from DTU.
-# -----------------------------------------------------------------------------
 
 # Root directory for DTU evaluation data (MVSNet format)
 # Download from: https://drive.google.com/file/d/1rX0EXlUL4prRxrRu2DgLJv2j7-tpUD4D/view
@@ -206,11 +120,10 @@ DTU_DOWN_DENSE = 0.2  # Downsample density for evaluation (mm)
 DTU_PATCH_SIZE = 60  # Patch size for boundary handling
 DTU_MAX_DIST = 20  # Outlier threshold for accuracy/completeness (mm)
 
-# -----------------------------------------------------------------------------
+# -----
 # DTU-64 Dataset Configuration (Pose Evaluation Only)
 # This is a subset of DTU with 64 images per scene for pose evaluation.
 # Note: This dataset is ONLY for pose evaluation, not 3D reconstruction.
-# -----------------------------------------------------------------------------
 
 # Root directory for DTU-64 evaluation data
 DTU64_EVAL_DATA_ROOT = f"{DA3_CLEAN_ROOT_PATH}/dtu64"
@@ -233,12 +146,12 @@ DTU64_SCENES = [
     "scan97",
 ]
 
-# -----------------------------------------------------------------------------
+# =============================================================================
 # ETH3D Dataset Configuration
+# =============================================================================
 # Reference: https://www.eth3d.net/
 # High-resolution multi-view stereo benchmark with laser-scanned ground truth.
 # Note: DepthAnything3 was never trained on any images from ETH3D.
-# -----------------------------------------------------------------------------
 
 # Root directory for ETH3D evaluation data
 ETH3D_EVAL_DATA_ROOT = f"{DA3_CLEAN_ROOT_PATH}/eth3d"
@@ -288,9 +201,9 @@ ETH3D_EVAL_THRESHOLD = 0.05 * 5  # Distance threshold for precision/recall (mete
 ETH3D_DOWN_SAMPLE = 4.0 / 512.0 * 5  # Voxel size for evaluation downsampling (meters)
 
 
-# ==============================================================================
+# =============================================================================
 # 7Scenes Dataset Configuration
-# ==============================================================================
+# =============================================================================
 # Reference: https://www.microsoft.com/en-us/research/project/rgb-d-dataset-7-scenes/
 # Note: Indoor RGB-D dataset with ground truth poses and meshes.
 
@@ -327,9 +240,9 @@ SEVENSCENES_EVAL_THRESHOLD = 0.05  # Distance threshold for precision/recall (me
 SEVENSCENES_DOWN_SAMPLE = 4.0 / 512.0  # Voxel size for evaluation downsampling (meters)
 
 
-# ==============================================================================
+# =============================================================================
 # ScanNet++ Dataset Configuration
-# ==============================================================================
+# =============================================================================
 # Reference: https://kaldir.vc.in.tum.de/scannetpp/
 # Note: High-quality indoor RGB-D dataset with iPhone and DSLR images.
 
@@ -377,9 +290,9 @@ SCANNETPP_EVAL_THRESHOLD = 0.05  # Distance threshold for precision/recall (mete
 SCANNETPP_DOWN_SAMPLE = 0.02  # Voxel size for evaluation downsampling (meters)
 
 
-# ==============================================================================
+# =============================================================================
 # HiRoom Dataset Configuration
-# ==============================================================================
+# =============================================================================
 # Note: Indoor RGB-D dataset.
 
 # Root directory for HiRoom evaluation data
