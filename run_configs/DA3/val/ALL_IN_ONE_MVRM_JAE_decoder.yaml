@@ -447,7 +447,7 @@ workspace:
   # Decode by Frame (frame 10, full finetune decoder)
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_full/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_full/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_150/ray_saddle_maxview10_cfg1
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_full/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_200/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decㅍoder_full/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_200/ray_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_full/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_full/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_400/ray_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_full/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_500/ray_saddle_maxview10_cfg1
@@ -461,9 +461,13 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_320k/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_320k/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_400/ray_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_320k/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_500/ray_saddle_maxview10_cfg1
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_320k/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_600/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/jae_val_decoder_320k/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_600/ray_saddle_maxview10_cfg1
 
-
+  
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/GoPro
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/HIDE
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/RealBlur_J
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/RealBlur_R
 
 
 
@@ -475,12 +479,12 @@ eval:
   # Datasets to evaluate
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
-    # - 7scenes
-    # - dtu64
-    # - scannetpp
-    # - hiroom
+    - 7scenes
+    - dtu64
+    - scannetpp
+    - hiroom
     - eth3d
-    # - dtu
+    - dtu
     
     
 
@@ -488,9 +492,9 @@ eval:
   # Evaluation modes
   # Options: pose, recon_unposed, recon_posed, view_syn
   modes:
-    # - pose
+    - pose
     - depth
-    # - recon_unposed
+    - recon_unposed
     # - recon_posed
     
 

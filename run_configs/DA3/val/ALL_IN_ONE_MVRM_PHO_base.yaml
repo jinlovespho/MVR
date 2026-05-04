@@ -27,6 +27,7 @@ MVRM_EVAL:
     vis_rgb_LQ: true 
     vis_rgb_HQ: true 
     vis_rgb_RES: true
+    vis_rgb_framewise: true
 
 
 # ==============================================================================
@@ -82,9 +83,9 @@ denoiser:
   # ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/multi_view/260413/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-BASE-extractfeat3-mvrm__bs4-maxview4-accum1__lr-2e-04__msg-lqkernel50-300__blur00-03__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01/checkpoints/ep-0025000.pt
 
 
-
   ## JIHYE 9-2 
-  ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/JIHYE_SAMSUNG/ep-0070000_jihye_9_2.pt
+  # ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/JIHYE_SAMSUNG/ep-0070000_jihye_9_2.pt
+  ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/JIHYE_SAMSUNG/ep-0230000_9_2.pt
 
 
 
@@ -288,7 +289,6 @@ workspace:
 
 
 
-
   ##################################
   ###### FILTERED_CAM_BLUR 200 ######
   ##################################
@@ -313,11 +313,12 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260413/da3_base/w_mvrm_FRONT/lqkernel50-300__blur00-03__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01/a100_ckpt25k/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
 
   ## JIHYE9-2 (epoch10)
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE9-2/da3-base/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE9-2/da3-base/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
 
 
 
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP_base
+  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO_BASE
+  work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO_BASE2
 
 
 

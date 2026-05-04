@@ -1063,7 +1063,6 @@ class Evaluator:
             sampled.lq_image_files = scene_data.lq_image_files
 
 
-
         if self.full_cfg.MVRM_EVAL.load_res:
             if hasattr(scene_data, 'res_image_files'):
                 if len(scene_data.res_image_files) == self.max_frames:

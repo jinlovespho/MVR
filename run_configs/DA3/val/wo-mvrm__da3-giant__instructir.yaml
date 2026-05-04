@@ -113,6 +113,13 @@ workspace:
 
 
 
+  ##################################
+  ###### FILTERED_CAM_BLUR 250 #####
+  ##################################
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/instructir/filtered_cam_blur_250/ray_saddle_maxview10
+
+
 
 
   ##################################
@@ -124,12 +131,39 @@ workspace:
 
 
 
+  ##################################
+  ###### FILTERED_CAM_BLUR400 ######
+  ##################################
+
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/instructir/filtered_cam_blur_400/ray_saddle_maxview10
+
+
+
 
   ##################################
   ###### FILTERED_CAM_BLUR600 ######
   ##################################
 
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/instructir/filtered_cam_blur_600/ray_saddle_maxview10
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/instructir/filtered_cam_blur_600/ray_saddle_maxview10
+
+
+
+  ##################################
+  ###### FILTERED_CAM_BLUR 700 #####
+  ##################################
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/instructir/filtered_cam_blur_700/ray_saddle_maxview10
+
+
+
+  ##################################
+  ###### FILTERED_CAM_BLUR 800 #####
+  ##################################
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/instructir/filtered_cam_blur_800/ray_saddle_maxview10
+
+
+
 
 
 
@@ -143,9 +177,9 @@ eval:
     # - 7scenes
     # - scannetpp
     # - hiroom
-    - eth3d
-    # - dtu
-    # - dtu64
+    # - eth3d
+    - dtu
+    - dtu64
 
 
   # Evaluation modes

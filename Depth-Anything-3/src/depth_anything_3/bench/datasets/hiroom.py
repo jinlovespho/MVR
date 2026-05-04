@@ -175,13 +175,15 @@ class HiRoomDataset(Dataset):
             out.lq_image_files.append(lq_img_path)
             
             # PHO (RES)
-            res_img_path = os.path.join(res_image_dir, img_name.replace('.jpg', '.png'))
+            res_img_path = os.path.join(res_image_dir, img_name)
+            ext = os.path.splitext(img_name)[1].lower()
             if not os.path.exists(res_img_path):
-                res_img_path = os.path.join(res_image_dir, img_name.replace('.png', '.jpg'))
+                res_img_path = os.path.join(res_image_dir, img_name.replace(ext, '.png'))
+            if not os.path.exists(res_img_path):
+                res_img_path = os.path.join(res_image_dir, img_name.replace(ext, '.jpg'))
             if not os.path.exists(res_img_path):
                 continue
             out.res_image_files.append(res_img_path)
-            
             
             img_path = os.path.join(image_dir, img_name)
             frame_name = img_name.split(".")[0]

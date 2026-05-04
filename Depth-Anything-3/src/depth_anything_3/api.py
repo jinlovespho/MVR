@@ -51,7 +51,7 @@ from RAE.src.utils.vis_utils import vis_all, vis_attn_maps, vis_pointcloud_corre
 from RAE.src.vis_cam_pose import plot_cam_trajectory, plot_cam_trajectory_fair, plot_all_cam_trajectory_fair
 from depth_anything_3.utils.geometry import unproject_depth, affine_inverse, as_homogeneous
 
-
+from depth_anything_3.utils.io.mvrm_rgb_frame_saver import save_mvrm_decoder_rgb_frames
 
 
 torch.backends.cudnn.benchmark = False
@@ -944,7 +944,6 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
 
 
 
-
             if vis_rgb_LQ and vis_rgb_HQ and vis_rgb_RES:
                 vis_rgb_recon_root = os.path.join(cfg.workspace.work_dir, 'pho_rgb_recon_results',  data, pose_setting)
                 os.makedirs(vis_rgb_recon_root, exist_ok=True)                                                           
@@ -956,9 +955,9 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                 rgb_lq_dn  = denorm(rgb_lq.squeeze(0).float())                                                                   
                 rgb_res_dn = denorm(rgb_res.squeeze(0).float())                                                                  
                 # Each row: all 10 frames concatenated horizontally → [3, 378*v, 504]                                
-                row_lq  = torch.cat([rgb_lq_dn[i]  for i in range(10)], dim=-2)
-                row_hq  = torch.cat([rgb_hq_dn[i]  for i in range(10)], dim=-2)                                        
-                row_res = torch.cat([rgb_res_dn[i] for i in range(10)], dim=-2)  
+                row_lq  = torch.cat([rgb_lq_dn[i]  for i in range(len(rgb_lq_dn))], dim=-2)
+                row_hq  = torch.cat([rgb_hq_dn[i]  for i in range(len(rgb_hq_dn))], dim=-2)                                        
+                row_res = torch.cat([rgb_res_dn[i] for i in range(len(rgb_res_dn))], dim=-2)  
                 # Stack 3 rows vertically → [3, 378*v, 504*3]                                                        
                 combined = torch.cat([row_hq, row_lq, row_res], dim=-1)                                                                                                                              
                 img = TF.to_pil_image(combined.cpu())
@@ -966,25 +965,46 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                 
                 
                 
-                
             if vis_rgb_framewise:
-                vis_rgb_recon_frame_root = os.path.join(
-                    cfg.workspace.work_dir,
-                    'pho_rgb_recon_frame_results',
-                    data,
-                    pose_setting,
-                )
-                save_mvrm_decoder_rgb_frames(
-                    rgb_hq=rgb_hq,                 # (1, V, 3, H, W) or (V, 3, H, W)
-                    rgb_lq=rgb_lq,
-                    rgb_res=rgb_res,
-                    scene=scene,                  
-                    image_files=image.image_files,
-                    output_root=vis_rgb_recon_frame_root,
-                )
+                # vis_rgb_recon_frame_root = export_dir.replace('model_results', 'pho_rgb_recon_frame_results')
+                    
+                # if 'hiroom' in vis_rgb_recon_frame_root:
+                #     vis_rgb_recon_frame_root = vis_rgb_recon_frame_root.replace('hiroom', 'hiroom/data')
+                #     vis_rgb_recon_frame_root = vis_rgb_recon_frame_root.replace('unposed', 'image')
                 
-            
-
+                
+                assert len(rgb_res_dn) == len(image.image_files)
+                
+                vis_rgb_recon_frame_root = os.path.join(cfg.workspace.work_dir, 'pho_rgb_recon_frame_results')
+                
+                for img_idx, img_id_full_path in enumerate(image.image_files):
+                    img_id_path = img_id_full_path.split('clean')[-1]
+                    rgb_res_save_path = vis_rgb_recon_frame_root + img_id_path
+                    img_folder = os.path.dirname(rgb_res_save_path)
+                    os.makedirs(img_folder, exist_ok=True)
+                    img = TF.to_pil_image(rgb_res_dn[img_idx].cpu())
+                    img.save(rgb_res_save_path)
+                    
+                    
+                                     
+                # vis_rgb_recon_frame_root = os.path.join(
+                #     cfg.workspace.work_dir,
+                #     'pho_rgb_recon_frame_results',
+                #     data,
+                #     pose_setting,
+                # )
+                
+                
+                # save_mvrm_decoder_rgb_frames(
+                #     rgb_hq=rgb_hq,                 # (1, V, 3, H, W) or (V, 3, H, W)
+                #     rgb_lq=rgb_lq,
+                #     rgb_res=rgb_res,
+                #     scene=scene,                  
+                #     image_files=image.image_files,
+                #     output_root=vis_rgb_recon_frame_root,
+                # )
+                
+                
             
             # ## calculate image metrics (PSNR, SSIM, LPIPS and FID)
             # if vis_rgb_LQ and vis_rgb_HQ and vis_rgb_RES:
@@ -1131,7 +1151,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                 save_path=f"{featsim_save_root}/{scene}_sim_all_combined.png"
             )
             cam_save_root = os.path.join(cfg.workspace.work_dir, 'pho_cam_traj_results', data, pose_setting)
-            plot_cam_trajectory(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/{scene}.png")
+            # plot_cam_trajectory(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/{scene}.png")
             plot_cam_trajectory_fair(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/fair_{scene}.png")
             
             
@@ -1615,6 +1635,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             cam_save_root = os.path.join(cfg.workspace.work_dir, 'pho_cam_traj_results', data, pose_setting)
             plot_cam_trajectory(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/{scene}.png")
             plot_cam_trajectory_fair(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/fair_{scene}.png")
+            
+            # breakpoint()
 
 
 
