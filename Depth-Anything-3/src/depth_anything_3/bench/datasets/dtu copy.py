@@ -331,12 +331,6 @@ class DTU(Dataset):
 
         proj_mat = self._build_proj_mats(intrinsics, extrinsics)
 
-        # Load RGB images for per-point color
-        images_rgb: List[np.ndarray] = []
-        for img_path in gt_data.image_files:
-            img = cv2.imread(img_path)
-            images_rgb.append(cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if img is not None else None)
-
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         dtype = torch.float32
         depths_t = torch.from_numpy(depths).to(device=device, dtype=dtype).unsqueeze(1)
@@ -344,7 +338,6 @@ class DTU(Dataset):
         height, width = depths_t.shape[-2:]
 
         points: List[np.ndarray] = []
-        colors: List[np.ndarray] = []
         for idx in range(len(gt_data.image_files)):
             if mode == "recon_unposed":
                 # Simple unfiltered back-projection per frame
@@ -355,33 +348,17 @@ class DTU(Dataset):
                 cur_p_pcd = cur_p_pcd[:, :, mask]
                 no_filter_pc = cur_p_pcd.squeeze(0).permute(1, 0).cpu().numpy()
                 points.append(no_filter_pc)
-
-                img = images_rgb[idx]
-                if img is not None:
-                    if img.shape[:2] != (height, width):
-                        img = cv2.resize(img, (width, height), interpolation=cv2.INTER_LINEAR)
-                    mask_np = mask.cpu().numpy().reshape(-1)
-                    colors.append(img.reshape(-1, 3)[mask_np].astype(np.float64) / 255.0)
-                else:
-                    colors.append(np.zeros((no_filter_pc.shape[0], 3), dtype=np.float64))
             else:  # recon_posed
                 final_pc = self._fuse_consistent_points(depths_t, proj_t, idx, height, width)
                 points.append(final_pc)
-                colors.append(np.zeros((final_pc.shape[0], 3), dtype=np.float64))
 
-        # Concatenate then cap points and colors together with the same indices
+        # Concatenate and optionally downsample to hard cap
         points_np = np.concatenate(points, axis=0)
-        colors_np = np.concatenate(colors, axis=0)
-        if len(points_np) > DTU_MAX_POINTS:
-            rng = np.random.default_rng(seed=42)
-            keep = rng.choice(len(points_np), DTU_MAX_POINTS, replace=False)
-            points_np = points_np[keep]
-            colors_np = colors_np[keep]
+        points_np = self._cap_points(points_np, max_points=DTU_MAX_POINTS)
 
         os.makedirs(os.path.dirname(fuse_path), exist_ok=True)
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(points_np)
-        pcd.colors = o3d.utility.Vector3dVector(colors_np)
         o3d.io.write_point_cloud(fuse_path, pcd)
 
     # ------------------------------
