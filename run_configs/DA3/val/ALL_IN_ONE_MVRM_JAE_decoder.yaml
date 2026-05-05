@@ -477,7 +477,8 @@ workspace:
 # ==============================================================================
 eval:
   # Datasets to evaluate
-  # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
+  # 3D Multi-view: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
+  # Video Deblurring: gopro, hide, realblur_j, realblur_r
   datasets:
     - 7scenes
     - dtu64
@@ -485,6 +486,10 @@ eval:
     - hiroom
     - eth3d
     - dtu
+    - gopro
+    - hide
+    - realblur_j
+    - realblur_r
     
     
 
@@ -543,10 +548,20 @@ inference:
 # These can be activated via command line: --preset full_eval
 
 presets:
-  # Full evaluation on all 6 datasets
+  # Full evaluation on all 10 datasets (6 3D + 4 video deblurring)
   full_eval:
+    datasets: [eth3d, 7scenes, scannetpp, hiroom, dtu, dtu64, gopro, hide, realblur_j, realblur_r]
+    modes: [pose, depth, recon_unposed, recon_posed]
+  
+  # 3D multi-view datasets only
+  multiview_only:
     datasets: [eth3d, 7scenes, scannetpp, hiroom, dtu, dtu64]
-    modes: [pose, recon_unposed, recon_posed]
+    modes: [pose, depth, recon_unposed, recon_posed]
+  
+  # Video deblurring datasets only
+  deblurring_only:
+    datasets: [gopro, hide, realblur_j, realblur_r]
+    modes: [depth]
 
   # Pose-only evaluation
   pose_only:

@@ -8,6 +8,11 @@ MVRM_EVAL:
   load_lq: true
   load_res: false
 
+
+  # eval_deblur_bench: true
+
+
+
   # rgb_decoder: 
   #   stage_1:
   #     target: GLD.src.stage1.rae_da3.RAE_DA3
@@ -117,12 +122,12 @@ denoiser:
 
   ### JIHYE8 (giant - epoch10, 20)
   # ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/JIHYE_SAMSUNG/ep-0145000_jihye8.pt
-  # ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/JIHYE_SAMSUNG/0423/ep-0305000_8.pt
+  ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/JIHYE_SAMSUNG/0423/ep-0305000_8.pt
 
 
 
   ### JIHYE8-2__enc8-dec6__hyp1tar1__lq2hq-wnoise03__cond
-  ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/JIHYE_SAMSUNG/0502/ep-0290000_8_2.pt
+  # ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/JIHYE_SAMSUNG/0502/ep-0290000_8_2.pt
 
   ### JIHYE8-3__enc8-dec6__hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9
   # ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/JIHYE_SAMSUNG/0502/ep-0180000_8_3.pt
@@ -320,14 +325,45 @@ workspace:
   # Working directory for outputs (model results, metrics, etc.)
 
 
+
+
+  ##############################################
+  ###### FILTERED_CAM_BLUR 50 (RESIZE640) #####
+  ##############################################
+
+  ## JIHYE8 (epoch20)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_50_resize640/ray_saddle_maxview10_cfg1
+
+
+
+
+
+  ##############################################
+  ###### FILTERED_CAM_BLUR 70 (RESIZE640) #####
+  ##############################################
+
+  ## JIHYE8 (epoch20)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_70_resize640/ray_saddle_maxview10_cfg1
+
+
+
+
+
+
+
   ##############################################
   ###### FILTERED_CAM_BLUR 100 (RESIZE640) #####
   ##############################################
 
 
   ## JIHYE8 (epoch20)
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100_resize640/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_100_resize640/ray_saddle_maxview10_cfg1
 
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100_resize640/ray_saddle_maxview4_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100_resize640/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100_resize640/ray_saddle_maxview30_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100_resize640/ray_saddle_maxview50_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100_resize640/ray_saddle_maxview70_cfg1
 
 
 
@@ -410,7 +446,7 @@ workspace:
 
   # ## JIHYE8-2
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8-2/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_150/ray_saddle_maxview4_cfg1
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8-2/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_150/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8-2/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_150/ray_saddle_maxview10_cfg1
 
   ### JIHYE8-3
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8-3/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_150/ray_saddle_maxview4_cfg1
@@ -474,7 +510,7 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_200/ray_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_200/ray_saddle_maxview30_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_200/ray_saddle_maxview50_cfg1
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_200/ray_saddle_maxview70_cfg1
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_200/ray_saddle_maxview70_cfg1
 
 
   # ## JIHYE8-2
@@ -673,6 +709,11 @@ workspace:
 
 
 
+  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO
+  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO
+  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOv2_maxview50
+  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOv2_maxview30
+  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOv3_maxview30
 
   # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO8
   # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO8-2
@@ -699,10 +740,10 @@ eval:
   # Datasets to evaluate
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
-    - 7scenes
+    # - 7scenes
     # - hiroom
     # - dtu64
-    # - scannetpp
+    - scannetpp
     # - eth3d
     # - dtu
     
@@ -726,16 +767,16 @@ eval:
   # Example: [courtyard, relief] for eth3d
   # scenes: [chess, redkitchen, office, heads, scan4, scan15, scan23]
   scenes: []
-  # scenes: [scan4]
+  # scenes: [redkitchen]
 
   # Maximum number of frames per scene (for sampling)
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
   # max_frames: 100
-  # max_frames: 70
+  max_frames: 70
   # max_frames: 50
   # max_frames: 30
-  max_frames: 10
+  # max_frames: 10
   # max_frames: 4
   # max_frames: 5
   # max_frames: 1

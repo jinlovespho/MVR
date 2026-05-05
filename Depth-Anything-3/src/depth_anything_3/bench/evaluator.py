@@ -289,107 +289,202 @@ class Evaluator:
             
             
             
+        eval_deblur_bench = self.full_cfg.MVRM_EVAL.get('eval_deblur_bench', False)
 
-        for data, scene in tqdm(tasks, desc=f"Inference (GPU {self.gpu_id})"):
-            
-            dataset = self.datasets[data]
-            scene_data = dataset.get_data(scene)            
-            scene_data = self._sample_frames(scene_data, scene)
-            
 
-            # for img_path in scene_data.lq_image_files:
-            #     # new_path = img_path.replace("/cam_blur_100_resize_640/", "/filtered_cam_blur_100_resize_640/")
-            #     # new_path = img_path.replace("/cam_blur_300_resize_640/", "/filtered_cam_blur_300_resize_640/")
-            #     # new_path = img_path.replace("/cam_blur_500_resize_640/", "/filtered_cam_blur_500_resize_640/")
-                
-            #     # new_path = img_path.replace("/cam_blur_400/", "/filtered_cam_blur_400/")
-            #     # new_path = img_path.replace("/cam_blur_500/", "/filtered_cam_blur_500/")
-            #     # new_path = img_path.replace("/cam_blur_600/", "/filtered_cam_blur_600/")
-                
-            #     # new_path = img_path.replace("/cam_blur_200/", "/filtered_cam_blur_200/")
-            #     # new_path = img_path.replace("/cam_blur_150/", "/filtered_cam_blur_150/")
-            #     # new_path = img_path.replace("/cam_blur_250/", "/filtered_cam_blur_250/")
-            #     # new_path = img_path.replace("/cam_blur_700/", "/filtered_cam_blur_700/")
-            #     new_path = img_path.replace("/cam_blur_800/", "/filtered_cam_blur_800/")
+        if eval_deblur_bench:
 
-            #     new_dir = os.path.dirname(new_path)
-            #     os.makedirs(new_dir, exist_ok=True)
-            #     # Copy image
-            #     shutil.copy2(img_path, new_path)  # copy2 preserves metadata
-            # continue 
+            deblur_bench_root = {
+                'gopro':      '/mnt/dataset1/MV_Restoration/restormer_benchmark/GoPro',
+                'hide':       '/mnt/dataset1/MV_Restoration/restormer_benchmark/HIDE',
+                'realblur_j': '/mnt/dataset1/MV_Restoration/restormer_benchmark/RealBlur_J',
+                'realblur_r': '/mnt/dataset1/MV_Restoration/restormer_benchmark/RealBlur_R',
+            }
+
+            img_exts = ('.png', '.jpg', '.jpeg', '.PNG', '.JPG', '.JPEG')
+
+            for deblur_ds, deblur_path in deblur_bench_root.items():
+                lq_dir = os.path.join(deblur_path, 'input')
+                gt_dir = os.path.join(deblur_path, 'target')
+
+                lq_files = sorted([os.path.join(lq_dir, f) for f in os.listdir(lq_dir) if f.endswith(img_exts)])
+                gt_files = sorted([os.path.join(gt_dir, f) for f in os.listdir(gt_dir) if f.endswith(img_exts)])
+
+                sequences = self._group_deblur_sequences(lq_files, gt_files, deblur_ds)
+                print(f'------------ {deblur_ds.upper()} DEBLUR BENCH: {len(sequences)} sequences ------------ ')
+
+                # Clear the dataset-level summary so re-runs don't append duplicates
+                ds_summary_path = os.path.join(
+                    self.work_dir, 'model_results', deblur_ds, 'selected_images_all.txt')
+                os.makedirs(os.path.dirname(ds_summary_path), exist_ok=True)
+                open(ds_summary_path, 'w').close()
+
+                for seq_name, lq_seq, gt_seq in sequences:
+                    N_seq = len(lq_seq)
+
+                    # If the sequence is longer than max_frames, take the center window
+                    # to maximise overlap while staying within memory
+                    if self.max_frames > 0 and N_seq > self.max_frames:
+                        start = (N_seq - self.max_frames) // 2
+                        lq_seq = lq_seq[start:start + self.max_frames]
+                        gt_seq = gt_seq[start:start + self.max_frames]
+
+                    n = len(lq_seq)
+                    dummy_ext = np.eye(4, dtype=np.float32)[None].repeat(n, axis=0)
+                    dummy_ixt = np.eye(3, dtype=np.float32)[None].repeat(n, axis=0)
+
+                    scene_data = Dict()
+                    scene_data.lq_image_files = lq_seq
+                    scene_data.image_files = gt_seq
+                    scene_data.extrinsics = dummy_ext
+                    scene_data.intrinsics = dummy_ixt
+                    scene_data.aux = Dict()
+
+                    print(f'  [{deblur_ds}] {seq_name}: {n} frames')
+                    export_dir = self._export_dir(deblur_ds, seq_name, posed=False)
+                    api.inference(
+                        scene_data,
+                        export_dir=export_dir,
+                        export_format=export_format,
+                        ref_view_strategy=self.ref_view_strategy,
+                        eval_sampler=self.eval_sampler,
+                        denoiser=self.denoiser,
+                        denoiser2=self.denoiser2,
+                        noise_generator=noise_generator,
+                        cfg=self.full_cfg,
+                        scene_info=(deblur_ds, seq_name),
+                        use_pose=False,
+                        use_ray_pose=self.full_cfg.model.use_ray_pose,
+                        rgb_decoder=self.rgb_decoder,
+                        proj_adapter=self.proj_adapter
+                    )
+                    # Save GT file list for this sequence so eval can load it
+                    meta_path = os.path.join(export_dir, 'exports', 'deblur_gt_files.npz')
+                    os.makedirs(os.path.dirname(meta_path), exist_ok=True)
+                    np.savez_compressed(meta_path, gt_files=np.array(gt_seq, dtype=object))
+
+                    # Per-sequence text file: one image basename per line
+                    seq_txt = os.path.join(export_dir, 'exports', 'selected_images.txt')
+                    with open(seq_txt, 'w') as f:
+                        for p in gt_seq:
+                            f.write(os.path.basename(p) + '\n')
+
+                    # Append to per-dataset summary file (one file covers all sequences)
+                    ds_summary_path = os.path.join(
+                        self.work_dir, 'model_results', deblur_ds, 'selected_images_all.txt')
+                    with open(ds_summary_path, 'a') as f:
+                        f.write(f'# {seq_name}\n')
+                        for p in gt_seq:
+                            f.write(os.path.basename(p) + '\n')
+
+
+
         
+        else:
 
-
-            
-            # for img_path in scene_data.image_files:
-            #     new_path = img_path.replace("/clean/", "/filtered_clean/")
-            #     # new_path = img_path.replace("/cam_blur_50/", "/filtered_cam_blur_50/")
-            #     # new_path = img_path.replace("/cam_blur_100/", "/filtered_cam_blur_100/")
-            #     # new_path = img_path.replace("/cam_blur_300/", "/filtered_cam_blur_300/")
-            #     new_dir = os.path.dirname(new_path)
-            #     os.makedirs(new_dir, exist_ok=True)
-            #     # Copy image
-            #     shutil.copy2(img_path, new_path)  # copy2 preserves metadata
-            # continue 
-            
-            if self.full_cfg.model.use_ray_pose:
-                print('=========== USING RAY POSE ===========')
-            else:
-                print('=========== USING CAMERA POSE ===========')
+            for data, scene in tqdm(tasks, desc=f"Inference (GPU {self.gpu_id})"):
                 
-            
+                dataset = self.datasets[data]
+                scene_data = dataset.get_data(scene)            
+                scene_data = self._sample_frames(scene_data, scene)
+                
+                # for img_path in scene_data.lq_image_files:
+                #     # new_path = img_path.replace("/cam_blur_100_resize_640/", "/filtered_cam_blur_100_resize_640/")
+                #     # new_path = img_path.replace("/cam_blur_300_resize_640/", "/filtered_cam_blur_300_resize_640/")
+                #     # new_path = img_path.replace("/cam_blur_500_resize_640/", "/filtered_cam_blur_500_resize_640/")
+                    
+                #     # new_path = img_path.replace("/cam_blur_50_resize_640/", "/filtered_cam_blur_50_resize_640/")
+                #     # new_path = img_path.replace("/cam_blur_70_resize_640/", "/filtered_cam_blur_70_resize_640/")
+                #     # new_path = img_path.replace("/cam_blur_120_resize_640/", "/filtered_cam_blur_120_resize_640/")
+                #     new_path = img_path.replace("/cam_blur_150_resize_640/", "/filtered_cam_blur_150_resize_640/")
+                    
+                #     # new_path = img_path.replace("/cam_blur_400/", "/filtered_cam_blur_400/")
+                #     # new_path = img_path.replace("/cam_blur_500/", "/filtered_cam_blur_500/")
+                #     # new_path = img_path.replace("/cam_blur_600/", "/filtered_cam_blur_600/")
+                    
+                #     # new_path = img_path.replace("/cam_blur_200/", "/filtered_cam_blur_200/")
+                #     # new_path = img_path.replace("/cam_blur_150/", "/filtered_cam_blur_150/")
+                #     # new_path = img_path.replace("/cam_blur_250/", "/filtered_cam_blur_250/")
+                #     # new_path = img_path.replace("/cam_blur_700/", "/filtered_cam_blur_700/")
+                #     # new_path = img_path.replace("/cam_blur_800/", "/filtered_cam_blur_800/")
+
+                #     new_dir = os.path.dirname(new_path)
+                #     os.makedirs(new_dir, exist_ok=True)
+                #     # Copy image
+                #     shutil.copy2(img_path, new_path)  # copy2 preserves metadata
+                # continue 
             
                 
-            if self.rgb_dec_cfg is not None:
-                print('--- LOADED RGB DECODER ---')
-            
-            
+                # for img_path in scene_data.image_files:
+                #     new_path = img_path.replace("/clean/", "/filtered_clean/")
+                #     # new_path = img_path.replace("/cam_blur_50/", "/filtered_cam_blur_50/")
+                #     # new_path = img_path.replace("/cam_blur_100/", "/filtered_cam_blur_100/")
+                #     # new_path = img_path.replace("/cam_blur_300/", "/filtered_cam_blur_300/")
+                #     new_dir = os.path.dirname(new_path)
+                #     os.makedirs(new_dir, exist_ok=True)
+                #     # Copy image
+                #     shutil.copy2(img_path, new_path)  # copy2 preserves metadata
+                # continue 
+                
+                if self.full_cfg.model.use_ray_pose:
+                    print('=========== USING RAY POSE ===========')
+                else:
+                    print('=========== USING CAMERA POSE ===========')
+                    
+                
+                
+                    
+                if self.rgb_dec_cfg is not None:
+                    print('--- LOADED RGB DECODER ---')
+                
+                
 
-            if need_unposed:    # t
-                print('------------ UNPOSED!! ------------ ')
-                export_dir = self._export_dir(data, scene, posed=False)
-                api.inference(
-                    scene_data,
-                    export_dir=export_dir,             
-                    export_format=export_format,                # export_format: 'mini_npz-glb'
-                    ref_view_strategy=self.ref_view_strategy,
-                    eval_sampler=self.eval_sampler,
-                    denoiser=self.denoiser,
-                    denoiser2 = self.denoiser2,
-                    noise_generator=noise_generator,
-                    cfg=self.full_cfg,
-                    scene_info = (data,scene),
-                    use_pose=False,
-                    use_ray_pose = self.full_cfg.model.use_ray_pose,
-                    rgb_decoder = self.rgb_decoder,
-                    proj_adapter = self.proj_adapter
-                )
-                # breakpoint()
-                self._save_gt_meta(export_dir, scene_data)
+                if need_unposed:    # t
+                    print('------------ UNPOSED!! ------------ ')
+                    export_dir = self._export_dir(data, scene, posed=False)
+                    api.inference(
+                        scene_data,
+                        export_dir=export_dir,             
+                        export_format=export_format,                # export_format: 'mini_npz-glb'
+                        ref_view_strategy=self.ref_view_strategy,
+                        eval_sampler=self.eval_sampler,
+                        denoiser=self.denoiser,
+                        denoiser2 = self.denoiser2,
+                        noise_generator=noise_generator,
+                        cfg=self.full_cfg,
+                        scene_info = (data,scene),
+                        use_pose=False,
+                        use_ray_pose = self.full_cfg.model.use_ray_pose,
+                        rgb_decoder = self.rgb_decoder,
+                        proj_adapter = self.proj_adapter
+                    )
+                    # breakpoint()
+                    self._save_gt_meta(export_dir, scene_data)
 
-            if need_posed:
-                print('------------ POSED!! ------------ ')
-                export_dir = self._export_dir(data, scene, posed=True)
-                api.inference(
-                    scene_data,
-                    scene_data.extrinsics,      # provide extrinsics
-                    scene_data.intrinsics,      # provide intrinsics
-                    export_dir=export_dir,
-                    export_format=export_format,
-                    ref_view_strategy=self.ref_view_strategy,
-                    eval_sampler=self.eval_sampler,
-                    denoiser=self.denoiser,
-                    denoiser2 = self.denoiser2,
-                    noise_generator=noise_generator,
-                    cfg=self.full_cfg,
-                    scene_info = (data,scene),
-                    use_pose=True,
-                    use_ray_pose = self.full_cfg.model.use_ray_pose,
-                    rgb_decoder = self.rgb_decoder,
-                    proj_adapter = self.proj_adapter
-                )
-                self._save_gt_meta(export_dir, scene_data)
-        
+                if need_posed:
+                    print('------------ POSED!! ------------ ')
+                    export_dir = self._export_dir(data, scene, posed=True)
+                    api.inference(
+                        scene_data,
+                        scene_data.extrinsics,      # provide extrinsics
+                        scene_data.intrinsics,      # provide intrinsics
+                        export_dir=export_dir,
+                        export_format=export_format,
+                        ref_view_strategy=self.ref_view_strategy,
+                        eval_sampler=self.eval_sampler,
+                        denoiser=self.denoiser,
+                        denoiser2 = self.denoiser2,
+                        noise_generator=noise_generator,
+                        cfg=self.full_cfg,
+                        scene_info = (data,scene),
+                        use_pose=True,
+                        use_ray_pose = self.full_cfg.model.use_ray_pose,
+                        rgb_decoder = self.rgb_decoder,
+                        proj_adapter = self.proj_adapter
+                    )
+                    self._save_gt_meta(export_dir, scene_data)
+            
+        # breakpoint()
             
     def eval(self) -> TDict[str, dict]:
         """
@@ -405,39 +500,50 @@ class Evaluator:
         """
         summary: TDict[str, dict] = {}
 
-        # Evaluate by mode (all datasets per mode)
-        if "pose" in self.modes:
-            print(f"\n{'='*60}")
-            print(f"📊 Evaluating POSE for all datasets...")
-            print(f"{'='*60}")
-            for data, result in self._eval_pose():
-                summary[f"{data}_pose"] = result
+        eval_deblur_bench = self.full_cfg.MVRM_EVAL.get('eval_deblur_bench', False)
 
-        if "depth" in self.modes:
-            print(f"\n{'='*60}")
-            print(f"📊 Evaluating DEPTH for all datasets...")
-            print(f"{'='*60}")
-            summary.update(self._eval_depth(mode="depth"))
-            
-        if "recon_unposed" in self.modes:
-            print(f"\n{'='*60}")
-            print(f"📊 Evaluating RECON_UNPOSED for all datasets...")
-            print(f"{'='*60}")
-            for data, result in self._eval_reconstruction("recon_unposed"):
-                summary[f"{data}_recon_unposed"] = result
+        # Regular DA3 benchmark evaluation — skipped when eval_deblur_bench is active
+        # because inference only ran on deblur datasets in that case
+        if not eval_deblur_bench:
+            if "pose" in self.modes:
+                print(f"\n{'='*60}")
+                print(f"📊 Evaluating POSE for all datasets...")
+                print(f"{'='*60}")
+                for data, result in self._eval_pose():
+                    summary[f"{data}_pose"] = result
 
-        if "recon_posed" in self.modes:
-            print(f"\n{'='*60}")
-            print(f"📊 Evaluating RECON_POSED for all datasets...")
-            print(f"{'='*60}")
-            for data, result in self._eval_reconstruction("recon_posed"):
-                summary[f"{data}_recon_posed"] = result
+            if "depth" in self.modes:
+                print(f"\n{'='*60}")
+                print(f"📊 Evaluating DEPTH for all datasets...")
+                print(f"{'='*60}")
+                summary.update(self._eval_depth(mode="depth"))
 
-        if "view_syn" in self.modes:
+            if "recon_unposed" in self.modes:
+                print(f"\n{'='*60}")
+                print(f"📊 Evaluating RECON_UNPOSED for all datasets...")
+                print(f"{'='*60}")
+                for data, result in self._eval_reconstruction("recon_unposed"):
+                    summary[f"{data}_recon_unposed"] = result
+
+            if "recon_posed" in self.modes:
+                print(f"\n{'='*60}")
+                print(f"📊 Evaluating RECON_POSED for all datasets...")
+                print(f"{'='*60}")
+                for data, result in self._eval_reconstruction("recon_posed"):
+                    summary[f"{data}_recon_posed"] = result
+
+            if "view_syn" in self.modes:
+                print(f"\n{'='*60}")
+                print(f"📊 Evaluating VIEW_SYN for all datasets...")
+                print(f"{'='*60}")
+                summary.update(self._eval_view_syn())
+
+        if eval_deblur_bench:
             print(f"\n{'='*60}")
-            print(f"📊 Evaluating VIEW_SYN for all datasets...")
+            print(f"📊 Evaluating DEBLUR BENCH...")
             print(f"{'='*60}")
-            summary.update(self._eval_view_syn())
+            deblur_metrics = self._eval_deblur_bench()
+            summary.update({f'{k}_deblur': v for k, v in deblur_metrics.items()})
 
         return summary
 
@@ -523,6 +629,177 @@ class Evaluator:
             out_path = os.path.join(self._metric_dir, f"{data}_{mode}.json")
             self._dump_json(out_path, dataset_results)
             all_metrics[f"{data}_{mode}"] = dataset_results
+
+        return all_metrics
+
+    @staticmethod
+    def _group_deblur_sequences(lq_files, gt_files, ds_name):
+        """
+        Group flat file lists into per-sequence lists based on filename conventions.
+
+        GoPro:     GOPR0384_11_00-000001.png  →  seq = GOPR0384_11_00   (split on last '-')
+        HIDE:      100fromGOPR0950.png        →  seq = GOPR0950          (part after 'from')
+        RealBlur:  scene002-10.png            →  seq = scene002          (split on last '-')
+        """
+        import re
+        from collections import defaultdict
+
+        lq_by_seq = defaultdict(list)
+        gt_by_seq = defaultdict(list)
+
+        for lq, gt in zip(lq_files, gt_files):
+            fname = os.path.basename(lq)
+            if ds_name == 'hide':
+                m = re.match(r'^\d+from(.+)\.(?:png|jpg|jpeg)$', fname, re.IGNORECASE)
+                seq = m.group(1) if m else 'all'
+            else:
+                # Works for both GoPro (GOPR0384_11_00-000001.png)
+                # and RealBlur (scene002-10.png)
+                seq = fname.rsplit('-', 1)[0]
+            lq_by_seq[seq].append(lq)
+            gt_by_seq[seq].append(gt)
+
+        return [
+            (seq, sorted(lq_by_seq[seq]), sorted(gt_by_seq[seq]))
+            for seq in sorted(lq_by_seq)
+        ]
+
+    def _eval_deblur_bench(self) -> dict[str, dict]:
+        """
+        Evaluate deblurring quality on standard benchmarks (GoPro, HIDE, RealBlur_J/R).
+
+        Results are stored per sequence (one dir per sequence name).
+        Per-image PSNR/SSIM/LPIPS are collected across all sequences and averaged
+        at the dataset level.
+        """
+        import cv2
+        import imageio.v2 as imageio
+
+        os.makedirs(self._metric_dir, exist_ok=True)
+
+        deblur_datasets = ['gopro', 'hide', 'realblur_j', 'realblur_r']
+        all_metrics: dict[str, dict] = {}
+
+        for deblur_ds in deblur_datasets:
+            ds_model_dir = os.path.join(self.work_dir, 'model_results', deblur_ds)
+            if not os.path.exists(ds_model_dir):
+                print(f'[WARN] No inference results dir for {deblur_ds}, skipping.')
+                continue
+
+            # Collect every sequence subdir that has a results.npz
+            seq_dirs = sorted([
+                d for d in os.listdir(ds_model_dir)
+                if os.path.isdir(os.path.join(ds_model_dir, d))
+            ])
+
+            per_img_psnr, per_img_ssim, per_img_mse = [], [], []
+            total_images = 0
+
+            for seq_name in seq_dirs:
+                export_dir = os.path.join(ds_model_dir, seq_name, 'unposed')
+                result_path = os.path.join(export_dir, 'exports', 'mini_npz', 'results.npz')
+                gt_meta_path = os.path.join(export_dir, 'exports', 'deblur_gt_files.npz')
+
+                if not os.path.exists(result_path) or not os.path.exists(gt_meta_path):
+                    continue
+
+                try:
+                    pred_npz = np.load(result_path, allow_pickle=True)
+                    if 'image' not in pred_npz:
+                        continue
+
+                    pred_imgs = pred_npz['image']  # (N,H,W,3) uint8
+                    gt_files = list(np.load(gt_meta_path, allow_pickle=True)['gt_files'])
+                    num_views = min(len(gt_files), pred_imgs.shape[0])
+                    pred_imgs = pred_imgs[:num_views]
+
+                    gt_imgs = self._load_rgb_images(
+                        gt_files[:num_views],
+                        target_hw=pred_imgs.shape[1:3],
+                        reader=imageio.imread,
+                        resize_fn=lambda img, hw: cv2.resize(
+                            img, (hw[1], hw[0]), interpolation=cv2.INTER_AREA),
+                    )
+
+                    pred_f = pred_imgs.astype(np.float32) / 255.0
+                    gt_f   = gt_imgs.astype(np.float32) / 255.0
+                    diff   = pred_f - gt_f
+                    mse_per  = np.mean(diff * diff, axis=(1, 2, 3))
+                    psnr_per = -10.0 * np.log10(np.maximum(mse_per, 1e-10))
+                    per_img_psnr.extend(psnr_per.tolist())
+                    per_img_mse.extend(mse_per.tolist())
+
+                    try:
+                        from skimage.metrics import structural_similarity
+                        for p, g in zip(pred_f, gt_f):
+                            per_img_ssim.append(
+                                structural_similarity(g, p, win_size=11,
+                                                      gaussian_weights=True,
+                                                      channel_axis=2, data_range=1.0)
+                            )
+                    except Exception:
+                        pass
+
+                    total_images += num_views
+
+                except Exception as e:
+                    if self.debug:
+                        print(f'[WARN] deblur eval failed for {deblur_ds}/{seq_name}: {e}')
+
+            if total_images == 0:
+                print(f'[WARN] No valid results for {deblur_ds}')
+                continue
+
+            # LPIPS — compute in one batched pass over all accumulated images
+            lpips_val = float('nan')
+            try:
+                all_pred, all_gt = [], []
+                for seq_name in seq_dirs:
+                    export_dir = os.path.join(ds_model_dir, seq_name, 'unposed')
+                    result_path = os.path.join(export_dir, 'exports', 'mini_npz', 'results.npz')
+                    gt_meta_path = os.path.join(export_dir, 'exports', 'deblur_gt_files.npz')
+                    if not os.path.exists(result_path) or not os.path.exists(gt_meta_path):
+                        continue
+                    pred_npz = np.load(result_path, allow_pickle=True)
+                    if 'image' not in pred_npz:
+                        continue
+                    pred_imgs = pred_npz['image']
+                    gt_files = list(np.load(gt_meta_path, allow_pickle=True)['gt_files'])
+                    num_views = min(len(gt_files), pred_imgs.shape[0])
+                    pred_imgs = pred_imgs[:num_views].astype(np.float32) / 255.0
+                    gt_imgs = self._load_rgb_images(
+                        gt_files[:num_views],
+                        target_hw=pred_imgs.shape[1:3],
+                        reader=imageio.imread,
+                        resize_fn=lambda img, hw: cv2.resize(
+                            img, (hw[1], hw[0]), interpolation=cv2.INTER_AREA),
+                    ).astype(np.float32) / 255.0
+                    all_pred.append(pred_imgs)
+                    all_gt.append(gt_imgs)
+                if all_pred:
+                    lpips_val = self._compute_lpips(
+                        np.concatenate(all_pred, axis=0),
+                        np.concatenate(all_gt,   axis=0),
+                    )
+            except Exception:
+                pass
+
+            metrics = {
+                'psnr':       float(np.mean(per_img_psnr)) if per_img_psnr else float('nan'),
+                'ssim':       float(np.mean(per_img_ssim)) if per_img_ssim else float('nan'),
+                'lpips':      lpips_val,
+                'mse':        float(np.mean(per_img_mse))  if per_img_mse  else float('nan'),
+                'num_images': float(total_images),
+                'num_seqs':   float(len(seq_dirs)),
+            }
+
+            print(f'  deblur_bench | {deblur_ds} ({total_images} imgs, {len(seq_dirs)} seqs): '
+                  f'psnr={metrics["psnr"]:.4f}  ssim={metrics["ssim"]:.4f}  lpips={metrics["lpips"]:.4f}')
+            all_metrics[deblur_ds] = metrics
+            self._dump_json(
+                os.path.join(self._metric_dir, f'{deblur_ds}_deblur.json'),
+                {deblur_ds: metrics},
+            )
 
         return all_metrics
 

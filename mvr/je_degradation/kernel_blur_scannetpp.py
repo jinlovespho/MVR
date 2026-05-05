@@ -18,7 +18,7 @@ def resize_long_side(img, target=640):
     new_h = int(h * scale)
     return img.resize((new_w, new_h), Image.BICUBIC)
 
-for KERNEL_SIZE in [100, 300, 500]:
+for KERNEL_SIZE in [50, 70, 120, 150]:
     print('Applying kernel: ', KERNEL_SIZE)
     kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
 
