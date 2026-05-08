@@ -90,6 +90,15 @@ workspace:
 
 
 
+  ##############################################
+  ###### FILTERED_CAM_BLUR 100 (RESIZE640) #####
+  ##############################################
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_LQ/filtered_cam_blur_100_resize640/ray_saddle_maxview10
+
+
+
+
   ##################################
   ###### FILTERED_CAM_BLUR100 ######
   ##################################
@@ -102,7 +111,7 @@ workspace:
   ###### FILTERED_CAM_BLUR200 ######
   ##################################
 
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_LQ/filtered_cam_blur_200/ray_saddle_maxview10
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_LQ/filtered_cam_blur_200/ray_saddle_maxview10
 
 
 
@@ -125,6 +134,17 @@ workspace:
 
 
 
+  ##################################
+  ###### FILTERED_CAM_BLUR700 ######
+  ##################################
+
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_LQ/filtered_cam_blur_700/ray_saddle_maxview10
+
+
+
+
+
+
 # ==============================================================================
 # Evaluation Configuration
 # ==============================================================================
@@ -132,12 +152,12 @@ eval:
   # Datasets to evaluate
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
-    - 7scenes
-    - scannetpp
-    - hiroom
+    # - 7scenes
+    # - scannetpp
+    # - hiroom
     - eth3d
-    - dtu
-    - dtu64
+    # - dtu
+    # - dtu64
 
 
   # Evaluation modes

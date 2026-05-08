@@ -147,7 +147,11 @@ workspace:
   ###### FILTERED_CAM_BLUR600 ######
   ##################################
 
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/sirdiff_100k_new/filtered_cam_blur_600/ray_saddle_maxview10
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/sirdiff_100k_new/filtered_cam_blur_600/ray_saddle_maxview10
+
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/sirdiff_100k_new/filtered_cam_blur_100_resize_640/ray_saddle_maxview10
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/sirdiff_100k_new/filtered_cam_blur_700/ray_saddle_maxview10
 
 
 
@@ -162,8 +166,8 @@ eval:
     # - scannetpp
     # - hiroom
     - eth3d
-    - dtu
-    - dtu64
+    # - dtu
+    # - dtu64
 
 
   # Evaluation modes

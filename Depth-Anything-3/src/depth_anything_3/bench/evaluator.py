@@ -293,10 +293,15 @@ class Evaluator:
 
 
         if eval_deblur_bench:
+            # Use npz (not mini_npz) so predicted images are saved for PSNR/SSIM/LPIPS eval
+            export_format = "npz"
+
+            deblur_bench_gt_root = {
+                'realblur_j': '/mnt/dataset1/MV_Restoration/restormer_benchmark/RealBlur_J/target',
+                'realblur_r': '/mnt/dataset1/MV_Restoration/restormer_benchmark/RealBlur_R/target',
+            }
 
             deblur_bench_root = {
-                'gopro':      '/mnt/dataset1/MV_Restoration/restormer_benchmark/GoPro',
-                'hide':       '/mnt/dataset1/MV_Restoration/restormer_benchmark/HIDE',
                 'realblur_j': '/mnt/dataset1/MV_Restoration/restormer_benchmark/RealBlur_J',
                 'realblur_r': '/mnt/dataset1/MV_Restoration/restormer_benchmark/RealBlur_R',
             }
@@ -311,6 +316,9 @@ class Evaluator:
                 gt_files = sorted([os.path.join(gt_dir, f) for f in os.listdir(gt_dir) if f.endswith(img_exts)])
 
                 sequences = self._group_deblur_sequences(lq_files, gt_files, deblur_ds)
+                deblur_num_seqs = self.full_cfg.MVRM_EVAL.get('deblur_num_seqs', None)
+                if deblur_num_seqs is not None:
+                    sequences = sequences[:deblur_num_seqs]
                 print(f'------------ {deblur_ds.upper()} DEBLUR BENCH: {len(sequences)} sequences ------------ ')
 
                 # Clear the dataset-level summary so re-runs don't append duplicates
@@ -377,9 +385,102 @@ class Evaluator:
                         for p in gt_seq:
                             f.write(os.path.basename(p) + '\n')
 
+                    # Run inference on GT clean images to obtain pseudo-GT geometry
+                    # (pose, depth, 3D) for geometric consistency evaluation
+                    if deblur_ds in deblur_bench_gt_root:
+                        pseudo_gt_scene_data = Dict()
+                        pseudo_gt_scene_data.lq_image_files = gt_seq
+                        pseudo_gt_scene_data.image_files = gt_seq
+                        pseudo_gt_scene_data.extrinsics = dummy_ext
+                        pseudo_gt_scene_data.intrinsics = dummy_ixt
+                        pseudo_gt_scene_data.aux = Dict()
+
+                        pseudo_gt_export_dir = os.path.join(
+                            self.work_dir, 'model_results', deblur_ds, seq_name, 'pseudo_gt')
+                        print(f'  [{deblur_ds}] {seq_name}: pseudo-GT inference on {n} clean frames')
+                        api.inference(
+                            pseudo_gt_scene_data,
+                            export_dir=pseudo_gt_export_dir,
+                            export_format=export_format,
+                            ref_view_strategy=self.ref_view_strategy,
+                            eval_sampler=self.eval_sampler,
+                            denoiser=self.denoiser,
+                            denoiser2=self.denoiser2,
+                            noise_generator=noise_generator,
+                            cfg=self.full_cfg,
+                            scene_info=(deblur_ds, seq_name + '_pseudogt'),
+                            use_pose=False,
+                            use_ray_pose=self.full_cfg.model.use_ray_pose,
+                            rgb_decoder=self.rgb_decoder,
+                            proj_adapter=self.proj_adapter
+                        )
+
+                    # Run inference on pre-restored images from external deblurring models
+                    deblur_restored_models = self.full_cfg.MVRM_EVAL.get('deblur_restored_models', {})
+                    for model_name, model_ds_paths in deblur_restored_models.items():
+                        if deblur_ds not in model_ds_paths:
+                            continue
+                        restored_dir = model_ds_paths[deblur_ds]
+                        if not os.path.isdir(restored_dir):
+                            print(f'  [{deblur_ds}] {model_name}: restored dir not found: {restored_dir}')
+                            continue
+                        # Match LQ basenames to restored images (handles extension mismatch)
+                        restored_seq = []
+                        matched_gt_seq = []
+                        for lq_path, gt_path in zip(lq_seq, gt_seq):
+                            bn   = os.path.basename(lq_path)
+                            stem = os.path.splitext(bn)[0]
+                            candidate = os.path.join(restored_dir, bn)
+                            if not os.path.exists(candidate):
+                                for ext in ('.png', '.jpg', '.jpeg', '.PNG', '.JPG'):
+                                    alt = os.path.join(restored_dir, stem + ext)
+                                    if os.path.exists(alt):
+                                        candidate = alt
+                                        break
+                                else:
+                                    continue
+                            restored_seq.append(candidate)
+                            matched_gt_seq.append(gt_path)
+                        if not restored_seq:
+                            print(f'  [{deblur_ds}] {model_name}/{seq_name}: no matching restored images in {restored_dir}')
+                            continue
+                        n_r = len(restored_seq)
+                        dummy_ext_r = np.eye(4, dtype=np.float32)[None].repeat(n_r, axis=0)
+                        dummy_ixt_r = np.eye(3, dtype=np.float32)[None].repeat(n_r, axis=0)
+
+                        restored_scene_data = Dict()
+                        restored_scene_data.lq_image_files = restored_seq
+                        restored_scene_data.image_files = matched_gt_seq
+                        restored_scene_data.extrinsics = dummy_ext_r
+                        restored_scene_data.intrinsics = dummy_ixt_r
+                        restored_scene_data.aux = Dict()
+
+                        restored_export_dir = os.path.join(
+                            self.work_dir, 'model_results', deblur_ds, model_name, seq_name, 'unposed')
+                        meta_path = os.path.join(restored_export_dir, 'exports', 'deblur_gt_files.npz')
+                        os.makedirs(os.path.dirname(meta_path), exist_ok=True)
+                        np.savez_compressed(meta_path, gt_files=np.array(matched_gt_seq, dtype=object))
+
+                        print(f'  [{deblur_ds}] {model_name}/{seq_name}: {n_r} restored frames')
+                        api.inference(
+                            restored_scene_data,
+                            export_dir=restored_export_dir,
+                            export_format=export_format,
+                            ref_view_strategy=self.ref_view_strategy,
+                            eval_sampler=self.eval_sampler,
+                            denoiser=self.denoiser,
+                            denoiser2=self.denoiser2,
+                            noise_generator=noise_generator,
+                            cfg=self.full_cfg,
+                            scene_info=(deblur_ds, f'{model_name}_{seq_name}'),
+                            use_pose=False,
+                            use_ray_pose=self.full_cfg.model.use_ray_pose,
+                            rgb_decoder=self.rgb_decoder,
+                            proj_adapter=self.proj_adapter
+                        )
 
 
-        
+
         else:
 
             for data, scene in tqdm(tasks, desc=f"Inference (GPU {self.gpu_id})"):
@@ -686,10 +787,11 @@ class Evaluator:
                 print(f'[WARN] No inference results dir for {deblur_ds}, skipping.')
                 continue
 
-            # Collect every sequence subdir that has a results.npz
+            # Collect sequence subdirs (must have an 'unposed' child to distinguish
+            # them from model-name dirs like 'restormer' that sit at the same level)
             seq_dirs = sorted([
                 d for d in os.listdir(ds_model_dir)
-                if os.path.isdir(os.path.join(ds_model_dir, d))
+                if os.path.isdir(os.path.join(ds_model_dir, d, 'unposed'))
             ])
 
             per_img_psnr, per_img_ssim, per_img_mse = [], [], []
@@ -697,11 +799,16 @@ class Evaluator:
 
             for seq_name in seq_dirs:
                 export_dir = os.path.join(ds_model_dir, seq_name, 'unposed')
-                result_path = os.path.join(export_dir, 'exports', 'mini_npz', 'results.npz')
+                result_path = os.path.join(export_dir, 'exports', 'npz', 'results.npz')
                 gt_meta_path = os.path.join(export_dir, 'exports', 'deblur_gt_files.npz')
 
-                if not os.path.exists(result_path) or not os.path.exists(gt_meta_path):
+                if not os.path.exists(gt_meta_path):
                     continue
+                # export_to_npz is async — wait for file to be fully written
+                if not os.path.exists(result_path):
+                    continue
+                from depth_anything_3.bench.dataset import _wait_for_file_ready
+                _wait_for_file_ready(result_path, timeout=60.0)
 
                 try:
                     pred_npz = np.load(result_path, allow_pickle=True)
@@ -756,10 +863,11 @@ class Evaluator:
                 all_pred, all_gt = [], []
                 for seq_name in seq_dirs:
                     export_dir = os.path.join(ds_model_dir, seq_name, 'unposed')
-                    result_path = os.path.join(export_dir, 'exports', 'mini_npz', 'results.npz')
+                    result_path = os.path.join(export_dir, 'exports', 'npz', 'results.npz')
                     gt_meta_path = os.path.join(export_dir, 'exports', 'deblur_gt_files.npz')
-                    if not os.path.exists(result_path) or not os.path.exists(gt_meta_path):
+                    if not os.path.exists(gt_meta_path) or not os.path.exists(result_path):
                         continue
+                    _wait_for_file_ready(result_path, timeout=60.0)
                     pred_npz = np.load(result_path, allow_pickle=True)
                     if 'image' not in pred_npz:
                         continue
@@ -795,11 +903,280 @@ class Evaluator:
 
             print(f'  deblur_bench | {deblur_ds} ({total_images} imgs, {len(seq_dirs)} seqs): '
                   f'psnr={metrics["psnr"]:.4f}  ssim={metrics["ssim"]:.4f}  lpips={metrics["lpips"]:.4f}')
+
+            # Geometric evaluation with pseudo-GT (only for datasets that have clean GT images)
+            pseudo_gt_datasets = {'realblur_j', 'realblur_r'}
+            if deblur_ds in pseudo_gt_datasets:
+                from depth_anything_3.utils.geometry import as_homogeneous as _as_hom
+
+                def _to_pcd(depths, exts, ixts, subsample=10):
+                    pts_all = []
+                    n_v = min(depths.shape[0], exts.shape[0], ixts.shape[0])
+                    H, W = depths.shape[1], depths.shape[2]
+                    ys, xs = np.meshgrid(np.arange(H), np.arange(W), indexing='ij')
+                    for i in range(n_v):
+                        d = depths[i]
+                        valid = (d > 0) & np.isfinite(d)
+                        fx, fy = ixts[i, 0, 0], ixts[i, 1, 1]
+                        cx, cy = ixts[i, 0, 2], ixts[i, 1, 2]
+                        x3 = (xs[valid] - cx) * d[valid] / fx
+                        y3 = (ys[valid] - cy) * d[valid] / fy
+                        z3 = d[valid]
+                        pts_cam = np.stack([x3, y3, z3, np.ones_like(z3)], axis=-1)
+                        c2w = np.linalg.inv(_as_hom(exts[i:i+1])[0].astype(np.float64))
+                        pts_world = (c2w @ pts_cam.T).T[:, :3]
+                        pts_all.append(pts_world[::subsample])
+                    return np.concatenate(pts_all, axis=0) if pts_all else np.zeros((0, 3))
+
+                geo_pose_list, geo_depth_list, geo_recon_list = [], [], []
+
+                for seq_name in seq_dirs:
+                    lq_result_path = os.path.join(
+                        ds_model_dir, seq_name, 'unposed', 'exports', 'npz', 'results.npz')
+                    pseudo_gt_result_path = os.path.join(
+                        ds_model_dir, seq_name, 'pseudo_gt', 'exports', 'npz', 'results.npz')
+
+                    if not os.path.exists(lq_result_path) or not os.path.exists(pseudo_gt_result_path):
+                        continue
+                    from depth_anything_3.bench.dataset import _wait_for_file_ready
+                    _wait_for_file_ready(lq_result_path, timeout=60.0)
+                    _wait_for_file_ready(pseudo_gt_result_path, timeout=60.0)
+                    try:
+                        lq_npz  = np.load(lq_result_path,       allow_pickle=True)
+                        pgt_npz = np.load(pseudo_gt_result_path, allow_pickle=True)
+
+                        # --- Pose ---
+                        if 'extrinsics' in lq_npz and 'extrinsics' in pgt_npz:
+                            from depth_anything_3.bench.utils import compute_pose
+                            from depth_anything_3.utils.geometry import as_homogeneous
+                            pose_result = compute_pose(
+                                torch.from_numpy(as_homogeneous(lq_npz['extrinsics'])),
+                                torch.from_numpy(as_homogeneous(pgt_npz['extrinsics'])),
+                            )
+                            geo_pose_list.append(self._to_float_dict(pose_result))
+
+                        # --- Depth ---
+                        if 'depth' in lq_npz and 'depth' in pgt_npz:
+                            from depth_anything_3.bench.depth_metrics import (
+                                compute_depth_metrics, resize_depth_nearest, DepthEvalConfig)
+                            cfg_d = DepthEvalConfig(delta_thresholds=(1.25, 1.25**2, 1.25**3))
+                            pred_depths = lq_npz['depth'].astype(np.float32)   # (N,H,W)
+                            gt_depths   = pgt_npz['depth'].astype(np.float32)  # (N,H,W)
+                            n_frames = min(pred_depths.shape[0], gt_depths.shape[0])
+                            for i in range(n_frames):
+                                pd = resize_depth_nearest(pred_depths[i], gt_depths[i].shape[:2])
+                                gd = gt_depths[i]
+                                valid = (gd > 0) & np.isfinite(gd)
+                                m = compute_depth_metrics(pd, gd, valid, cfg=cfg_d)
+                                if m:
+                                    geo_depth_list.append(m)
+
+                        # --- 3D reconstruction (Chamfer distance) ---
+                        if ('depth' in lq_npz and 'depth' in pgt_npz and
+                                'extrinsics' in lq_npz and 'extrinsics' in pgt_npz and
+                                'intrinsics' in lq_npz and 'intrinsics' in pgt_npz):
+                            try:
+                                import open3d as o3d
+                                lq_pts  = _to_pcd(lq_npz['depth'].astype(np.float32),
+                                                  lq_npz['extrinsics'], lq_npz['intrinsics'])
+                                pgt_pts = _to_pcd(pgt_npz['depth'].astype(np.float32),
+                                                  pgt_npz['extrinsics'], pgt_npz['intrinsics'])
+                                if lq_pts.shape[0] > 0 and pgt_pts.shape[0] > 0:
+                                    pcd_lq  = o3d.geometry.PointCloud()
+                                    pcd_pgt = o3d.geometry.PointCloud()
+                                    pcd_lq.points  = o3d.utility.Vector3dVector(lq_pts)
+                                    pcd_pgt.points = o3d.utility.Vector3dVector(pgt_pts)
+                                    d1 = np.asarray(pcd_lq.compute_point_cloud_distance(pcd_pgt))
+                                    d2 = np.asarray(pcd_pgt.compute_point_cloud_distance(pcd_lq))
+                                    chamfer = float(np.mean(d1) + np.mean(d2)) / 2.0
+                                    geo_recon_list.append({'chamfer': chamfer})
+                            except Exception:
+                                pass
+
+                    except Exception as e:
+                        if self.debug:
+                            print(f'[WARN] geo eval failed for {deblur_ds}/{seq_name}: {e}')
+
+                if geo_pose_list:
+                    mean_pose = self._mean_of_dicts(geo_pose_list)
+                    metrics.update({f'geo_pose_{k}': v for k, v in mean_pose.items()})
+                    print(f'  deblur_bench | {deblur_ds} geo pose: {mean_pose}')
+                if geo_depth_list:
+                    mean_depth = self._mean_of_dicts(geo_depth_list)
+                    metrics.update({f'geo_depth_{k}': v for k, v in mean_depth.items()})
+                    print(f'  deblur_bench | {deblur_ds} geo depth: abs_rel={mean_depth.get("abs_rel", float("nan")):.4f}')
+                if geo_recon_list:
+                    mean_recon = self._mean_of_dicts(geo_recon_list)
+                    metrics.update({f'geo_recon_{k}': v for k, v in mean_recon.items()})
+                    print(f'  deblur_bench | {deblur_ds} geo recon: chamfer={mean_recon.get("chamfer", float("nan")):.4f}')
+
             all_metrics[deblur_ds] = metrics
             self._dump_json(
                 os.path.join(self._metric_dir, f'{deblur_ds}_deblur.json'),
                 {deblur_ds: metrics},
             )
+
+            # Evaluate pre-restored images from external deblurring models
+            deblur_restored_models = self.full_cfg.MVRM_EVAL.get('deblur_restored_models', {})
+            for model_name, model_ds_paths in deblur_restored_models.items():
+                if deblur_ds not in model_ds_paths:
+                    continue
+                model_ds_dir = os.path.join(self.work_dir, 'model_results', deblur_ds, model_name)
+                if not os.path.exists(model_ds_dir):
+                    print(f'[WARN] No inference results dir for {deblur_ds} [{model_name}], skipping.')
+                    continue
+                model_seq_dirs = sorted([
+                    d for d in os.listdir(model_ds_dir)
+                    if os.path.isdir(os.path.join(model_ds_dir, d, 'unposed'))
+                ])
+                if not model_seq_dirs:
+                    continue
+
+                from depth_anything_3.bench.dataset import _wait_for_file_ready
+                m_psnr, m_ssim, m_mse = [], [], []
+                m_total = 0
+                m_geo_pose, m_geo_depth, m_geo_recon = [], [], []
+
+                for seq_name in model_seq_dirs:
+                    export_dir    = os.path.join(model_ds_dir, seq_name, 'unposed')
+                    result_path   = os.path.join(export_dir, 'exports', 'npz', 'results.npz')
+                    gt_meta_path  = os.path.join(export_dir, 'exports', 'deblur_gt_files.npz')
+
+                    if not os.path.exists(gt_meta_path) or not os.path.exists(result_path):
+                        continue
+                    _wait_for_file_ready(result_path, timeout=60.0)
+
+                    # --- Image quality vs GT clean ---
+                    try:
+                        pred_npz = np.load(result_path, allow_pickle=True)
+                        if 'image' not in pred_npz:
+                            continue
+                        pred_imgs = pred_npz['image']
+                        gt_files  = list(np.load(gt_meta_path, allow_pickle=True)['gt_files'])
+                        num_views = min(len(gt_files), pred_imgs.shape[0])
+                        pred_imgs = pred_imgs[:num_views]
+                        gt_imgs   = self._load_rgb_images(
+                            gt_files[:num_views],
+                            target_hw=pred_imgs.shape[1:3],
+                            reader=imageio.imread,
+                            resize_fn=lambda img, hw: cv2.resize(
+                                img, (hw[1], hw[0]), interpolation=cv2.INTER_AREA),
+                        )
+                        pred_f = pred_imgs.astype(np.float32) / 255.0
+                        gt_f   = gt_imgs.astype(np.float32) / 255.0
+                        diff   = pred_f - gt_f
+                        mse_per  = np.mean(diff * diff, axis=(1, 2, 3))
+                        psnr_per = -10.0 * np.log10(np.maximum(mse_per, 1e-10))
+                        m_psnr.extend(psnr_per.tolist())
+                        m_mse.extend(mse_per.tolist())
+                        try:
+                            from skimage.metrics import structural_similarity
+                            for p, g in zip(pred_f, gt_f):
+                                m_ssim.append(
+                                    structural_similarity(g, p, win_size=11,
+                                                          gaussian_weights=True,
+                                                          channel_axis=2, data_range=1.0)
+                                )
+                        except Exception:
+                            pass
+                        m_total += num_views
+                    except Exception as e:
+                        if self.debug:
+                            print(f'[WARN] restored image eval failed for {model_name}/{deblur_ds}/{seq_name}: {e}')
+
+                    # --- Geometric eval vs pseudo-GT ---
+                    if deblur_ds in pseudo_gt_datasets:
+                        pseudo_gt_result_path = os.path.join(
+                            self.work_dir, 'model_results', deblur_ds,
+                            seq_name, 'pseudo_gt', 'exports', 'npz', 'results.npz')
+                        if not os.path.exists(result_path) or not os.path.exists(pseudo_gt_result_path):
+                            continue
+                        _wait_for_file_ready(pseudo_gt_result_path, timeout=60.0)
+                        try:
+                            res_npz = np.load(result_path,            allow_pickle=True)
+                            pgt_npz = np.load(pseudo_gt_result_path,  allow_pickle=True)
+
+                            if 'extrinsics' in res_npz and 'extrinsics' in pgt_npz:
+                                from depth_anything_3.bench.utils import compute_pose
+                                from depth_anything_3.utils.geometry import as_homogeneous
+                                pose_result = compute_pose(
+                                    torch.from_numpy(as_homogeneous(res_npz['extrinsics'])),
+                                    torch.from_numpy(as_homogeneous(pgt_npz['extrinsics'])),
+                                )
+                                m_geo_pose.append(self._to_float_dict(pose_result))
+
+                            if 'depth' in res_npz and 'depth' in pgt_npz:
+                                from depth_anything_3.bench.depth_metrics import (
+                                    compute_depth_metrics, resize_depth_nearest, DepthEvalConfig)
+                                cfg_d = DepthEvalConfig(delta_thresholds=(1.25, 1.25**2, 1.25**3))
+                                pred_depths = res_npz['depth'].astype(np.float32)
+                                gt_depths   = pgt_npz['depth'].astype(np.float32)
+                                n_frames = min(pred_depths.shape[0], gt_depths.shape[0])
+                                for i in range(n_frames):
+                                    pd = resize_depth_nearest(pred_depths[i], gt_depths[i].shape[:2])
+                                    gd = gt_depths[i]
+                                    valid = (gd > 0) & np.isfinite(gd)
+                                    m = compute_depth_metrics(pd, gd, valid, cfg=cfg_d)
+                                    if m:
+                                        m_geo_depth.append(m)
+
+                            if ('depth' in res_npz and 'depth' in pgt_npz and
+                                    'extrinsics' in res_npz and 'extrinsics' in pgt_npz and
+                                    'intrinsics' in res_npz and 'intrinsics' in pgt_npz):
+                                try:
+                                    import open3d as o3d
+                                    res_pts = _to_pcd(res_npz['depth'].astype(np.float32),
+                                                      res_npz['extrinsics'], res_npz['intrinsics'])
+                                    pgt_pts = _to_pcd(pgt_npz['depth'].astype(np.float32),
+                                                      pgt_npz['extrinsics'], pgt_npz['intrinsics'])
+                                    if res_pts.shape[0] > 0 and pgt_pts.shape[0] > 0:
+                                        pcd_r = o3d.geometry.PointCloud()
+                                        pcd_p = o3d.geometry.PointCloud()
+                                        pcd_r.points = o3d.utility.Vector3dVector(res_pts)
+                                        pcd_p.points = o3d.utility.Vector3dVector(pgt_pts)
+                                        d1 = np.asarray(pcd_r.compute_point_cloud_distance(pcd_p))
+                                        d2 = np.asarray(pcd_p.compute_point_cloud_distance(pcd_r))
+                                        chamfer = float(np.mean(d1) + np.mean(d2)) / 2.0
+                                        m_geo_recon.append({'chamfer': chamfer})
+                                except Exception:
+                                    pass
+                        except Exception as e:
+                            if self.debug:
+                                print(f'[WARN] restored geo eval failed for {model_name}/{deblur_ds}/{seq_name}: {e}')
+
+                if m_total == 0:
+                    print(f'[WARN] No valid results for {deblur_ds} [{model_name}]')
+                    continue
+
+                model_metrics = {
+                    'psnr':       float(np.mean(m_psnr)) if m_psnr else float('nan'),
+                    'ssim':       float(np.mean(m_ssim)) if m_ssim else float('nan'),
+                    'mse':        float(np.mean(m_mse))  if m_mse  else float('nan'),
+                    'num_images': float(m_total),
+                    'num_seqs':   float(len(model_seq_dirs)),
+                }
+                if m_geo_pose:
+                    mean_pose = self._mean_of_dicts(m_geo_pose)
+                    model_metrics.update({f'geo_pose_{k}': v for k, v in mean_pose.items()})
+                    print(f'  deblur_bench | {deblur_ds} [{model_name}] geo pose: {mean_pose}')
+                if m_geo_depth:
+                    mean_depth = self._mean_of_dicts(m_geo_depth)
+                    model_metrics.update({f'geo_depth_{k}': v for k, v in mean_depth.items()})
+                    print(f'  deblur_bench | {deblur_ds} [{model_name}] geo depth: abs_rel={mean_depth.get("abs_rel", float("nan")):.4f}')
+                if m_geo_recon:
+                    mean_recon = self._mean_of_dicts(m_geo_recon)
+                    model_metrics.update({f'geo_recon_{k}': v for k, v in mean_recon.items()})
+                    print(f'  deblur_bench | {deblur_ds} [{model_name}] geo recon: chamfer={mean_recon.get("chamfer", float("nan")):.4f}')
+
+                print(f'  deblur_bench | {deblur_ds} [{model_name}] ({m_total} imgs, {len(model_seq_dirs)} seqs): '
+                      f'psnr={model_metrics["psnr"]:.4f}  ssim={model_metrics["ssim"]:.4f}')
+
+                key = f'{deblur_ds}_{model_name}'
+                all_metrics[key] = model_metrics
+                self._dump_json(
+                    os.path.join(self._metric_dir, f'{deblur_ds}_deblur_{model_name}.json'),
+                    {key: model_metrics},
+                )
 
         return all_metrics
 
@@ -1313,10 +1690,9 @@ class Evaluator:
         if self.max_frames <= 0:
             return scene_data
 
-        # num_frames = len(scene_data.image_files)
-        
-        # PHO
-        num_frames = len(scene_data.lq_image_files)
+        # PHO: use lq_image_files length when available, else fall back to image_files
+        lq_len = len(scene_data.lq_image_files) if hasattr(scene_data, 'lq_image_files') else 0
+        num_frames = lq_len if lq_len > 0 else len(scene_data.image_files)
             
         if num_frames <= self.max_frames:
             return scene_data

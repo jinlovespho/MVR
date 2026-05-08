@@ -103,12 +103,23 @@ DA3_LQ_ROOT_PATH = os.environ.get("DA3_LQ_ROOT_PATH", DA3_LQ_ROOT_PATH)
 
 ## GARD 
 
-# 7scenes - filtered_cam_blur150
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_150/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results'
 
-# hiroom - filtered_cam_blur200 
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/PHO_TMP_hiroom200_adapter/pho_rgb_recon_frame_results'
-# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/PHO_TMP_hiroom200_fft/pho_rgb_recon_frame_results'
+# hiroom (filtered_cam_blur300)
+# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_300/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results'
+
+
+## eth3d (filetered_cam_blur700)
+# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_700/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results'
+
+
+
+## DTU, 7scenes (filtered_cam_blur100_resize640)
+# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100_resize640/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results'
+
+
+## scannet++ (filetered_cam_blur200)
+# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_200/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results'
+
 
 
 
@@ -119,8 +130,8 @@ DA3_LQ_ROOT_PATH = os.environ.get("DA3_LQ_ROOT_PATH", DA3_LQ_ROOT_PATH)
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_sirdiff/ckpt_40k/filtered_cam_blur_100/max_view_10'
 # DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_sirdiff/ckpt_40k/filtered_cam_blur_300/max_view_10'
 
-
-
+# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_sirdiff/ckpt_100k/filtered_cam_blur_100_resize_640/max_view_10'
+# DA3_RES_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_sirdiff/ckpt_100k/filtered_cam_blur_700/max_view_10'
 
 
 ## INSTRUCT_IR

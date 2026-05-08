@@ -11,19 +11,19 @@ echo "Fusion Workers: $NUM_FUSION_WORKERS"
 echo "=========================================="
 echo ""
 
-export DA3_LQ_ROOT_PATH='/mnt/dataset1/MV_Restoration/restormer_benchmark/GoPro/input'
+# export DA3_LQ_ROOT_PATH='/mnt/dataset1/MV_Restoration/restormer_benchmark/GoPro/input'
 # export DA3_LQ_ROOT_PATH='/mnt/dataset1/MV_Restoration/restormer_benchmark/HIDE/input'
 # export DA3_LQ_ROOT_PATH='/mnt/dataset1/MV_Restoration/restormer_benchmark/RealBlur_J/input'
 # export DA3_LQ_ROOT_PATH='/mnt/dataset1/MV_Restoration/restormer_benchmark/RealBlur_R/input'
 
-export DA3_RES_ROOT_PATH='/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_600'
+# export DA3_RES_ROOT_PATH='/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_600'
 
-echo "LQ: $DA3_LQ_ROOT_PATH"
-echo "RES: $DA3_RES_ROOT_PATH"
-echo ""
+# echo "LQ: $DA3_LQ_ROOT_PATH"
+# echo "RES: $DA3_RES_ROOT_PATH"
+# echo ""
 
-time CUDA_VISIBLE_DEVICES=${GPU_ID} python -m depth_anything_3.bench.JAE_evaluator \
-    --config ${CONFIG_PATH}
+# time CUDA_VISIBLE_DEVICES=${GPU_ID} python -m depth_anything_3.bench.JAE_evaluator \
+#     --config ${CONFIG_PATH}
 
 # =============================================================================
 # filtered_cam_blur_100 

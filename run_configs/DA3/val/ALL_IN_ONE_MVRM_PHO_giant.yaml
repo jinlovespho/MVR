@@ -10,43 +10,58 @@ MVRM_EVAL:
 
 
   # eval_deblur_bench: true
+  # # deblur_num_seqs: 1   # limit sequences per dataset for quick sanity checks (null = all)
+
+  # # External deblurring model outputs to evaluate (pose/depth/3D vs pseudo-GT, PSNR/SSIM vs GT)
+  # deblur_restored_models:
+  #   restormer:
+  #     realblur_j: /mnt/dataset1/MV_Restoration/restormer_benchmark/restored_restormer/RealBlur_J/input
+  #     realblur_r: /mnt/dataset1/MV_Restoration/restormer_benchmark/restored_restormer/RealBlur_R/input
+  #   hi_diff:
+  #     realblur_j: /mnt/dataset1/MV_Restoration/restormer_benchmark/restored_hi_diff/RealBlur_J/input
+  #     realblur_r: /mnt/dataset1/MV_Restoration/restormer_benchmark/restored_hi_diff/RealBlur_R/input
+  #   instructir:
+  #     realblur_j: /mnt/dataset1/MV_Restoration/restormer_benchmark/restored_instructir/RealBlur_J/input
+  #     realblur_r: /mnt/dataset1/MV_Restoration/restormer_benchmark/restored_instructir/RealBlur_R/input
 
 
 
-  # rgb_decoder: 
-  #   stage_1:
-  #     target: GLD.src.stage1.rae_da3.RAE_DA3
-  #     params:
-  #       encoder_pretrained_path: 'depth-anything/DA3-Base'
-  #       encoder_input_size: 252  # DA3 standard input size
-  #       encoder_type: 'DA3EncoderDirect'
 
-  #       decoder_config_path: 'GLD/configs/decoder/ViTXL'
-  #       dpt_decoder_path: 'GLD/pretrained_models/da3/dpt_decoder.pt'
-  #       da3_weights_path: 'GLD/pretrained_models/da3/model.safetensors'
-  #       dpt_model_type: 'da3-base'
-  #       # mae_weight: 'GLD/pretrained_models/mae_decoder.pt'
-  #       # mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-da3-giant-adapter/001-RAE_DA3_MAE-bf16/checkpoints/0031000.pt
-  #       # mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-adapter-giant-final/000-RAE_DA3_MAE_ADAPTER-bf16/checkpoints/0070000.pt
-  #       # mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-adapter-giant-final/001-RAE_DA3_MAE_ADAPTER-bf16/checkpoints/0070000.pt
-  #       # mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-adapter-giant-final/002-RAE_DA3_MAE_ADAPTER-bf16/checkpoints/0130000.pt
+
+  rgb_decoder: 
+    stage_1:
+      target: GLD.src.stage1.rae_da3.RAE_DA3
+      params:
+        encoder_pretrained_path: 'depth-anything/DA3-Base'
+        encoder_input_size: 252  # DA3 standard input size
+        encoder_type: 'DA3EncoderDirect'
+
+        decoder_config_path: 'GLD/configs/decoder/ViTXL'
+        dpt_decoder_path: 'GLD/pretrained_models/da3/dpt_decoder.pt'
+        da3_weights_path: 'GLD/pretrained_models/da3/model.safetensors'
+        dpt_model_type: 'da3-base'
+        # mae_weight: 'GLD/pretrained_models/mae_decoder.pt'
+        # mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-da3-giant-adapter/001-RAE_DA3_MAE-bf16/checkpoints/0031000.pt
+        # mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-adapter-giant-final/000-RAE_DA3_MAE_ADAPTER-bf16/checkpoints/0070000.pt
+        # mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-adapter-giant-final/001-RAE_DA3_MAE_ADAPTER-bf16/checkpoints/0070000.pt
+        # mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-adapter-giant-final/002-RAE_DA3_MAE_ADAPTER-bf16/checkpoints/0130000.pt
         
+        # ADAPTER TUNING  
+        # mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-adapter-giant-final/003-RAE_DA3_MAE_ADAPTER-bf16/checkpoints/0320000.pt
 
-  #       # ADAPTER TUNING  
-  #       # mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-adapter-giant-final/003-RAE_DA3_MAE_ADAPTER-bf16/checkpoints/0320000.pt
+        # FULL FINETUNING 
+        mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-adapter-giant-final-full-finetuning/002-RAE_DA3_MAE_ADAPTER-bf16/checkpoints/0370000.pt
 
-  #       # FULL FINETUNING 
-  #       mae_weight: /mnt/dataset1/jaeeun/nips26/GLD/results/stage1-mae-adapter-giant-final-full-finetuning/002-RAE_DA3_MAE_ADAPTER-bf16/checkpoints/0370000.pt
+        noise_tau: 0.0
+        reshape_to_2d: true
+        normalization_stat_path: 'model_stats/da3/normalization_stats_level0.pt'
+
+    vis_rgb_LQ: true 
+    vis_rgb_HQ: true 
+    vis_rgb_RES: true
+    vis_rgb_framewise: true
 
 
-  #       noise_tau: 0.0
-  #       reshape_to_2d: true
-  #       normalization_stat_path: 'model_stats/da3/normalization_stats_level0.pt'
-
-  #   vis_rgb_LQ: true 
-  #   vis_rgb_HQ: true 
-  #   vis_rgb_RES: true
-  #   vis_rgb_framewise: true
 
 
 # ==============================================================================
@@ -327,6 +342,66 @@ workspace:
 
 
 
+  ######################################
+  ###### HQ (MVRM) Reconstruction ######
+  ######################################
+
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8_HQ_RECON/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
+
+
+
+
+
+
+  ###########################################################
+  ###### Geometry-Aware Feature Analysis (cost volume) ######
+  ###########################################################
+  
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8_geometry-aware/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8_geometry-aware/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_200/ray_saddle_maxview4_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8_geometry-aware/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_300/ray_saddle_maxview4_cfg1
+
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8_geometry-aware/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8_geometry-aware/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_200/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8_geometry-aware/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_300/ray_saddle_maxview10_cfg1
+
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8_geometry-aware/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_100/ray_saddle_maxview30_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8_geometry-aware/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_200/ray_saddle_maxview30_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8_geometry-aware/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_300/ray_saddle_maxview30_cfg1
+
+
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8_geometry-aware/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_600/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8_geometry-aware/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_700/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8_geometry-aware/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_800/ray_saddle_maxview10_cfg1
+
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8_geometry-aware/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_600/ray_saddle_maxview30_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8_geometry-aware/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_700/ray_saddle_maxview30_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8_geometry-aware/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_800/ray_saddle_maxview30_cfg1
+
+
+
+
+
+
+
+
+  ###################################################################
+  ###### DEBLURRING BENCH (gopro, hide, realblur-r, realblur-j) #####
+  ###################################################################
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/deblurring_bench/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/deblurring_bench/ray_saddle_maxview30_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/deblurring_bench/ray_saddle_maxview30_cfg1_re
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/deblurring_bench/ray_saddle_maxview30_cfg1_all
+
+
+
+
+
   ##############################################
   ###### FILTERED_CAM_BLUR 50 (RESIZE640) #####
   ##############################################
@@ -360,10 +435,13 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_100_resize640/ray_saddle_maxview10_cfg1
 
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100_resize640/ray_saddle_maxview4_cfg1
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100_resize640/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100_resize640/ray_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100_resize640/ray_saddle_maxview30_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100_resize640/ray_saddle_maxview40_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100_resize640/ray_saddle_maxview50_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100_resize640/ray_saddle_maxview70_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100_resize640/ray_saddle_maxview75_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/filtered_cam_blur_100_resize640/ray_saddle_maxview80_cfg1
 
 
   # ## JIHYE8-2
@@ -723,7 +801,10 @@ workspace:
 
 
   # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO
+  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOPHO
+  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOPHOPHO
+  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOPHOPHOPHO
+  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOPHOPHOPHOPHO
   # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOv2_maxview50
   # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOv2_maxview30
   # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOv3_maxview30
@@ -753,12 +834,13 @@ eval:
   # Datasets to evaluate
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
-    # - 7scenes
-    # - hiroom
-    - dtu64
-    # - scannetpp
-    # - eth3d
     - dtu
+    - 7scenes
+    - hiroom
+    - dtu64
+    - scannetpp
+    - eth3d
+    
     
     
 
@@ -779,19 +861,27 @@ eval:
   # Specific scenes to evaluate (null = all scenes)
   # Example: [courtyard, relief] for eth3d
   # scenes: [chess, redkitchen, office, heads, scan4, scan15, scan23]
-  scenes: [scan4]
+  # scenes: [scan4, scan33]
   # scenes: [redkitchen]
+  # scenes: [20241230/828761/cam_sampled_11]
+  scenes: []
+
 
   # Maximum number of frames per scene (for sampling)
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
   # max_frames: 100
+  # max_frames: 80
+  # max_frames: 75
   # max_frames: 70
   # max_frames: 50
+  # max_frames: 40
   # max_frames: 30
   max_frames: 10
   # max_frames: 4
   # max_frames: 5
+  # max_frames: 3
+  # max_frames: 2
   # max_frames: 1
 
   # Only run evaluation (skip inference)

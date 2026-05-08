@@ -276,6 +276,24 @@ workspace:
 
 
 
+
+
+  ##############################################
+  ###### FILTERED_CAM_BLUR 100 (RESIZE640) #####
+  ##############################################
+
+
+  # ## JIHYE 9-2
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE9-2/da3-base/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_100_resize640/ray_saddle_maxview10_cfg1
+
+
+
+
+
+
+
+
+
   ##################################
   ###### FILTERED_CAM_BLUR 100 ######
   ##################################
@@ -297,7 +315,7 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val_260413/da3_base/w_mvrm_FRONT/lqkernel50-300__blur00-03__ema95__hyp1tar1__ddt-enc8-dec6__lqdrop01/a100_ckpt25k/filtered_cam_blur_100/ray_saddle_maxview10_cfg1
 
   ## JIHYE9-2 (epoch10)
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE9-2/da3-base/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_200/ray_saddle_maxview10_cfg1
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE9-2/da3-base/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_200/ray_saddle_maxview10_cfg1
 
 
 
@@ -317,8 +335,25 @@ workspace:
 
 
 
+
+
+
+  ##################################
+  ###### FILTERED_CAM_BLUR 700 ######
+  ##################################
+
+  ## JIHYE9-2 (epoch10)
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE9-2/da3-base/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_700/ray_saddle_maxview10_cfg1
+
+
+
+
+
+
+
+
   # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO_BASE
-  work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO_BASE2
+  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO_BASE2
 
 
 
@@ -334,12 +369,12 @@ eval:
   # Datasets to evaluate
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
-    - 7scenes
-    - dtu64
+    # - 7scenes
+    # - dtu64
     - scannetpp
-    - hiroom
-    - eth3d
-    - dtu
+    # - hiroom
+    # - eth3d
+    # - dtu
     
     
 

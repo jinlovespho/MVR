@@ -172,22 +172,11 @@ class ScanNetPP(Dataset):
         })
 
         for name in names:
-            
-            
-            # PHO (LQ)
-            lq_img_path = os.path.join(lq_image_path, name)
-            if not os.path.exists(lq_img_path):
-                continue
-            out.lq_image_files.append(lq_img_path)
-            
- 
-            
-            
             image = images[name2id[name]]
             img_path = os.path.join(image_path, name)
             if not os.path.exists(img_path):
                 continue
-            
+
             # Build extrinsics (world-to-camera)
             ext = np.eye(4, dtype=np.float32)
             ext[:3, :3] = image.qvec2rotmat()
@@ -226,14 +215,17 @@ class ScanNetPP(Dataset):
             out.aux.ixt_raw_list.append(ixt_raw)
             out.aux.gt_depth_files.append(depth_file)
 
+            # PHO (LQ) — optional, only append when file exists
+            lq_img_path = os.path.join(lq_image_path, name)
+            if os.path.exists(lq_img_path):
+                out.lq_image_files.append(lq_img_path)
 
-            # PHO (RES)
+            # PHO (RES) — optional, only append when file exists
             res_img_path = os.path.join(res_image_path, name.replace('.jpg', '.png'))
             if not os.path.exists(res_img_path):
                 res_img_path = os.path.join(res_image_path, name.replace('.png', '.jpg'))
-            if not os.path.exists(res_img_path):
-                continue
-            out.res_image_files.append(res_img_path)
+            if os.path.exists(res_img_path):
+                out.res_image_files.append(res_img_path)
            
             
 

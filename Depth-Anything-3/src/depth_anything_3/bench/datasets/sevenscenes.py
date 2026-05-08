@@ -173,13 +173,6 @@ class SevenScenes(Dataset):
         })
 
         for i in range(0, n_imgs, 1):
-            
-            # PHO (LQ)
-            lq_img_path = os.path.join(lq_data_folder, f"frame-{i:06d}.color.jpg")
-            if not os.path.exists(lq_img_path):
-                continue
-            out.lq_image_files.append(lq_img_path)
-        
             img_path = os.path.join(data_folder, f"frame-{i:06d}.color.png")
             pose_path = os.path.join(data_folder, f"frame-{i:06d}.pose.txt")
             depth_path = os.path.join(data_folder, f"frame-{i:06d}.depth.png")
@@ -196,14 +189,17 @@ class SevenScenes(Dataset):
             out.intrinsics.append(ixt.copy())
             out.aux.gt_depth_files.append(depth_path)
 
+            # PHO (LQ) — optional, only append when file exists
+            lq_img_path = os.path.join(lq_data_folder, f"frame-{i:06d}.color.jpg")
+            if os.path.exists(lq_img_path):
+                out.lq_image_files.append(lq_img_path)
 
-            # PHO (RES)
+            # PHO (RES) — optional, only append when file exists
             res_img_path = os.path.join(res_data_folder, f"frame-{i:06d}.color.png")
             if not os.path.exists(res_img_path):
                 res_img_path = os.path.join(res_data_folder, f"frame-{i:06d}.color.jpg")
-            if not os.path.exists(res_img_path):
-                continue
-            out.res_image_files.append(res_img_path)
+            if os.path.exists(res_img_path):
+                out.res_image_files.append(res_img_path)
             
             
             

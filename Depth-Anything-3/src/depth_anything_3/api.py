@@ -46,6 +46,7 @@ from mvr.utils.featsim_utils import *
 from mvr.utils.metric_utils import *
 from mvr.utils.freq_utils import *
 from mvr.utils.pca_utils import *
+from mvr.utils.costvolume_utils import *
 
 from RAE.src.utils.vis_utils import vis_all, vis_attn_maps, vis_pointcloud_correspondence_maps, vis_pointcloud_cycle_correspondence_maps, vis_pointcloud_reproj_correspondence_maps
 from RAE.src.vis_cam_pose import plot_cam_trajectory, plot_cam_trajectory_fair, plot_all_cam_trajectory_fair
@@ -338,7 +339,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             if 'BASE' in cfg.model.path:
                 export_feat_layers=[4, 6, 8, 10]    
             elif 'GIANT' in cfg.model.path:
-                export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]    
+                # export_feat_layers=[18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]    
+                export_feat_layers=[14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 39]    
         else:
             pass
     
@@ -709,8 +711,6 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                         # Reshape to (B, V, 3, H, W) to match DPT format for consistency in denorm block below
                         x_rec = x_rec.reshape(b, v, 3, model_H, model_W)
                         rgb_hq = x_rec
-            
-            
             
             
             
@@ -1155,8 +1155,23 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             plot_cam_trajectory_fair(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/fair_{scene}.png")
             
             
-        
-
+            
+            
+            # costvolume_save_root = os.path.join(cfg.workspace.work_dir, 'pho_costvolume_results', data, pose_setting)
+            # costvolume_pck(
+            #     hq_encoder_out, lq_encoder_out, raw_output,
+            #     hq_imgs=imgs[0],
+            #     lq_imgs=lq_imgs[0],
+            #     save_root=costvolume_save_root,
+            #     scene=scene,
+            #     ref_b_idx=lq_ref_b_idx,
+            #     # vis_layers=[-1],   # [-1] = deepest layer only; change to e.g. [12, 24, 39] or None for all
+            #     vis_layers=[18]
+            # )
+                        
+            
+            
+            
             # plot_all_cam_trajectory_fair(
             #     hq_pred_pose[0], 
             #     lq_pred_pose[0],
@@ -1804,7 +1819,6 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             cam_save_root = os.path.join(cfg.workspace.work_dir, 'pho_cam_traj_results', data, pose_setting)
             plot_cam_trajectory(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/{scene}.png")
      
-            
             
             
         # Convert raw output to prediction

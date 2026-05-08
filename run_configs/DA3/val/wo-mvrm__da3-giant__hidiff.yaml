@@ -93,7 +93,8 @@ workspace:
   ###### FILTERED_CAM_BLUR 100 (RESIZE640) #####
   ##############################################
 
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/hidiff/filtered_cam_blur_100_resize640/ray_saddle_maxview10
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/hidiff/filtered_cam_blur_100_resize640/ray_saddle_maxview10
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/hidiff/filtered_cam_blur_100_resize640/ray_saddle_maxview50
 
 
 
@@ -137,6 +138,7 @@ workspace:
   ##################################
 
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/hidiff/filtered_cam_blur_300/ray_saddle_maxview10
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/hidiff/filtered_cam_blur_300/ray_saddle_maxview50
 
 
 
@@ -189,12 +191,12 @@ eval:
   # Datasets to evaluate
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
-    - 7scenes
+    # - 7scenes
     # - scannetpp
     # - hiroom
     # - eth3d
     - dtu
-    - dtu64
+    # - dtu64
 
 
   # Evaluation modes
@@ -213,14 +215,17 @@ eval:
 
   # Specific scenes to evaluate (null = all scenes)
   # Example: [courtyard, relief] for eth3d
-  scenes: []
+  # scenes: [scan4, scan33]
+  # scenes: [20241230/828761/cam_sampled_11]
+  scenes: [scan29, scan32, scan62, scan75]
+  
 
   # Maximum number of frames per scene (for sampling)
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
   # max_frames: 100
-  # max_frames: 50
-  max_frames: 10
+  max_frames: 50
+  # max_frames: 10
   # max_frames: 5
   # max_frames: 1
 

@@ -486,10 +486,10 @@ eval:
     - hiroom
     - eth3d
     - dtu
-    - gopro
-    - hide
-    - realblur_j
-    - realblur_r
+    # - gopro
+    # - hide
+    # - realblur_j
+    # - realblur_r
     
     
 
