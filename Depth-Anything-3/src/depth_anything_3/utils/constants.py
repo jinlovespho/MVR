@@ -33,12 +33,10 @@ EVAL_REF_VIEW_STRATEGY = "saddle_balanced"
 
 
 
-# =============================================================================
+# ================================================================================
 # CLEAN ROOT PATH (dont change)
-# =============================================================================
+# ================================================================================
 DA3_CLEAN_ROOT_PATH = f"/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/clean"
-
-
 
 
 
@@ -71,7 +69,6 @@ DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered
 
 
 
-
 # DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/cam_blur_100_resize'
 # DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/cam_blur_300_resize'
 # DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/cam_blur_500_resize'
@@ -91,6 +88,7 @@ DA3_LQ_ROOT_PATH = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered
 
 
 DA3_LQ_ROOT_PATH = os.environ.get("DA3_LQ_ROOT_PATH", DA3_LQ_ROOT_PATH)
+
 
 
 

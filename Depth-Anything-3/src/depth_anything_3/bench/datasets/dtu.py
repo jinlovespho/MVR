@@ -125,26 +125,22 @@ class DTU(Dataset):
             pass  # Keep original order if not enough views
 
 
-        # PHO (LQ)
+        # PHO (LQ) — build aligned with files (None where missing)
         lq_folder = os.path.join(self.da3_lq_root, "Rectified", scene)
-        lq_files = sorted(glob.glob(os.path.join(lq_folder, "*.jpg")))
-        # # Reorder: place index 33 first (reference view convention)
-        if len(lq_files) > 34:
-            lq_files = [lq_files[33]] + lq_files[:33] + lq_files[34:]
-        else:
-            pass  # Keep original order if not enough views
-        
-        
-        # PHO (RES)
+        lq_files = []
+        for f in files:
+            lq_path = os.path.join(lq_folder, os.path.basename(f).replace('.png', '.jpg'))
+            lq_files.append(lq_path if os.path.exists(lq_path) else None)
+
+        # PHO (RES) — build aligned with files (None where missing)
         res_folder = os.path.join(self.da3_res_root, "Rectified", scene)
-        res_files = sorted(glob.glob(os.path.join(res_folder, "*.png")))
-        if len(res_files) == 0:
-            res_files = sorted(glob.glob(os.path.join(res_folder, "*.jpg")))
-        # # Reorder: place index 33 first (reference view convention)
-        if len(res_files) > 34:
-            res_files = [res_files[33]] + res_files[:33] + res_files[34:]
-        else:
-            pass  # Keep original order if not enough views
+        res_files = []
+        for f in files:
+            basename = os.path.basename(f)
+            res_path = os.path.join(res_folder, basename)
+            if not os.path.exists(res_path):
+                res_path = os.path.join(res_folder, basename.replace('.png', '.jpg'))
+            res_files.append(res_path if os.path.exists(res_path) else None)
         
 
         out = Dict(

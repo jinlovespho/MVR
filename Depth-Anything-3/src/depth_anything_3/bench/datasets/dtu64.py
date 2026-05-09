@@ -130,27 +130,15 @@ class DTU64(Dataset):
             files = [files[33]] + files[:33] + files[34:]
             
             
-        # PHO (LQ)
+        # PHO: lq/res folders (paths built per-frame inside loop, aligned with image_files)
         lq_folder = os.path.join(self.da3_lq_root, scene, "image")
-        lq_files = sorted(glob.glob(os.path.join(lq_folder, "*.jpg")))
-        if len(lq_files) > 33:
-            lq_files = [lq_files[33]] + lq_files[:33] + lq_files[34:]
-        
-
-        # PHO (RES)
         res_folder = os.path.join(self.da3_res_root, scene, "image")
-        res_files = sorted(glob.glob(os.path.join(res_folder, "*.png")))
-        if len(res_files) == 0:
-            res_files = sorted(glob.glob(os.path.join(res_folder, "*.jpg")))
-        if len(res_files) > 33:
-            res_files = [res_files[33]] + res_files[:33] + res_files[34:]
 
         out = Dict({
-            
             # PHO
-            "lq_image_files": lq_files,
-            "res_image_files": res_files,
-            
+            "lq_image_files": [],
+            "res_image_files": [],
+
             "image_files": [],
             "extrinsics": [],
             "intrinsics": [],
@@ -175,6 +163,16 @@ class DTU64(Dataset):
             out.image_files.append(rgb_file)
             out.extrinsics.append(extrinsics)
             out.intrinsics.append(intrinsics)
+
+            # PHO (LQ) — always append (None if missing) to stay aligned with image_files
+            lq_path = os.path.join(lq_folder, basename.replace('.png', '.jpg'))
+            out.lq_image_files.append(lq_path if os.path.exists(lq_path) else None)
+
+            # PHO (RES) — always append (None if missing) to stay aligned with image_files
+            res_path = os.path.join(res_folder, basename)
+            if not os.path.exists(res_path):
+                res_path = os.path.join(res_folder, basename.replace('.png', '.jpg'))
+            out.res_image_files.append(res_path if os.path.exists(res_path) else None)
 
 
         out.extrinsics = np.asarray(out.extrinsics, dtype=np.float32)

@@ -96,8 +96,9 @@ workspace:
 
   ## JIHYE8 (epoch20)
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_LQ/filtered_cam_blur_100_resize640/ray_saddle_maxview10
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_LQ/filtered_cam_blur_100_resize640/ray_saddle_maxview10_REPRODUCEv3
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_LQ/filtered_cam_blur_100_resize640/ray_saddle_maxview50
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_LQ/filtered_cam_blur_100_resize640/ray_saddle_maxview70
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_LQ/filtered_cam_blur_100_resize640/ray_saddle_maxview70
 
 
 
@@ -189,11 +190,11 @@ eval:
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
     - 7scenes
-    # - scannetpp
-    # - hiroom
-    # - eth3d
-    # - dtu
-    # - dtu64
+    - scannetpp
+    - hiroom
+    - eth3d
+    - dtu
+    - dtu64
 
 
   # Evaluation modes
@@ -214,15 +215,16 @@ eval:
   # Example: [courtyard, relief] for eth3d
   # scenes: [scan4, scan33]
   # scenes: [20241230/828761/cam_sampled_11]
-  scenes: [redkitchen]
+  # scenes: [redkitchen]
+  scenes: []
 
   # Maximum number of frames per scene (for sampling)
   # If a scene has more frames, randomly sample to this limit.
   # Set to -1 to disable sampling.
   # max_frames: 100
-  max_frames: 70
+  # max_frames: 70
   # max_frames: 50
-  # max_frames: 10
+  max_frames: 10
   # max_frames: 5
   # max_frames: 1
 

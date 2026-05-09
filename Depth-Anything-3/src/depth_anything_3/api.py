@@ -808,6 +808,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             print("RES FORWARD PASS")
             raw_output, _ = self._run_model_forward(
                                             lq_imgs, 
+                                            # imgs,           # for MVRM (HQ_RECON)
                                             ex_t_norm, 
                                             in_t, 
                                             export_feat_layers, 

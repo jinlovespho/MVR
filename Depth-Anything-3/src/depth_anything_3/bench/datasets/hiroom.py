@@ -186,20 +186,18 @@ class HiRoomDataset(Dataset):
             out.aux.gt_depth_files.append(depth_path)
             out.aux.aliasing_mask_files.append(aliasing_mask_path)
 
-            # PHO (LQ) — optional, only append when file exists
+            # PHO (LQ) — always append (None if missing) to stay aligned with image_files
             lq_img_path = os.path.join(lq_image_dir, img_name)
-            if os.path.exists(lq_img_path):
-                out.lq_image_files.append(lq_img_path)
+            out.lq_image_files.append(lq_img_path if os.path.exists(lq_img_path) else None)
 
-            # PHO (RES) — optional, only append when file exists
+            # PHO (RES) — always append (None if missing) to stay aligned with image_files
             file_ext = os.path.splitext(img_name)[1].lower()
             res_img_path = os.path.join(res_image_dir, img_name)
             if not os.path.exists(res_img_path):
                 res_img_path = os.path.join(res_image_dir, img_name.replace(file_ext, '.png'))
             if not os.path.exists(res_img_path):
                 res_img_path = os.path.join(res_image_dir, img_name.replace(file_ext, '.jpg'))
-            if os.path.exists(res_img_path):
-                out.res_image_files.append(res_img_path)
+            out.res_image_files.append(res_img_path if os.path.exists(res_img_path) else None)
             
 
         out.extrinsics = np.asarray(out.extrinsics, dtype=np.float32)

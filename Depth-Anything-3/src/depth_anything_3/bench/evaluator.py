@@ -486,7 +486,7 @@ class Evaluator:
             for data, scene in tqdm(tasks, desc=f"Inference (GPU {self.gpu_id})"):
                 
                 dataset = self.datasets[data]
-                scene_data = dataset.get_data(scene)            
+                scene_data = dataset.get_data(scene)      
                 scene_data = self._sample_frames(scene_data, scene)
                 
                 # for img_path in scene_data.lq_image_files:
@@ -1687,62 +1687,47 @@ class Evaluator:
         Returns:
             Sampled scene_data if num_frames > max_frames, otherwise original
         """
+        
+        
         if self.max_frames <= 0:
             return scene_data
+        
+                
+        num_frames = len(scene_data.image_files)
 
-        # PHO: use lq_image_files length when available, else fall back to image_files
-        lq_len = len(scene_data.lq_image_files) if hasattr(scene_data, 'lq_image_files') else 0
-        num_frames = lq_len if lq_len > 0 else len(scene_data.image_files)
-            
         if num_frames <= self.max_frames:
             return scene_data
 
-        # Sample with fixed seed for reproducibility
-        random.seed(42)
-        indices = list(range(num_frames))
-        random.shuffle(indices)
-        sampled_indices = sorted(indices[:self.max_frames])
+        # When load_lq is on, restrict sampling pool to frames that have a valid LQ image.
+        # lq_image_files is aligned with image_files (None where LQ is absent).
+        load_lq = self.full_cfg.MVRM_EVAL.get('load_lq', False)
+        if load_lq and hasattr(scene_data, 'lq_image_files'):
+            candidate_indices = [i for i, p in enumerate(scene_data.lq_image_files) if p is not None]
+        else:
+            candidate_indices = list(range(num_frames))
 
-        print(f"  [Sampling] {scene}: {num_frames} -> {self.max_frames} frames")
+        random.seed(42)
+        random.shuffle(candidate_indices)
+        sampled_indices = sorted(candidate_indices[:self.max_frames])
+
+        print(f"  [Sampling] {scene}: {num_frames} ({len(candidate_indices)} valid) -> {self.max_frames} frames")
 
         # Create new scene_data with sampled frames
         sampled = Dict()
-  
-        
-        # PHO
-        if hasattr(scene_data, 'lq_image_files') and len(scene_data.lq_image_files) == num_frames:
+
+        # PHO: lq/res are aligned with image_files via None placeholders
+        if hasattr(scene_data, 'lq_image_files'):
             sampled.lq_image_files = [scene_data.lq_image_files[i] for i in sampled_indices]
-        elif hasattr(scene_data, 'lq_image_files'):
-            sampled.lq_image_files = scene_data.lq_image_files
 
+        if hasattr(scene_data, 'res_image_files'):
+            sampled.res_image_files = [scene_data.res_image_files[i] for i in sampled_indices]
 
-        if self.full_cfg.MVRM_EVAL.load_res:
-            if hasattr(scene_data, 'res_image_files'):
-                if len(scene_data.res_image_files) == self.max_frames:
-                    sampled.res_image_files = scene_data.res_image_files
-                else:
-                    sampled.res_image_files = [scene_data.res_image_files[i] for i in sampled_indices]
-
-
-        if len(scene_data.image_files) == self.max_frames:
-            sampled.image_files = scene_data.image_files
-        else:
-            sampled.image_files = [scene_data.image_files[i] for i in sampled_indices]
+        sampled.image_files = [scene_data.image_files[i] for i in sampled_indices]
 
 
 
-        if len(scene_data.extrinsics) == self.max_frames:
-            sampled.extrinsics = scene_data.extrinsics
-        else:
-            sampled.extrinsics = scene_data.extrinsics[sampled_indices]
-        
-        
-        
-        if len(scene_data.intrinsics) == self.max_frames:
-            sampled.intrinsics = scene_data.intrinsics
-        else:
-            sampled.intrinsics = scene_data.intrinsics[sampled_indices]
-
+        sampled.extrinsics = scene_data.extrinsics[sampled_indices]
+        sampled.intrinsics = scene_data.intrinsics[sampled_indices]
 
 
 

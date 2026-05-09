@@ -270,19 +270,17 @@ class ETH3D(Dataset):
             out.aux.heights.append(cam_info["height"])
             out.aux.widths.append(cam_info["width"])
 
-            # PHO (LQ) — optional, only append when file exists
+            # PHO (LQ) — always append (None if missing) to stay aligned with image_files
             lq_image_path = os.path.join(lq_scene_dir, "images", image_name.replace('.JPG', '.jpg'))
-            if os.path.exists(lq_image_path):
-                out.lq_image_files.append(lq_image_path)
+            out.lq_image_files.append(lq_image_path if os.path.exists(lq_image_path) else None)
 
-            # PHO (RES) — optional, only append when file exists
+            # PHO (RES) — always append (None if missing) to stay aligned with image_files
             res_image_path = os.path.join(res_scene_dir, "images", image_name)
             if not os.path.exists(res_image_path):
                 res_image_path = os.path.join(res_scene_dir, "images", image_name.replace('.JPG', '.png'))
             if not os.path.exists(res_image_path):
                 res_image_path = os.path.join(res_scene_dir, "images", image_name.replace('.JPG', '.jpg'))
-            if os.path.exists(res_image_path):
-                out.res_image_files.append(res_image_path)
+            out.res_image_files.append(res_image_path if os.path.exists(res_image_path) else None)
             
 
 
