@@ -42,8 +42,8 @@ from depth_anything_3.bench.utils import (
 from depth_anything_3.utils.constants import (
     
     # PHO
-    DA3_LQ_ROOT_PATH,
-    DA3_RES_ROOT_PATH,
+    DA3_LQ_ROOT_PATH_7scenes,
+    DA3_RES_ROOT_PATH_7scenes,
     
     SEVENSCENES_CX,
     SEVENSCENES_CY,
@@ -86,8 +86,8 @@ class SevenScenes(Dataset):
 
 
     # PHO
-    da3_lq_root = os.path.join(DA3_LQ_ROOT_PATH, '7scenes')
-    da3_res_root = os.path.join(DA3_RES_ROOT_PATH, '7scenes')
+    da3_lq_root = os.path.join(DA3_LQ_ROOT_PATH_7scenes, '7scenes')
+    da3_res_root = os.path.join(DA3_RES_ROOT_PATH_7scenes, '7scenes')
 
 
     data_root = SEVENSCENES_EVAL_DATA_ROOT

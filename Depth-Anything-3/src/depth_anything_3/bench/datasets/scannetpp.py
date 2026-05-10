@@ -44,8 +44,8 @@ from depth_anything_3.bench.utils import (
 from depth_anything_3.utils.constants import (
     
     # PHO
-    DA3_LQ_ROOT_PATH,
-    DA3_RES_ROOT_PATH,
+    DA3_LQ_ROOT_PATH_scannetpp,
+    DA3_RES_ROOT_PATH_scannetpp,
     
     SCANNETPP_DOWN_SAMPLE,
     SCANNETPP_EVAL_DATA_ROOT,
@@ -85,8 +85,8 @@ class ScanNetPP(Dataset):
     """
 
     # PHO
-    da3_lq_root = os.path.join(DA3_LQ_ROOT_PATH, 'scannetpp')
-    da3_res_root = os.path.join(DA3_RES_ROOT_PATH, 'scannetpp')
+    da3_lq_root = os.path.join(DA3_LQ_ROOT_PATH_scannetpp, 'scannetpp')
+    da3_res_root = os.path.join(DA3_RES_ROOT_PATH_scannetpp, 'scannetpp')
 
     data_root = SCANNETPP_EVAL_DATA_ROOT
     SCENES = SCANNETPP_SCENES

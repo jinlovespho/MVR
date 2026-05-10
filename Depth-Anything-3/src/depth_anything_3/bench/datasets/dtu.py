@@ -42,8 +42,8 @@ from depth_anything_3.bench.registries import MONO_REGISTRY, MV_REGISTRY
 from depth_anything_3.utils.constants import (
 
     # PHO
-    DA3_LQ_ROOT_PATH,
-    DA3_RES_ROOT_PATH,
+    DA3_LQ_ROOT_PATH_dtu,
+    DA3_RES_ROOT_PATH_dtu,
     
     DTU_DIST_THRESH,
     DTU_EVAL_DATA_ROOT,
@@ -70,8 +70,8 @@ class DTU(Dataset):
     """
 
     # PHO
-    da3_lq_root = os.path.join(DA3_LQ_ROOT_PATH, 'dtu')
-    da3_res_root = os.path.join(DA3_RES_ROOT_PATH, 'dtu')
+    da3_lq_root = os.path.join(DA3_LQ_ROOT_PATH_dtu, 'dtu')
+    da3_res_root = os.path.join(DA3_RES_ROOT_PATH_dtu, 'dtu')
 
     data_root = DTU_EVAL_DATA_ROOT
     SCENES = DTU_SCENES

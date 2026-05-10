@@ -42,8 +42,8 @@ from depth_anything_3.bench.utils import (
 from depth_anything_3.utils.constants import (
     
     # PHO
-    DA3_LQ_ROOT_PATH,
-    DA3_RES_ROOT_PATH,
+    DA3_LQ_ROOT_PATH_hiroom,
+    DA3_RES_ROOT_PATH_hiroom,
     
     HIROOM_DOWN_SAMPLE,
     HIROOM_EVAL_DATA_ROOT,
@@ -91,8 +91,8 @@ class HiRoomDataset(Dataset):
     """
 
     # PHO
-    da3_lq_root = os.path.join(DA3_LQ_ROOT_PATH, 'hiroom', 'data')
-    da3_res_root = os.path.join(DA3_RES_ROOT_PATH, 'hiroom', 'data')
+    da3_lq_root = os.path.join(DA3_LQ_ROOT_PATH_hiroom, 'hiroom', 'data')
+    da3_res_root = os.path.join(DA3_RES_ROOT_PATH_hiroom, 'hiroom', 'data')
 
     data_root = HIROOM_EVAL_DATA_ROOT
     gt_root_path = HIROOM_GT_ROOT_PATH

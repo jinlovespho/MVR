@@ -41,6 +41,48 @@ DA3_CLEAN_ROOT_PATH = f"/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/clean
 
 
 
+
+# ================================================================================
+# PATHS PER DATASET (LQ and RES)
+# ================================================================================
+DA3_LQ_ROOT_PATH_hiroom = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_300'
+DA3_LQ_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_700'
+DA3_LQ_ROOT_PATH_dtu = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100_resize_640'
+DA3_LQ_ROOT_PATH_dtu64 = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100_resize_640'
+DA3_LQ_ROOT_PATH_7scenes = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100_resize_640'
+DA3_LQ_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_300'
+
+
+# ## restormer 
+# DA3_RES_ROOT_PATH_hiroom = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_300'
+# DA3_RES_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_700'
+# DA3_RES_ROOT_PATH_dtu = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_100_resize_640'
+# DA3_RES_ROOT_PATH_dtu64 = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_100_resize_640'
+# DA3_RES_ROOT_PATH_7scenes = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_100_resize_640'
+# DA3_RES_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_200'
+
+
+# ## hidiff 
+# DA3_RES_ROOT_PATH_hiroom = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_300'
+# DA3_RES_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_700'
+# DA3_RES_ROOT_PATH_dtu = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_100_resize_640'
+# DA3_RES_ROOT_PATH_dtu64 = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_100_resize_640'
+# DA3_RES_ROOT_PATH_7scenes = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_100_resize_640'
+# DA3_RES_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_200'
+
+
+## instructir 
+DA3_RES_ROOT_PATH_hiroom = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_300'
+DA3_RES_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_700'
+DA3_RES_ROOT_PATH_dtu = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_100_resize_640'
+DA3_RES_ROOT_PATH_dtu64 = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_100_resize_640'
+DA3_RES_ROOT_PATH_7scenes = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_100_resize_640'
+DA3_RES_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_200'
+
+
+
+
+
 # =============================================================================
 # LQ ROOT PATH (CHANGE!!!!!!!!!)
 # =============================================================================
@@ -220,6 +262,7 @@ DA3_RES_ROOT_PATH = os.environ.get("DA3_RES_ROOT_PATH", DA3_RES_ROOT_PATH)
 # Root directory for DTU evaluation data (MVSNet format)
 # Download from: https://drive.google.com/file/d/1rX0EXlUL4prRxrRu2DgLJv2j7-tpUD4D/view
 DTU_EVAL_DATA_ROOT = f"{DA3_CLEAN_ROOT_PATH}/dtu"
+
 
 # List of DTU evaluation scenes
 DTU_SCENES = [

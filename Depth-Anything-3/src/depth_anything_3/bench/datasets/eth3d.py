@@ -46,8 +46,9 @@ from depth_anything_3.bench.utils import (
     sample_points_from_mesh,
 )
 from depth_anything_3.utils.constants import (
-    DA3_LQ_ROOT_PATH,
-    DA3_RES_ROOT_PATH,
+    DA3_LQ_ROOT_PATH_eth3d,
+    DA3_RES_ROOT_PATH_eth3d,
+    
     ETH3D_DOWN_SAMPLE,
     ETH3D_EVAL_DATA_ROOT,
     ETH3D_EVAL_THRESHOLD,
@@ -84,8 +85,8 @@ class ETH3D(Dataset):
     """
 
     # PHO
-    da3_lq_root = os.path.join(DA3_LQ_ROOT_PATH, 'eth3d')
-    da3_res_root = os.path.join(DA3_RES_ROOT_PATH, 'eth3d')
+    da3_lq_root = os.path.join(DA3_LQ_ROOT_PATH_eth3d, 'eth3d')
+    da3_res_root = os.path.join(DA3_RES_ROOT_PATH_eth3d, 'eth3d')
 
     data_root = ETH3D_EVAL_DATA_ROOT
     SCENES = ETH3D_SCENES

@@ -90,7 +90,9 @@ workspace:
 
 
 
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_HQ/clean/ray_saddle_maxview10
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_HQ/clean/ray_saddle_maxview10
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_HQ/clean/ray_saddle_maxview10_REPRODUCEv3
+
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_HQ/clean/ray_saddle_maxview30
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_HQ/clean/ray_saddle_maxview50
 

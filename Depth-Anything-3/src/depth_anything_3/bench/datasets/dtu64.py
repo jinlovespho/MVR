@@ -33,8 +33,8 @@ from depth_anything_3.bench.registries import MONO_REGISTRY, MV_REGISTRY
 from depth_anything_3.utils.constants import (
 
     # PHO
-    DA3_LQ_ROOT_PATH,
-    DA3_RES_ROOT_PATH,
+    DA3_LQ_ROOT_PATH_dtu64,
+    DA3_RES_ROOT_PATH_dtu64,
     
     DTU64_CAMERA_ROOT,
     DTU64_EVAL_DATA_ROOT,
@@ -68,8 +68,8 @@ class DTU64(Dataset):
     """
 
     # PHO
-    da3_lq_root = os.path.join(DA3_LQ_ROOT_PATH, 'dtu64')
-    da3_res_root = os.path.join(DA3_RES_ROOT_PATH, 'dtu64')
+    da3_lq_root = os.path.join(DA3_LQ_ROOT_PATH_dtu64, 'dtu64')
+    da3_res_root = os.path.join(DA3_RES_ROOT_PATH_dtu64, 'dtu64')
 
     data_root = DTU64_EVAL_DATA_ROOT
     camera_root = DTU64_CAMERA_ROOT
