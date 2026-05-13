@@ -298,6 +298,7 @@ class InputProcessor:
     # I/O & normalization
     # -----------------------------
     def _load_image(self, img: np.ndarray | Image.Image | str) -> Image.Image:
+        Image.MAX_IMAGE_PIXELS = None 
         if isinstance(img, str):
             return Image.open(img).convert("RGB")
         elif isinstance(img, np.ndarray):

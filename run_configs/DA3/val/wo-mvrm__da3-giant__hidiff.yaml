@@ -94,6 +94,7 @@ workspace:
   ######################################
 
   work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/hidiff/EVAL_ALL/ray_saddle_maxview10
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/hidiff/EVAL_ALL/ray_first_maxview10
 
 
 
@@ -201,12 +202,12 @@ eval:
   # Datasets to evaluate
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
-    - 7scenes
+    # - 7scenes
     - scannetpp
-    - hiroom
-    - eth3d
-    - dtu
-    - dtu64
+    # - hiroom
+    # - eth3d
+    # - dtu
+    # - dtu64
 
 
   # Evaluation modes

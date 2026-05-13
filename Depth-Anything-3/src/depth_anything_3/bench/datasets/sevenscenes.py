@@ -174,6 +174,8 @@ class SevenScenes(Dataset):
 
         for i in range(0, n_imgs, 1):
             img_path = os.path.join(data_folder, f"frame-{i:06d}.color.png")
+            if not os.path.exists(img_path):
+                img_path = os.path.join(data_folder, f"frame-{i:06d}.color.jpg")
             pose_path = os.path.join(data_folder, f"frame-{i:06d}.pose.txt")
             depth_path = os.path.join(data_folder, f"frame-{i:06d}.depth.png")
 
@@ -198,7 +200,6 @@ class SevenScenes(Dataset):
             if not os.path.exists(res_img_path):
                 res_img_path = os.path.join(res_data_folder, f"frame-{i:06d}.color.jpg")
             out.res_image_files.append(res_img_path if os.path.exists(res_img_path) else None)
-            
             
             
         out.extrinsics = np.asarray(out.extrinsics, dtype=np.float32)

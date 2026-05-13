@@ -27,7 +27,6 @@ MVRM_EVAL:
 
 
 
-
   rgb_decoder: 
     stage_1:
       target: GLD.src.stage1.rae_da3.RAE_DA3
@@ -346,6 +345,7 @@ workspace:
   ######################################
 
   work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/EVAL_ALL/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/EVAL_ALL/ray_first_maxview10_cfg1
 
 
 
@@ -367,6 +367,10 @@ workspace:
   ###########################################################
   ###### Geometry-Aware Feature Analysis (cost volume) ######
   ###########################################################
+  
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8_geometry-aware/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/EVAL_ALL/ray_saddle_maxview4_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8_geometry-aware/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/EVAL_ALL/ray_saddle_maxview10_cfg1
   
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8_geometry-aware/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_100/ray_saddle_maxview4_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8_geometry-aware/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/filtered_cam_blur_200/ray_saddle_maxview4_cfg1
@@ -817,7 +821,10 @@ workspace:
 
 
 
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP
+  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO_scannetpp_100
+  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO_scannetpp_100_resize
+  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO_scannetpp_200
+  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO_scannetpp_300
   # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOPHO
   # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOPHOPHO
   # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOPHOPHOPHO
@@ -826,10 +833,6 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOv2_maxview30
   # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOv3_maxview30
 
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO8
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO8-2
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO8-3
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO8-4
 
 
   # work_dir: /mnt/dataset1/MV_Restoration/PHO_TMP_hiroom200_adapter
@@ -851,12 +854,12 @@ eval:
   # Datasets to evaluate
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
-    - 7scenes
-    - dtu
-    - dtu64
-    - hiroom
+    # - 7scenes
+    # - dtu
+    # - dtu64
+    # - hiroom
     - scannetpp
-    - eth3d
+    # - eth3d
     
     
     

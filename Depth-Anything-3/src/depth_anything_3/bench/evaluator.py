@@ -486,7 +486,7 @@ class Evaluator:
             for data, scene in tqdm(tasks, desc=f"Inference (GPU {self.gpu_id})"):
                 
                 dataset = self.datasets[data]
-                scene_data = dataset.get_data(scene)      
+                scene_data = dataset.get_data(scene) 
                 scene_data = self._sample_frames(scene_data, scene)
                 
                 # for img_path in scene_data.lq_image_files:

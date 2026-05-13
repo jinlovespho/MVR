@@ -91,10 +91,14 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_HQ/clean/ray_saddle_maxview10
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_HQ/clean/ray_saddle_maxview10_REPRODUCE
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_HQ/clean/ray_saddle_maxview10_REPRODUCEv2
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_HQ/clean/ray_saddle_maxview10_REPRODUCEv3
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_HQ/clean/ray_saddle_maxview10_REPRODUCEv3
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_HQ/clean/ray_first_maxview10_REPRODUCEv3
+
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_HQ/clean/ray_saddle_maxview30
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_HQ/clean/ray_saddle_maxview50
-  
+
+
+
   
   # work_dir: /mnt/dataset1/MV_Restoration/TMP
 
@@ -128,8 +132,8 @@ eval:
 
   # Reference view selection strategy for inference
   # Options: first, saddle_balanced, auto, mid
-  # ref_view_strategy: "first"
-  ref_view_strategy: "saddle_balanced"
+  ref_view_strategy: "first"
+  # ref_view_strategy: "saddle_balanced"
 
   # Specific scenes to evaluate (null = all scenes)
   # Example: [courtyard, relief] for eth3d

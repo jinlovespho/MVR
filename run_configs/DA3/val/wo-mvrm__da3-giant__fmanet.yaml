@@ -87,96 +87,14 @@ model:
 workspace:
   # Working directory for outputs (model results, metrics, etc.)
 
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/fmanet/filtered_cam_blur_100_resize640/ray_saddle_maxview10
 
 
-  ##############################################
-  ###### FILTERED_CAM_BLUR 100 (RESIZE640) #####
-  ##############################################
+  ######################################
+  ###### EVAL_ALL DA3 BENCHMARK ########
+  ######################################
 
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/hidiff/filtered_cam_blur_100_resize640/ray_saddle_maxview10
-
-
-
-
-  ##################################
-  ###### FILTERED_CAM_BLUR100 ######
-  ##################################
-
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/hidiff/filtered_cam_blur_100/ray_saddle_maxview10
-
-
-
-  ##################################
-  ###### FILTERED_CAM_BLUR150 ######
-  ##################################
-
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/hidiff/filtered_cam_blur_150/ray_saddle_maxview10
-
-
-
-  ##################################
-  ###### FILTERED_CAM_BLUR200 ######
-  ##################################
-
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/hidiff/filtered_cam_blur_200/ray_saddle_maxview10
-
-
-
-  ##################################
-  ###### FILTERED_CAM_BLUR 250 #####
-  ##################################
-
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/hidiff/filtered_cam_blur_250/ray_saddle_maxview10
-
-
-
-
-
-  ##################################
-  ###### FILTERED_CAM_BLUR300 ######
-  ##################################
-
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/hidiff/filtered_cam_blur_300/ray_saddle_maxview10
-
-
-
-  ##################################
-  ###### FILTERED_CAM_BLUR400 ######
-  ##################################
-
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/hidiff/filtered_cam_blur_400/ray_saddle_maxview10
-
-
-
-
-
-  ##################################
-  ###### FILTERED_CAM_BLUR600 ######
-  ##################################
-
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/hidiff/filtered_cam_blur_600/ray_saddle_maxview10
-
-
-
-
-  ##################################
-  ###### FILTERED_CAM_BLUR 700 #####
-  ##################################
-
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/hidiff/filtered_cam_blur_700/ray_saddle_maxview10
-
-
-
-
-
-  ##################################
-  ###### FILTERED_CAM_BLUR 800 #####
-  ##################################
-
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/hidiff/filtered_cam_blur_800/ray_saddle_maxview10
-
-
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/fmanet/EVAL_ALL/ray_saddle_maxview10
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/fmanet/EVAL_ALL/ray_first_maxview10
 
 
 
@@ -191,9 +109,9 @@ eval:
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
     - 7scenes
-    # - scannetpp
-    # - hiroom
-    # - eth3d
+    - scannetpp
+    - hiroom
+    - eth3d
     - dtu
     - dtu64
 
@@ -214,7 +132,11 @@ eval:
 
   # Specific scenes to evaluate (null = all scenes)
   # Example: [courtyard, relief] for eth3d
+  # scenes: [scan4, scan33]
+  # scenes: [20241230/828761/cam_sampled_11]
+  # scenes: [scan29, scan32, scan62, scan75]
   scenes: []
+  
 
   # Maximum number of frames per scene (for sampling)
   # If a scene has more frames, randomly sample to this limit.

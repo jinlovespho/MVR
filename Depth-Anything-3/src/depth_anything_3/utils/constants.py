@@ -50,7 +50,9 @@ DA3_LQ_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/fi
 DA3_LQ_ROOT_PATH_dtu = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100_resize_640'
 DA3_LQ_ROOT_PATH_dtu64 = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100_resize_640'
 DA3_LQ_ROOT_PATH_7scenes = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100_resize_640'
-DA3_LQ_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_300'
+DA3_LQ_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_200'
+
+
 
 
 # ## restormer 
@@ -62,6 +64,7 @@ DA3_LQ_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_datase
 # DA3_RES_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_restormer/filtered_cam_blur_200'
 
 
+
 # ## hidiff 
 # DA3_RES_ROOT_PATH_hiroom = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_300'
 # DA3_RES_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_700'
@@ -71,15 +74,52 @@ DA3_LQ_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_datase
 # DA3_RES_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_200'
 
 
-## instructir 
-DA3_RES_ROOT_PATH_hiroom = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_300'
-DA3_RES_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_700'
-DA3_RES_ROOT_PATH_dtu = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_100_resize_640'
-DA3_RES_ROOT_PATH_dtu64 = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_100_resize_640'
-DA3_RES_ROOT_PATH_7scenes = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_100_resize_640'
-DA3_RES_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_200'
+
+# ## instructir 
+# DA3_RES_ROOT_PATH_hiroom = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_300'
+# DA3_RES_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_700'
+# DA3_RES_ROOT_PATH_dtu = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_100_resize_640'
+# DA3_RES_ROOT_PATH_dtu64 = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_100_resize_640'
+# DA3_RES_ROOT_PATH_7scenes = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_100_resize_640'
+# DA3_RES_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_instructir/filtered_cam_blur_200'
 
 
+## moceir
+DA3_RES_ROOT_PATH_hiroom = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_moceir/filtered_cam_blur_300'
+DA3_RES_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_moceir/filtered_cam_blur_700'
+DA3_RES_ROOT_PATH_dtu = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_moceir/filtered_cam_blur_100_resize_640'
+DA3_RES_ROOT_PATH_dtu64 = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_moceir/filtered_cam_blur_100_resize_640'
+DA3_RES_ROOT_PATH_7scenes = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_moceir/filtered_cam_blur_100_resize_640'
+DA3_RES_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_moceir/filtered_cam_blur_200'
+
+
+# ## vrt
+# DA3_RES_ROOT_PATH_hiroom = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_vrt/filtered_cam_blur_300'
+# DA3_RES_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_vrt/filtered_cam_blur_700'
+# DA3_RES_ROOT_PATH_dtu = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_vrt/filtered_cam_blur_100_resize_640'
+# DA3_RES_ROOT_PATH_dtu64 = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_vrt/filtered_cam_blur_100_resize_640'
+# DA3_RES_ROOT_PATH_7scenes = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_vrt/filtered_cam_blur_100_resize_640'
+# DA3_RES_ROOT_PATH_scannetpp = f''
+
+
+
+# ## fmanet
+# DA3_RES_ROOT_PATH_hiroom = 
+# DA3_RES_ROOT_PATH_eth3d = 
+# DA3_RES_ROOT_PATH_dtu = 
+# DA3_RES_ROOT_PATH_dtu64 = 
+# DA3_RES_ROOT_PATH_7scenes = 
+# DA3_RES_ROOT_PATH_scannetpp = 
+
+
+
+
+DA3_RES_ROOT_PATH_hiroom = os.environ.get("DA3_RES_ROOT_PATH_hiroom", DA3_RES_ROOT_PATH_hiroom)
+DA3_RES_ROOT_PATH_eth3d = os.environ.get("DA3_RES_ROOT_PATH_eth3d", DA3_RES_ROOT_PATH_eth3d)
+DA3_RES_ROOT_PATH_dtu = os.environ.get("DA3_RES_ROOT_PATH_dtu", DA3_RES_ROOT_PATH_dtu)
+DA3_RES_ROOT_PATH_dtu64 = os.environ.get("DA3_RES_ROOT_PATH_dtu64", DA3_RES_ROOT_PATH_dtu64)
+DA3_RES_ROOT_PATH_7scenes = os.environ.get("DA3_RES_ROOT_PATH_7scenes", DA3_RES_ROOT_PATH_7scenes)
+DA3_RES_ROOT_PATH_scannetpp = os.environ.get("DA3_RES_ROOT_PATH_scannetpp", DA3_RES_ROOT_PATH_scannetpp)
 
 
 
