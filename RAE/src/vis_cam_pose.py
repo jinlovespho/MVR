@@ -327,7 +327,7 @@ def plot_cam_trajectory_fair(
     only_pred=False,
     visualize_direction=True,
     arrow_len_3d=0.2,
-    arrow_scale_2d=20
+    arrow_scale_2d=20,
 ):
 
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -408,34 +408,40 @@ def plot_cam_trajectory_fair(
     ax2 = fig.add_subplot(122)
 
     if not only_pred:
-        ax2.plot(hq_pred_c[:,0], hq_pred_c[:,2],
-                 'g-o', label='HQ', markersize=4, linewidth=2)
+        ax2.plot(hq_pred_c[:,0], hq_pred_c[:,2], color='green',  linewidth=3, label='HQ')
 
-    ax2.plot(lq_pred_c[:,0], lq_pred_c[:,2],
-             'r:o', label='LQ', markersize=3)
+    ax2.plot(lq_pred_c[:,0],  lq_pred_c[:,2],  color='red',    linewidth=3, label='LQ')
+    ax2.plot(res_pred_c[:,0], res_pred_c[:,2], color='blue',   linewidth=3, label='Restored')
 
-    ax2.plot(res_pred_c[:,0], res_pred_c[:,2],
-             'b--x', label='Restored', alpha=0.5)
-
-    ax2.scatter(hq_pred_c[0,0], hq_pred_c[0,2], color='black', s=80)
+    ax2.scatter(hq_pred_c[0,0], hq_pred_c[0,2], color='black', s=80, zorder=5)
 
     if visualize_direction:
 
         if not only_pred:
             ax2.quiver(hq_pred_c[::step,0], hq_pred_c[::step,2],
                        hq_pred_d[::step,0], hq_pred_d[::step,2],
-                       color='g', scale=arrow_scale_2d)
+                       color='green', scale=arrow_scale_2d)
 
         ax2.quiver(lq_pred_c[::step,0], lq_pred_c[::step,2],
                    lq_pred_d[::step,0], lq_pred_d[::step,2],
-                   color='r', scale=arrow_scale_2d)
+                   color='red', scale=arrow_scale_2d)
 
         ax2.quiver(res_pred_c[::step,0], res_pred_c[::step,2],
                    res_pred_d[::step,0], res_pred_d[::step,2],
-                   color='b', scale=arrow_scale_2d)
+                   color='blue', scale=arrow_scale_2d)
 
     ax2.set_title("Top-down View (metric-aligned)")
     ax2.set_aspect('equal')
+    all_x = np.concatenate([hq_pred_c[:,0], lq_pred_c[:,0], res_pred_c[:,0]])
+    all_z = np.concatenate([hq_pred_c[:,2], lq_pred_c[:,2], res_pred_c[:,2]])
+    pad = 0.05
+    x_span = all_x.max() - all_x.min()
+    z_span = all_z.max() - all_z.min()
+    half_span = max(x_span, z_span) / 2  # keep square for equal aspect
+    cx = (all_x.min() + all_x.max()) / 2
+    cz = (all_z.min() + all_z.max()) / 2
+    ax2.set_xlim(cx - half_span * (1 + pad), cx + half_span * (1 + pad))
+    ax2.set_ylim(cz - half_span * (1 + pad), cz + half_span * (1 + pad))
     ax2.legend()
 
     plt.tight_layout()

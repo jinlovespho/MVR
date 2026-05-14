@@ -93,8 +93,10 @@ workspace:
   ###### EVAL_ALL DA3 BENCHMARK ########
   ######################################
 
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/restormer/EVAL_ALL/ray_saddle_maxview10
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/restormer/EVAL_ALL/ray_saddle_maxview10
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/restormer/EVAL_ALL/ray_first_maxview10
+
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_IR/restormer/EVAL_ALL/ray_saddle_maxview10_pose_qual
 
 
 
@@ -216,12 +218,12 @@ eval:
   # Datasets to evaluate
   # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
   datasets:
-    # - 7scenes
+    - 7scenes
     - scannetpp
-    # - hiroom
-    # - eth3d
-    # - dtu
-    # - dtu64
+    - hiroom
+    - eth3d
+    - dtu
+    - dtu64
 
 
   # Evaluation modes
@@ -243,7 +245,12 @@ eval:
   # scenes: [scan4, scan33]
   # scenes: [20241230/828761/cam_sampled_11]
   # scenes: [scan29, scan32, scan62, scan75]
-  scenes: []
+  scenes: [ pumpkin, 
+            scan1, scan9, scan10, scan11, scan13, scan24, scan33, scan34, 
+            courtyard, kicker, office, 
+            20241230/828788/cam_sampled_13, 20241230/828792/cam_sampled_10, 20241230/828805/cam_sampled_06, 20241230/828816/cam_sampled_14,
+            5f99900f09, 38d58a7a31, 578511c8a9,]
+  # scenes: []
   
 
   # Maximum number of frames per scene (for sampling)

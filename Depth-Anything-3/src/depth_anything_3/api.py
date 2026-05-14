@@ -309,6 +309,7 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
 
 
         # PHO
+        # breakpoint()
         if 'res_image_files' in image.keys() and cfg.MVRM_EVAL.load_res:
             res_imgs_cpu, _, _ = self._preprocess_inputs(
                 image.res_image_files, None, None, process_res, process_res_method
@@ -1154,10 +1155,10 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
             cam_save_root = os.path.join(cfg.workspace.work_dir, 'pho_cam_traj_results', data, pose_setting)
             # plot_cam_trajectory(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/{scene}.png")
             plot_cam_trajectory_fair(hq_pred_pose[0], lq_pred_pose[0], res_pred_pose[0], visualize_direction=False, save_path=f"{cam_save_root}/fair_{scene}.png")
-            
-            
-            
-            
+
+
+
+
             # costvolume_save_root = os.path.join(cfg.workspace.work_dir, 'pho_costvolume_results', data, pose_setting)
             # costvolume_pck(
             #     hq_encoder_out, lq_encoder_out, raw_output,

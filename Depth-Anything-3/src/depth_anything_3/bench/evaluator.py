@@ -486,6 +486,7 @@ class Evaluator:
             for data, scene in tqdm(tasks, desc=f"Inference (GPU {self.gpu_id})"):
                 
                 dataset = self.datasets[data]
+                # breakpoint()
                 scene_data = dataset.get_data(scene) 
                 scene_data = self._sample_frames(scene_data, scene)
                 

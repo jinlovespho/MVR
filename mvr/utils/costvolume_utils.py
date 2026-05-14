@@ -249,6 +249,7 @@ def _attn_heatmap(sim, temperature=0.07, topk=None, sharpen_gamma=1.0):
 
 def _save_costvolume_vis(hq_patches, lq_patches, res_patches,
                          hq_imgs, gt_flat, Ph, Pw, save_path,
+                         lq_imgs=None,
                          ref_v=0, temperature=0.07, topk=None, sharpen_gamma=1.0,
                          center_feats=True):
     """
@@ -258,9 +259,9 @@ def _save_costvolume_vis(hq_patches, lq_patches, res_patches,
     Pass ref_v = ref_b_idx so the reference view is used as the query source.
 
     Saves three files derived from save_path stem:
-      cv_vis_hq.png   — HQ feature attention overlaid on every non-reference view
-      cv_vis_lq.png   — LQ feature attention
-      cv_vis_res.png  — Restored feature attention
+      cv_vis_hq.png   — HQ feature attention overlaid on HQ images
+      cv_vis_lq.png   — LQ feature attention overlaid on LQ images
+      cv_vis_res.png  — Restored feature attention overlaid on LQ images
 
     Layout per file:
       Rows : one per query patch  (N_VIS_QUERIES = 9, 3×3 grid)
@@ -274,6 +275,7 @@ def _save_costvolume_vis(hq_patches, lq_patches, res_patches,
         gt_flat       : (b, v, v, N)  — GT correspondences in original view order (unused, kept for API compat)
         Ph, Pw        : patch grid dims
         save_path     : base path; stem is reused with _hq/_lq/_res suffixes
+        lq_imgs       : (v, 3, H, W) LQ image tensor; falls back to hq_imgs if None
         ref_v         : index of the reference view in original order (default 0)
         center_feats  : subtract per-view mean patch token before normalizing (default True)
         temperature   : softmax temperature (default 0.07)
@@ -301,9 +303,13 @@ def _save_costvolume_vis(hq_patches, lq_patches, res_patches,
     c_idxs   = np.linspace(Pw // 6, Pw - Pw // 6 - 1, nq_side, dtype=int)
     query_rc = [(r, c) for r in r_idxs for c in c_idxs]
 
-    ref_img  = _tensor_to_rgb(hq_imgs[ref_v])
-    tgt_imgs = [_tensor_to_rgb(hq_imgs[tv]) for tv in tgt_views]
-    H_img, W_img = ref_img.shape[:2]
+    _lq_imgs = lq_imgs if lq_imgs is not None else hq_imgs
+
+    hq_ref_img  = _tensor_to_rgb(hq_imgs[ref_v])
+    lq_ref_img  = _tensor_to_rgb(_lq_imgs[ref_v])
+    hq_tgt_imgs = [_tensor_to_rgb(hq_imgs[tv]) for tv in tgt_views]
+    lq_tgt_imgs = [_tensor_to_rgb(_lq_imgs[tv]) for tv in tgt_views]
+    H_img, W_img = hq_ref_img.shape[:2]
     extents  = [[0, W_img, H_img, 0]] * len(tgt_views)
 
     cmap     = plt.cm.jet
@@ -312,12 +318,12 @@ def _save_costvolume_vis(hq_patches, lq_patches, res_patches,
     stem     = os.path.splitext(save_path)[0]             # drop .png
 
     conditions = [
-        ('hq',  _prep(hq_patches),  'HQ'),
-        ('lq',  _prep(lq_patches),  'LQ'),
-        ('res', _prep(res_patches), 'Restored'),
+        ('hq',  _prep(hq_patches),  'HQ',       hq_ref_img, hq_tgt_imgs),
+        ('lq',  _prep(lq_patches),  'LQ',       lq_ref_img, lq_tgt_imgs),
+        ('res', _prep(res_patches), 'Restored',  lq_ref_img, lq_tgt_imgs),
     ]
 
-    for cond_key, feat_n, cond_label in conditions:
+    for cond_key, feat_n, cond_label, c_ref_img, c_tgt_imgs in conditions:
         fig, axes = plt.subplots(n_rows, n_cols,
                                  figsize=(n_cols * 3.5, n_rows * 3.2),
                                  gridspec_kw={'wspace': 0, 'hspace': 0})
@@ -339,7 +345,7 @@ def _save_costvolume_vis(hq_patches, lq_patches, res_patches,
 
             # Col 0: reference image with query dot
             ax = axes[i, 0]
-            ax.imshow(ref_img)
+            ax.imshow(c_ref_img)
             ax.plot(q_px_x, q_px_y, 'ro',
                     markersize=7, markeredgewidth=1.5, markeredgecolor='w')
             ax.set_xlim(0, W_img)
@@ -354,7 +360,7 @@ def _save_costvolume_vis(hq_patches, lq_patches, res_patches,
                 heat = heat.reshape(Ph, Pw)
 
                 ax = axes[i, j + 1]
-                ax.imshow(tgt_imgs[j])
+                ax.imshow(c_tgt_imgs[j])
                 ax.imshow(heat,
                           extent=extents[j],
                           interpolation='bilinear',
@@ -642,6 +648,7 @@ def costvolume_pck(hq_encoder_out, lq_encoder_out, raw_output,
                 hq_patches, lq_patches, res_patches,
                 hq_imgs, gt_flat, Ph, Pw,
                 save_path=os.path.join(scene_dir, f"layer{layer_idx}_cv_vis.png"),
+                lq_imgs=lq_imgs,
                 ref_v=ref_v,
                 center_feats=center_feats,
                 temperature=temperature,
