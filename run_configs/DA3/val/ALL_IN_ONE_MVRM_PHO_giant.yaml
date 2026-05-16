@@ -892,12 +892,12 @@ eval:
   # scenes: [scan4, scan33]
   # scenes: [redkitchen]
   # scenes: [20241230/828761/cam_sampled_11]
-  scenes: [ pumpkin, 
-            scan1, scan9, scan10, scan11, scan13, scan24, scan33, scan34, 
-            courtyard, kicker, office, 
-            20241230/828788/cam_sampled_13, 20241230/828792/cam_sampled_10, 20241230/828805/cam_sampled_06, 20241230/828816/cam_sampled_14,
-            5f99900f09, 38d58a7a31, 578511c8a9,]
-  # scenes: []
+  # scenes: [ pumpkin, 
+  #           scan1, scan9, scan10, scan11, scan13, scan24, scan33, scan34, 
+  #           courtyard, kicker, office, 
+  #           20241230/828788/cam_sampled_13, 20241230/828792/cam_sampled_10, 20241230/828805/cam_sampled_06, 20241230/828816/cam_sampled_14,
+  #           5f99900f09, 38d58a7a31, 578511c8a9,]
+  scenes: []
 
 
   # Maximum number of frames per scene (for sampling)
