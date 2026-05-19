@@ -105,13 +105,36 @@ DA3_RES_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_datas
 
 
 
-# ## fmanet
-# DA3_RES_ROOT_PATH_hiroom = 
-# DA3_RES_ROOT_PATH_eth3d = 
-# DA3_RES_ROOT_PATH_dtu = 
-# DA3_RES_ROOT_PATH_dtu64 = 
-# DA3_RES_ROOT_PATH_7scenes = 
-# DA3_RES_ROOT_PATH_scannetpp = 
+# ## fmanet (maxview10)
+# DA3_RES_ROOT_PATH_hiroom = f'/mnt/dataset1/jaeeun/nips26/FMA-Net/results/FMA-Net/filtered_cam_blur_300_selected10' 
+# DA3_RES_ROOT_PATH_eth3d = f'/mnt/dataset1/jaeeun/nips26/FMA-Net/results/FMA-Net/filtered_cam_blur_700_selected10'
+# DA3_RES_ROOT_PATH_dtu = f'/mnt/dataset1/jaeeun/nips26/FMA-Net/results/FMA-Net/filtered_cam_blur_100_resize_640_selected10'
+# DA3_RES_ROOT_PATH_dtu64 = f'/mnt/dataset1/jaeeun/nips26/FMA-Net/results/FMA-Net/filtered_cam_blur_100_resize_640_selected10'
+# DA3_RES_ROOT_PATH_7scenes = f'/mnt/dataset1/jaeeun/nips26/FMA-Net/results/FMA-Net/filtered_cam_blur_100_resize_640_selected10' 
+# DA3_RES_ROOT_PATH_scannetpp = f'/mnt/dataset1/jaeeun/nips26/FMA-Net/results/FMA-Net/filtered_cam_blur_200_selected10' 
+
+
+
+# ## fmanet (maxview50)
+# DA3_RES_ROOT_PATH_hiroom = f'/mnt/dataset1/jaeeun/nips26/FMA-Net/results/FMA-Net/filtered_cam_blur_300_selected50' 
+# DA3_RES_ROOT_PATH_eth3d = f'/mnt/dataset1/jaeeun/nips26/FMA-Net/results/FMA-Net/filtered_cam_blur_700_selected50'
+# DA3_RES_ROOT_PATH_dtu = f'/mnt/dataset1/jaeeun/nips26/FMA-Net/results/FMA-Net/filtered_cam_blur_100_resize_640_selected50'
+# DA3_RES_ROOT_PATH_dtu64 = f'/mnt/dataset1/jaeeun/nips26/FMA-Net/results/FMA-Net/filtered_cam_blur_100_resize_640_selected50'
+# DA3_RES_ROOT_PATH_7scenes = f'/mnt/dataset1/jaeeun/nips26/FMA-Net/results/FMA-Net/filtered_cam_blur_100_resize_640_selected50' 
+# DA3_RES_ROOT_PATH_scannetpp = f'/mnt/dataset1/jaeeun/nips26/FMA-Net/results/FMA-Net/filtered_cam_blur_200_selected50' 
+
+
+
+# ## VAE_mvd 
+# DA3_RES_ROOT_PATH_hiroom = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_300_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results' 
+# DA3_RES_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_700_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results'
+# DA3_RES_ROOT_PATH_dtu = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_100_resize_640_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results'
+# DA3_RES_ROOT_PATH_dtu64 = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_100_resize_640_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results'
+# DA3_RES_ROOT_PATH_7scenes = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_100_resize_640_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results'
+# DA3_RES_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_200_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results' 
+
+
+
 
 
 

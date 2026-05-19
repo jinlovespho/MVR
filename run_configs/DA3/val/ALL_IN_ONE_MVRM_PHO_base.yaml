@@ -279,7 +279,7 @@ workspace:
   ###### EVAL_ALL DA3 BENCHMARK ########
   ######################################
 
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE9-2/da3-base/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/EVAL_ALL/ray_saddle_maxview10_cfg1
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE9-2/da3-base/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep10/EVAL_ALL/ray_saddle_maxview10_cfg1_final
   
 
 

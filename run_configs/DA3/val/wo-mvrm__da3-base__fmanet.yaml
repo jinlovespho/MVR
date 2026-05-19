@@ -89,108 +89,11 @@ workspace:
   # Working directory for outputs (model results, metrics, etc.)
 
 
-
   ######################################
   ###### EVAL_ALL DA3 BENCHMARK ########
   ######################################
 
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_IR/hidiff/EVAL_ALL/ray_saddle_maxview10_final
-
-
-
-
-
-  ##############################################
-  ###### FILTERED_CAM_BLUR 100 (RESIZE640) #####
-  ##############################################
-
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_IR/hidiff/filtered_cam_blur_100_resize640/ray_saddle_maxview10
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_IR/hidiff/filtered_cam_blur_100_resize640/ray_saddle_maxview50
-
-
-
-
-  ##################################
-  ###### FILTERED_CAM_BLUR100 ######
-  ##################################
-
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_IR/hidiff/filtered_cam_blur_100/ray_saddle_maxview10
-
-
-
-  ##################################
-  ###### FILTERED_CAM_BLUR150 ######
-  ##################################
-
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_IR/hidiff/filtered_cam_blur_150/ray_saddle_maxview10
-
-
-
-  ##################################
-  ###### FILTERED_CAM_BLUR200 ######
-  ##################################
-
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_IR/hidiff/filtered_cam_blur_200/ray_saddle_maxview10
-
-
-
-  ##################################
-  ###### FILTERED_CAM_BLUR 250 #####
-  ##################################
-
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_IR/hidiff/filtered_cam_blur_250/ray_saddle_maxview10
-
-
-
-
-
-  ##################################
-  ###### FILTERED_CAM_BLUR300 ######
-  ##################################
-
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_IR/hidiff/filtered_cam_blur_300/ray_saddle_maxview10
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_IR/hidiff/filtered_cam_blur_300/ray_saddle_maxview50
-
-
-
-  ##################################
-  ###### FILTERED_CAM_BLUR400 ######
-  ##################################
-
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_IR/hidiff/filtered_cam_blur_400/ray_saddle_maxview10
-
-
-
-
-
-  ##################################
-  ###### FILTERED_CAM_BLUR600 ######
-  ##################################
-
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_IR/hidiff/filtered_cam_blur_600/ray_saddle_maxview10
-
-
-
-
-  ##################################
-  ###### FILTERED_CAM_BLUR 700 #####
-  ##################################
-
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_IR/hidiff/filtered_cam_blur_700/ray_saddle_maxview10
-
-
-
-
-
-  ##################################
-  ###### FILTERED_CAM_BLUR 800 #####
-  ##################################
-
-  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_IR/hidiff/filtered_cam_blur_800/ray_saddle_maxview10
-
-
-
-
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_IR/fmanet/EVAL_ALL/ray_saddle_maxview10_final
 
 
 

@@ -93,7 +93,7 @@ workspace:
   ###### EVAL_ALL DA3 BENCHMARK ########
   ######################################
 
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_IR/instructir/EVAL_ALL/ray_saddle_maxview10
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_base/wo_mvrm_IR/instructir/EVAL_ALL/ray_saddle_maxview10_final
 
 
 
