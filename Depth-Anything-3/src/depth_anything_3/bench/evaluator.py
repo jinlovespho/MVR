@@ -476,7 +476,7 @@ class Evaluator:
                             use_pose=False,
                             use_ray_pose=self.full_cfg.model.use_ray_pose,
                             rgb_decoder=self.rgb_decoder,
-                            proj_adapter=self.proj_adapter
+                            proj_adapter=self.proj_adapter,
                         )
 
 
@@ -544,6 +544,7 @@ class Evaluator:
                 if need_unposed:    # t
                     print('------------ UNPOSED!! ------------ ')
                     export_dir = self._export_dir(data, scene, posed=False)
+                    
                     api.inference(
                         scene_data,
                         export_dir=export_dir,             
@@ -558,7 +559,8 @@ class Evaluator:
                         use_pose=False,
                         use_ray_pose = self.full_cfg.model.use_ray_pose,
                         rgb_decoder = self.rgb_decoder,
-                        proj_adapter = self.proj_adapter
+                        proj_adapter = self.proj_adapter,
+                        device=device
                     )
                     # breakpoint()
                     self._save_gt_meta(export_dir, scene_data)
@@ -582,7 +584,8 @@ class Evaluator:
                         use_pose=True,
                         use_ray_pose = self.full_cfg.model.use_ray_pose,
                         rgb_decoder = self.rgb_decoder,
-                        proj_adapter = self.proj_adapter
+                        proj_adapter = self.proj_adapter,
+                        device=device
                     )
                     self._save_gt_meta(export_dir, scene_data)
             
@@ -2044,13 +2047,28 @@ Examples:
         #     metrics = evaluator.eval()
         #     evaluator.print_metrics(metrics)
         # else:   # t
-            
-        # Single GPU or worker process
-        from depth_anything_3.api import DepthAnything3
+        
 
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        api = DepthAnything3.from_pretrained(model_path)
-        api = api.to(device)
+        if 'DA3' in model_path:
+            print('Loading DA3')
+            # Single GPU or worker process
+            from depth_anything_3.api import DepthAnything3
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            api = DepthAnything3.from_pretrained(model_path)
+            api = api.to(device)
+        
+        
+        elif 'VGGT' in model_path:
+            print('Loading VGGT')
+            # Single GPU or worker process
+            from depth_anything_3.vggt_api import VGGT
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            api = VGGT.from_pretrained(model_path)
+            api = api.to(device)
+        
+        
+        else:
+            print('check da3 or vggt model ckpt path ! ')
 
 
         if torch.__version__ >= "2.0":

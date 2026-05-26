@@ -10,6 +10,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.checkpoint import checkpoint
 from typing import Optional, Tuple, Union, List, Dict, Any
+import addict
+
 
 from vggt.layers import PatchEmbed
 from vggt.layers.block import Block
@@ -181,7 +183,7 @@ class Aggregator(nn.Module):
             if hasattr(self.patch_embed, "mask_token"):
                 self.patch_embed.mask_token.requires_grad_(False)
 
-    def forward(self, images: torch.Tensor) -> Tuple[List[torch.Tensor], int]:
+    def forward(self, images: torch.Tensor, export_feat_layers=None) -> Tuple[List[torch.Tensor], int]:
         """
         Args:
             images (torch.Tensor): Input images with shape [B, S, 3, H, W], in range [0, 1].
@@ -245,9 +247,13 @@ class Aggregator(nn.Module):
         frame_idx = 0
         global_idx = 0
         output_list = []
+        
+        # export_feat_layers = [9, 11, 13, 15, 17, 19, 21, 23]
+        export_feat_layers = export_feat_layers
+        aux_feats= addict.Dict()
 
-        # breakpoint()
-        for _ in range(self.aa_block_num):
+        # self.aa_block_num = 24 
+        for layer_idx in range(self.aa_block_num):
             for attn_type in self.aa_order:
                 if attn_type == "frame":
                     tokens, frame_idx, frame_intermediates = self._process_frame_attention(
@@ -264,11 +270,16 @@ class Aggregator(nn.Module):
                 # concat frame and global intermediates, [B x S x P x 2C]
                 concat_inter = torch.cat([frame_intermediates[i], global_intermediates[i]], dim=-1)
                 output_list.append(concat_inter)
-
+            
+            
+            if layer_idx in export_feat_layers:
+                aux_feats[f'feat_layer_{layer_idx}'] = tokens.view(B, S, P, C)
+                
+            
         del concat_inter
         del frame_intermediates
         del global_intermediates
-        return output_list, self.patch_start_idx
+        return output_list, self.patch_start_idx, aux_feats
 
     def _process_frame_attention(self, tokens, B, S, P, C, frame_idx, pos=None):
         """

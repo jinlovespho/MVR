@@ -13,12 +13,15 @@ from vggt.heads.camera_head import CameraHead
 from vggt.heads.dpt_head import DPTHead
 from vggt.heads.track_head import TrackHead
 
+import addict
+
 
 class VGGT(nn.Module, PyTorchModelHubMixin):
     def __init__(self, img_size=518, patch_size=14, embed_dim=1024,
                  enable_camera=True, enable_point=True, enable_depth=True, enable_track=True):
         super().__init__()
 
+        self.patch_size = patch_size 
         self.aggregator = Aggregator(img_size=img_size, patch_size=patch_size, embed_dim=embed_dim)
 
         self.camera_head = CameraHead(dim_in=2 * embed_dim) if enable_camera else None
@@ -26,7 +29,7 @@ class VGGT(nn.Module, PyTorchModelHubMixin):
         self.depth_head = DPTHead(dim_in=2 * embed_dim, output_dim=2, activation="exp", conf_activation="expp1") if enable_depth else None
         self.track_head = TrackHead(dim_in=2 * embed_dim, patch_size=patch_size) if enable_track else None
 
-    def forward(self, images: torch.Tensor, query_points: torch.Tensor = None):
+    def forward(self, images: torch.Tensor, query_points: torch.Tensor = None, export_feat_layers=None):
         """
         Forward pass of the VGGT model.
 
@@ -64,9 +67,10 @@ class VGGT(nn.Module, PyTorchModelHubMixin):
         # aggregated_tokens_list is a list of length 24, each element containing the concat tokens of frame+global attention blocks
         # for each of the 24 blocks of vggt 
         # for example, aggregated_tokens_list[0]: (5,9,1263,2048) = (b, s, n, d) = (b, s, camera(1)+register(4)+patch(1258), d)
-        aggregated_tokens_list, patch_start_idx = self.aggregator(images)
+        aggregated_tokens_list, patch_start_idx, aux_feats = self.aggregator(images, export_feat_layers)
 
-        predictions = {}
+        predictions = addict.Dict()
+
 
         with torch.cuda.amp.autocast(enabled=False):
             # breakpoint()
@@ -74,6 +78,15 @@ class VGGT(nn.Module, PyTorchModelHubMixin):
                 pose_enc_list = self.camera_head(aggregated_tokens_list)
                 predictions["pose_enc"] = pose_enc_list[-1]  # pose encoding of the last iteration
                 predictions["pose_enc_list"] = pose_enc_list
+                
+
+            from depth_anything_3.model.utils.transform import pose_encoding_to_extri_intri
+
+            H, W = images.shape[-2], images.shape[-1]
+            w2c, ixt = pose_encoding_to_extri_intri(pose_enc_list[-1], (H, W))
+            predictions['extrinsics'] = w2c          # b v 3 4  (w2c)
+            predictions['intrinsics'] = ixt          # b v 3 3
+           
                 
             if self.depth_head is not None: # t
                 depth, depth_conf = self.depth_head(
@@ -88,6 +101,11 @@ class VGGT(nn.Module, PyTorchModelHubMixin):
                 )
                 predictions["world_points"] = pts3d
                 predictions["world_points_conf"] = pts3d_conf
+            
+            
+            if len(aux_feats) != 0:
+                predictions['aux'] = aux_feats
+                
 
         if self.track_head is not None and query_points is not None:
             track_list, vis, conf = self.track_head(
