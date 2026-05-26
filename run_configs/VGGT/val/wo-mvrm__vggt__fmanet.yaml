@@ -1,0 +1,199 @@
+# DepthAnything3 Benchmark Evaluation Configuration
+# 
+# This config can be loaded and overridden via command line.
+# Example: python -m depth_anything_3.bench.evaluator --model /path/to/model --work_dir /path/to/workspace
+#
+# See depth_anything_3.cfg for config utility functions.
+
+
+# ==============================================================================
+# MVRM Configuration
+# ==============================================================================
+MVRM_EVAL:
+  # [wo_mvrm_HQ, wo_mvrm_LQ, wo_mvrm_IR, w_mvrm]
+  eval_method: wo_mvrm_IR
+  load_lq: true
+  load_res: true
+
+
+
+
+# ==============================================================================
+# Denoiser Configuration
+# ==============================================================================
+denoiser:
+  model: 
+  target: 
+  params:
+    input_size: 
+    patch_size:
+    in_channels: 
+    hidden_size: 
+    depth: 
+    num_heads:
+    mlp_ratio: 
+    class_dropout_prob:
+    num_classes: 
+    use_qknorm: 
+    use_swiglu: 
+    use_rope: 
+    use_rmsnorm:
+    wo_shift: 
+    use_pos_embed: 
+    use_global_residual:
+  ckpt: 
+mvrm:
+  lq_latent_cond: 
+  train:
+    extract_feat_layers: 
+    concat_feat: 
+    break_and_return_feat: 
+  val:
+    restore_feat_layers: 
+    concat_feat: 
+    skip_and_input_feat: 
+transport:
+  params:
+    path_type: 
+    prediction: 
+    loss_weight: 
+    time_dist_type: 
+sampler:
+  mode: 
+  params:
+    sampling_method: 
+    num_steps: 
+    atol: 
+    rtol:
+    reverse: 
+misc:
+  latent_size: 
+  num_classes: 
+  time_dist_shift_dim: 
+  time_dist_shift_base: 
+
+
+# ==============================================================================
+# Model Configuration
+# ==============================================================================
+model:
+  # Path to model checkpoint or HuggingFace model ID
+  # path: depth-anything/DA3-GIANT-1.1
+  # use_ray_pose: true
+  use_ray_pose: false
+  path: facebook/VGGT-1B
+
+
+
+
+# ==============================================================================
+# Workspace Configuration
+# ==============================================================================
+workspace:
+  # Working directory for outputs (model results, metrics, etc.)
+
+
+
+  ######################################
+  ###### EVAL_ALL DA3 BENCHMARK ########
+  ######################################
+
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/vggt/wo_mvrm_IR/fmanet/EVAL_ALL/cam_first_maxview10
+
+
+
+
+
+
+
+# ==============================================================================
+# Evaluation Configuration
+# ==============================================================================
+eval:
+  # Datasets to evaluate
+  # Options: dtu, dtu64, eth3d, 7scenes (sevenscenes), scannetpp, hiroom
+  datasets:
+    - 7scenes
+    - scannetpp
+    - hiroom
+    - eth3d
+    - dtu
+    - dtu64
+
+
+  # Evaluation modes
+  # Options: pose, recon_unposed, recon_posed, view_syn
+  modes:
+    - pose
+    - depth
+    - recon_unposed
+    # - recon_posed
+    
+
+  # Reference view selection strategy for inference
+  # Options: first, saddle_balanced, auto, mid
+  ref_view_strategy: "first"
+  # ref_view_strategy: "saddle_balanced"
+
+  # Specific scenes to evaluate (null = all scenes)
+  # Example: [courtyard, relief] for eth3d
+  # scenes: [scan4, scan33]
+  # scenes: [20241230/828761/cam_sampled_11]
+  # scenes: [scan29, scan32, scan62, scan75]
+  # scenes: [redkitchen]
+  scenes: []
+
+  # Maximum number of frames per scene (for sampling)
+  # If a scene has more frames, randomly sample to this limit.
+  # Set to -1 to disable sampling.
+  # max_frames: 100
+  # max_frames: 50
+  # max_frames: 30
+  max_frames: 10
+  # max_frames: 5
+  # max_frames: 1
+
+  # Only run evaluation (skip inference)
+  # eval_only: true
+  eval_only: false
+
+  # Only print saved metrics (skip inference and evaluation)
+  print_only: false
+
+# ==============================================================================
+# Inference Configuration
+# ==============================================================================
+inference:
+  # Number of parallel workers for TSDF fusion
+  num_fusion_workers: 2
+
+  # Enable debug mode with verbose output
+  debug: false
+  # debug: true
+
+# ==============================================================================
+# Preset Configurations
+# ==============================================================================
+# These can be activated via command line: --preset full_eval
+
+presets:
+  # Full evaluation on all 6 datasets
+  full_eval:
+    datasets: [eth3d, 7scenes, scannetpp, hiroom, dtu, dtu64]
+    modes: [pose, recon_unposed, recon_posed]
+
+  # Pose-only evaluation
+  pose_only:
+    datasets: [eth3d, 7scenes, scannetpp, hiroom, dtu64]
+    modes: [pose]
+
+  # Reconstruction-only evaluation (5 datasets, excluding dtu64)
+  recon_only:
+    datasets: [eth3d, 7scenes, scannetpp, hiroom, dtu]
+    modes: [recon_unposed, recon_posed]
+
+  # Quick test (single scene per dataset)
+  quick_test:
+    datasets: [eth3d]
+    modes: [pose, recon_unposed]
+    scenes: [courtyard]
