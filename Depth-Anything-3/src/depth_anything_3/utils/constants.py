@@ -67,13 +67,13 @@ DA3_LQ_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_datase
 
 
 
-# ## hidiff 
-# DA3_RES_ROOT_PATH_hiroom = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_300'
-# DA3_RES_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_700'
-# DA3_RES_ROOT_PATH_dtu = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_100_resize_640'
-# DA3_RES_ROOT_PATH_dtu64 = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_100_resize_640'
-# DA3_RES_ROOT_PATH_7scenes = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_100_resize_640'
-# DA3_RES_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_200'
+## hidiff 
+DA3_RES_ROOT_PATH_hiroom = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_300'
+DA3_RES_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_700'
+DA3_RES_ROOT_PATH_dtu = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_100_resize_640'
+DA3_RES_ROOT_PATH_dtu64 = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_100_resize_640'
+DA3_RES_ROOT_PATH_7scenes = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_100_resize_640'
+DA3_RES_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/restored_hi_diff/filtered_cam_blur_200'
 
 
 
@@ -127,13 +127,13 @@ DA3_LQ_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_datase
 
 
 
-## VAE_mvd 
-DA3_RES_ROOT_PATH_hiroom = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_300_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results' 
-DA3_RES_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_700_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results'
-DA3_RES_ROOT_PATH_dtu = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_100_resize_640_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results'
-DA3_RES_ROOT_PATH_dtu64 = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_100_resize_640_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results'
-DA3_RES_ROOT_PATH_7scenes = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_100_resize_640_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results'
-DA3_RES_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_200_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results' 
+# ## VAE_mvd 
+# DA3_RES_ROOT_PATH_hiroom = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_300_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results' 
+# DA3_RES_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_700_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results'
+# DA3_RES_ROOT_PATH_dtu = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_100_resize_640_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results'
+# DA3_RES_ROOT_PATH_dtu64 = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_100_resize_640_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results'
+# DA3_RES_ROOT_PATH_7scenes = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_100_resize_640_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results'
+# DA3_RES_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_200_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results' 
 
 
 

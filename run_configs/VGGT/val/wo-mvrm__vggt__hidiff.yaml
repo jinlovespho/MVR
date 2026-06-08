@@ -154,8 +154,8 @@ eval:
   # max_frames: 1
 
   # Only run evaluation (skip inference)
-  # eval_only: true
-  eval_only: false
+  eval_only: true
+  # eval_only: false
 
   # Only print saved metrics (skip inference and evaluation)
   print_only: false
