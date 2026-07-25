@@ -55,8 +55,9 @@ stage_2:
     wo_shift: false
     use_pos_embed: false
     use_global_residual: false
-  ckpt: # 가장 마지막으로 학습된 체크포인트.pt 경로 넣기 
+  # ckpt: # 가장 마지막으로 학습된 체크포인트.pt 경로 넣기 
   # ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/JIHYE8/da3-giant/hypersim-tartanair/TRAIN__fp32__hypersim-tartanair__near_camera-near_random__da3-GIANT-extractfeat17-mvrm__bs1-maxview4-accum1__lr-2e-04__msg-JIHYE8__enc8-dec6__hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/checkpoints/ep-0025000.pt
+  ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/JIHYE_SAMSUNG/0423/ep-0305000_8.pt
 
 
 transport:
@@ -94,8 +95,9 @@ misc:
 training:
   global_seed: 42
   precision: fp32
-  epochs: 10
+  # epochs: 10
   # epochs: 20
+  epochs: 30
  
   global_batch_size: 1
   grad_accum_steps: 1
@@ -105,11 +107,19 @@ training:
   shuffle: true
   log_interval: 1
 
-  ckpt_step_interval: 5000   # 5k
+
+  ckpt_step_interval: 10
 
   vis:
-    train_depth_every: 1000   # 1k
+    train_depth_every: 10
     val_depth_every: 1000
+
+
+  # ckpt_step_interval: 5000   # 5k
+
+  # vis:
+  #   train_depth_every: 1000   # 1k
+  #   val_depth_every: 1000
 
 
   clip_grad: 1.0
@@ -138,7 +148,7 @@ log:
   # result_root_dir: result_train/nips26/multi_view/JIHYE8/da3-giant
   # result_root_dir: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/JIHYE8/da3-giant
   # result_root_dir: result_train/nips26/multi_view/JIHYE8/da3-giant
-  result_root_dir: TMP
+  result_root_dir: result_train/nips26_rebuttal
 
 
   tracker:
@@ -148,6 +158,7 @@ log:
       entity: jinlovespho
       # project: eccv26_mv_restoration
       project: nips26_mvr
+      
 
 
 
@@ -160,7 +171,7 @@ log:
 
 
       # msg: 'JIHYE8__enc8-dec6__hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond__cont25k'
-      msg: 'tmp'
+      msg: 'tmp3'
           
 
 data:

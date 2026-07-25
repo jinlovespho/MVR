@@ -9,6 +9,8 @@ from PIL import Image
 
 hq_root_path = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/clean/dtu'
 scenes = glob.glob(f'{hq_root_path}/Rectified/*')
+apply_same_blur = True 
+
 
 BLUR_INTENSITY = 0.1
 
@@ -19,7 +21,8 @@ def resize_long_side(img, target=640):
     new_h = int(h * scale)
     return img.resize((new_w, new_h), Image.BICUBIC)
 
-for KERNEL_SIZE in [50, 70, 120, 150]:
+# for KERNEL_SIZE in [50, 70, 120, 150]:
+for KERNEL_SIZE in [100]:
 
     print('Applying kernel: ', KERNEL_SIZE)
 
@@ -30,7 +33,7 @@ for KERNEL_SIZE in [50, 70, 120, 150]:
         images = glob.glob(f'{scene}/*')
         
         deg_scene_save_path = '/'.join(images[0].split('/')[:-1])
-        deg_scene_save_path = deg_scene_save_path.replace('clean', f'cam_blur_{KERNEL_SIZE}_resize_640')
+        deg_scene_save_path = deg_scene_save_path.replace('clean', f'cam_blur_{KERNEL_SIZE}_resize_640_same_rebuttal')
         os.makedirs(deg_scene_save_path, exist_ok=True)
         
         for image in images:

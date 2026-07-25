@@ -8,12 +8,13 @@ from tqdm import tqdm
 
 hq_root_path = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/clean/eth3d'
 scenes = glob.glob(f'{hq_root_path}/*')
+apply_same_blur = True
 
 
 BLUR_INTENSITY=0.1
 # for KERNEL_SIZE in [200]:
 # for KERNEL_SIZE in [700]:
-for KERNEL_SIZE in [800]:
+for KERNEL_SIZE in [700]:
 
     print('Applying kernel: ', KERNEL_SIZE)
     for scene in tqdm(scenes):
@@ -21,18 +22,28 @@ for KERNEL_SIZE in [800]:
         images = glob.glob(f'{scene}/images/dslr_images/*.JPG')
         
         deg_scene_save_path = '/'.join(images[0].split('/')[:-1])
-        deg_scene_save_path = deg_scene_save_path.replace('clean', f'cam_blur_{KERNEL_SIZE}')
+        if apply_same_blur: 
+            deg_scene_save_path = deg_scene_save_path.replace('clean', f'cam_blur_{KERNEL_SIZE}_same_rebuttal')
+        else:
+            deg_scene_save_path = deg_scene_save_path.replace('clean', f'cam_blur_{KERNEL_SIZE}')
         os.makedirs(deg_scene_save_path, exist_ok=True)
         
-        for image in images:
-            
-            img_id = image.split('/')[-1].split('.')
-            img_id = '.'.join(img_id[:-1])
-            
-            # init kernel
+        if apply_same_blur:
             kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
-            blurred = kernel.applyTo(image, keep_image_dim=True)
-            blurred.save(f'{deg_scene_save_path}/{img_id}.jpg')
+            for image in images:
+                img_id = image.split('/')[-1].split('.')
+                img_id = '.'.join(img_id[:-1])
+                # init kernel
+                blurred = kernel.applyTo(image, keep_image_dim=True)
+                blurred.save(f'{deg_scene_save_path}/{img_id}.jpg')
+        else:
+            for image in images:
+                img_id = image.split('/')[-1].split('.')
+                img_id = '.'.join(img_id[:-1])
+                # init kernel
+                kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
+                blurred = kernel.applyTo(image, keep_image_dim=True)
+                blurred.save(f'{deg_scene_save_path}/{img_id}.jpg')
             
 
 print('CAM BLUR FINISH: eth3d')

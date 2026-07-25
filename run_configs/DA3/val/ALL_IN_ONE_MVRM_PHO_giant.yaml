@@ -9,20 +9,58 @@ MVRM_EVAL:
   load_res: false
 
 
-  # eval_deblur_bench: true
-  # # deblur_num_seqs: 1   # limit sequences per dataset for quick sanity checks (null = all)
 
-  # # External deblurring model outputs to evaluate (pose/depth/3D vs pseudo-GT, PSNR/SSIM vs GT)
-  # deblur_restored_models:
-  #   restormer:
-  #     realblur_j: /mnt/dataset1/MV_Restoration/restormer_benchmark/restored_restormer/RealBlur_J/input
-  #     realblur_r: /mnt/dataset1/MV_Restoration/restormer_benchmark/restored_restormer/RealBlur_R/input
-  #   hi_diff:
-  #     realblur_j: /mnt/dataset1/MV_Restoration/restormer_benchmark/restored_hi_diff/RealBlur_J/input
-  #     realblur_r: /mnt/dataset1/MV_Restoration/restormer_benchmark/restored_hi_diff/RealBlur_R/input
-  #   instructir:
-  #     realblur_j: /mnt/dataset1/MV_Restoration/restormer_benchmark/restored_instructir/RealBlur_J/input
-  #     realblur_r: /mnt/dataset1/MV_Restoration/restormer_benchmark/restored_instructir/RealBlur_R/input
+  eval_deblur_bench: true
+  # eval_deblur_bench: false
+
+
+  # Which *_bench entries below to run this pass (realblur_j_bench, realblur_r_bench,
+  # BSD_bench, REVD_FEVD_bench). Opt-in: empty/unset runs NONE of them (safe default,
+  # avoids accidentally running every benchmark + all its restored-model baselines).
+  to_eval_deblur_bench: [BSD_bench, REVD_FEVD_bench]
+
+  # Which models to evaluate on the bench(es) selected above. 'ours' = your own
+  # MVRM model; other names must match a key under that bench's `model:` dict
+  # (e.g. vrt, vrt_notile, restormer, hidiff, instructir). Opt-in, same as
+  # to_eval_deblur_bench: empty/unset runs NO models (own model included).
+  # to_eval_model: [ours, vrt, vrt_notile]   # full comparison, as before
+  # to_eval_model: [ours, vrt, vrt_notile]
+  # to_eval_model: [ours]
+  # to_eval_model: [vrt]
+  to_eval_model: [vrt_notile]
+  
+
+  realblur_j_bench:
+    data:
+      lq_path: /mnt/dataset1/MV_Restoration/restormer_benchmark/RealBlur_J/input
+      hq_path: /mnt/dataset1/MV_Restoration/restormer_benchmark/RealBlur_J/target
+    model:
+      restormer: /mnt/dataset1/MV_Restoration/restormer_benchmark/restored_restormer/RealBlur_J/input
+      hidiff: /mnt/dataset1/MV_Restoration/restormer_benchmark/restored_hi_diff/RealBlur_J/input
+      instructir: /mnt/dataset1/MV_Restoration/restormer_benchmark/restored_instructir/RealBlur_J/input
+  
+  realblur_r_bench:
+    data:
+      lq_path: /mnt/dataset1/MV_Restoration/restormer_benchmark/RealBlur_R/input
+      hq_path: /mnt/dataset1/MV_Restoration/restormer_benchmark/RealBlur_R/target
+    model:
+      restormer: /mnt/dataset1/MV_Restoration/restormer_benchmark/restored_restormer/RealBlur_R/input
+      hidiff: /mnt/dataset1/MV_Restoration/restormer_benchmark/restored_hi_diff/RealBlur_R/input
+      instructir: /mnt/dataset1/MV_Restoration/restormer_benchmark/restored_instructir/RealBlur_R/input
+  
+  BSD_bench:
+    data_path: /mnt/sde/MVR_REBUTTAL/BSD
+    model:
+      vrt: /mnt/sde/MVR_REBUTTAL/BSD/restored_vrt
+      vrt_notile: /mnt/sde/MVR_REBUTTAL/BSD/restored_vrt_notile
+
+  
+  REVD_FEVD_bench:
+    data_path: /mnt/sde/MVR_REBUTTAL/REVD_FEVD/test
+    model:
+      vrt: /mnt/sde/MVR_REBUTTAL/REVD_FEVD/restored_vrt/test
+      vrt_notile: /mnt/sde/MVR_REBUTTAL/REVD_FEVD/restored_vrt_notile/test
+
 
 
 
@@ -136,7 +174,11 @@ denoiser:
 
   ### JIHYE8 (giant - epoch10, 20)
   # ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/JIHYE_SAMSUNG/ep-0145000_jihye8.pt
+  ###### FINAL WEIGHT #######
   ckpt: /media/data1/MV_Restoration/pho_mvr/result_train/nips26/JIHYE_SAMSUNG/0423/ep-0305000_8.pt
+  ############################
+  
+  
 
 
 
@@ -347,7 +389,23 @@ workspace:
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/EVAL_ALL/ray_saddle_maxview10_cfg1
   # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/EVAL_ALL/ray_first_maxview10_cfg1
 
-  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/EVAL_ALL/ray_saddle_maxview10_cfg1_pose_qual
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/EVAL_ALL/ray_saddle_maxview10_cfg1_pose_qual
+
+  # NIPS'26 REBUTTAL
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE_REBUTTAL/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/EVAL_ALL/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE_REBUTTAL/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/EVAL_ALL_re/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE_REBUTTAL/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/EVAL_ALL_rere/ray_saddle_maxview10_cfg1
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE_REBUTTAL/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/EVAL_ALL_same_deg/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE_REBUTTAL/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/EVAL_ALL_same_deg_some_clean/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE_REBUTTAL/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/EVAL_ALL_same_deg_some_clean50/ray_saddle_maxview10_cfg1
+
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE_REBUTTAL/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/realworld_realblur_j_r/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE_REBUTTAL/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/realworld_realblur_j_r/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE_REBUTTAL/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/realworld_bsd_revd_ours/ray_saddle_maxview10_cfg1
+  # work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE_REBUTTAL/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/realworld_bsd_revd_vrt/ray_saddle_maxview10_cfg1
+  work_dir: /mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE_REBUTTAL/JIHYE8/da3_giant/w_mvrm_FRONT/hyp1tar1__pcloss1__da3-pc_temp001_cycle15-to-mvrm-dec-9__lq2hq-wnoise03__cond/h100_ep20/realworld_bsd_revd_vrtnotile/ray_saddle_maxview10_cfg1
+
 
 
 
@@ -828,22 +886,8 @@ workspace:
 
 
 
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO_scannetpp_100
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO_scannetpp_100_resize
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO_scannetpp_200
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHO_scannetpp_300
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOPHO
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOPHOPHO
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOPHOPHOPHO
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOPHOPHOPHOPHO
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOv2_maxview50
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOv2_maxview30
-  # work_dir: /mnt/dataset1/MV_Restoration/TMP_PHOv3_maxview30
 
-
-
-  # work_dir: /mnt/dataset1/MV_Restoration/PHO_TMP_hiroom200_adapter
-  # work_dir: /mnt/dataset1/MV_Restoration/PHO_TMP_hiroom200_fft
+  # work_dir: /mnt/dataset1/MV_Restoration/tmp
 
   
 

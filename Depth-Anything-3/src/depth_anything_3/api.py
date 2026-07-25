@@ -365,8 +365,13 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
         
         
 
+        # Populated only in the w_mvrm branch when the RGB decoder reconstructs the
+        # restored output (rgb_res_dn below); used to export the actual restored
+        # image instead of the raw input echo (see override near _export_results).
+        restored_rgb_for_npz = None
+
         # Apply W_MVRM restoration
-        if cfg.MVRM_EVAL.eval_method == 'w_mvrm':       
+        if cfg.MVRM_EVAL.eval_method == 'w_mvrm':
             print('-'*70)      
             print('APPLYING MVRM O')
             print('-'*70)
@@ -955,7 +960,8 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                     return (x * std + mean).clamp(0, 1)                                                                 
                 rgb_hq_dn  = denorm(rgb_hq.squeeze(0).float())   # [v, 3, 378, 504]
                 rgb_lq_dn  = denorm(rgb_lq.squeeze(0).float())                                                                   
-                rgb_res_dn = denorm(rgb_res.squeeze(0).float())                                                                  
+                rgb_res_dn = denorm(rgb_res.squeeze(0).float())
+                restored_rgb_for_npz = rgb_res_dn  # (v, 3, H, W) float in [0,1]
                 # Each row: all 10 frames concatenated horizontally → [3, 378*v, 504]                                
                 row_lq  = torch.cat([rgb_lq_dn[i]  for i in range(len(rgb_lq_dn))], dim=-2)
                 row_hq  = torch.cat([rgb_hq_dn[i]  for i in range(len(rgb_hq_dn))], dim=-2)                                        
@@ -1887,6 +1893,15 @@ class DepthAnything3(nn.Module, PyTorchModelHubMixin):
                         "process_res_method": process_res_method,
                     }
                 )
+            # For npz export, use the actual restored RGB reconstruction (when the
+            # w_mvrm branch computed one) instead of the raw input echo left by
+            # _add_processed_images, so deblur-bench PSNR/SSIM/LPIPS reflect the
+            # model's real output rather than the (blurry-input-independent) GT copy.
+            if restored_rgb_for_npz is not None and "npz" in export_format:
+                prediction.processed_images = (
+                    restored_rgb_for_npz.clamp(0, 1).permute(0, 2, 3, 1) * 255
+                ).round().to(torch.uint8).cpu().numpy()
+
             # export da3 predictions
             self._export_results(prediction, export_format, export_dir, **export_kwargs)
 

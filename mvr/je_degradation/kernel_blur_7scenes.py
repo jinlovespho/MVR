@@ -11,6 +11,7 @@ hq_root_path = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/clean/7scene
 
 scenes = glob.glob(f'{hq_root_path}/*')
 scenes = [scene for scene in scenes if 'meshes' not in scene]
+apply_same_blur = True 
 
 BLUR_INTENSITY = 0.1
 
@@ -26,36 +27,50 @@ def resize_long_side(img, target=640):
     return img.resize((new_w, new_h), Image.BICUBIC)
 
 
-for KERNEL_SIZE in [50, 70, 120, 150]:
+# for KERNEL_SIZE in [50, 70, 120, 150]:
+for KERNEL_SIZE in [100]:
     print('Applying kernel: ', KERNEL_SIZE)
 
     for scene in tqdm(scenes):
         images = glob.glob(f'{scene}/*/*color*')
         deg_scene_save_path = '/'.join(images[0].split('/')[:-1])
-        deg_scene_save_path = deg_scene_save_path.replace('clean', f'cam_blur_{KERNEL_SIZE}_resize_640')
+        if apply_same_blur:
+            deg_scene_save_path = deg_scene_save_path.replace('clean', f'cam_blur_{KERNEL_SIZE}_resize_640_same_rebuttal')
+        else:
+            deg_scene_save_path = deg_scene_save_path.replace('clean', f'cam_blur_{KERNEL_SIZE}_resize_640')
         os.makedirs(deg_scene_save_path, exist_ok=True)
 
         img = Image.open(images[0])
         print('Image size: ', img.size)
 
-        for image in images:
-
-            img_id = image.split('/')[-1].split('.')
-            img_id = '.'.join(img_id[:-1])
-
-            img = Image.open(image).convert('RGB')
-            orig_size = img.size
-
-            resized_img = resize_long_side(img, 640)
-
-            tmp_path = '/tmp/tmp_resize1.jpg'
-            resized_img.save(tmp_path)
-
+        if apply_same_blur:
             kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
-            blurred = kernel.applyTo(tmp_path, keep_image_dim=True)
-
-            # blurred = blurred.resize(orig_size, Image.BICUBIC)
-
-            blurred.save(f'{deg_scene_save_path}/{img_id}.jpg')
+            for image in images:
+                img_id = image.split('/')[-1].split('.')
+                img_id = '.'.join(img_id[:-1])
+                img = Image.open(image).convert('RGB')
+                orig_size = img.size
+                resized_img = resize_long_side(img, 640)
+                tmp_path = '/tmp/tmp_resize1.jpg'
+                resized_img.save(tmp_path)
+                # kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
+                blurred = kernel.applyTo(tmp_path, keep_image_dim=True)
+                # blurred = blurred.resize(orig_size, Image.BICUBIC)
+                blurred.save(f'{deg_scene_save_path}/{img_id}.jpg')
+        
+        else:
+            # kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
+            for image in images:
+                img_id = image.split('/')[-1].split('.')
+                img_id = '.'.join(img_id[:-1])
+                img = Image.open(image).convert('RGB')
+                orig_size = img.size
+                resized_img = resize_long_side(img, 640)
+                tmp_path = '/tmp/tmp_resize1.jpg'
+                resized_img.save(tmp_path)
+                kernel = Kernel(size=(KERNEL_SIZE, KERNEL_SIZE), intensity=BLUR_INTENSITY)
+                blurred = kernel.applyTo(tmp_path, keep_image_dim=True)
+                # blurred = blurred.resize(orig_size, Image.BICUBIC)
+                blurred.save(f'{deg_scene_save_path}/{img_id}.jpg')
 
 print('CAM BLUR FINISH: 7scenes')

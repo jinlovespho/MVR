@@ -40,15 +40,49 @@ DA3_CLEAN_ROOT_PATH = f"/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/clean
 
 
 
+# # ================================================================================
+# # PATHS PER DATASET (LQ and RES) - REBUTTAL VERSION WHERE SAME BLUR IS APPLIED + SOME CLEAN (50%)
+# # ================================================================================
+# DA3_LQ_ROOT_PATH_hiroom = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_300_same_rebuttal_some_clean50'
+# DA3_LQ_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_700_same_rebuttal_some_clean50'
+# DA3_LQ_ROOT_PATH_dtu = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100_resize_640_same_rebuttal_some_clean50'
+# DA3_LQ_ROOT_PATH_dtu64 = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100_resize_640_same_rebuttal_some_clean50'
+# DA3_LQ_ROOT_PATH_7scenes = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100_resize_640_same_rebuttal_some_clean50'
+# DA3_LQ_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_200_same_rebuttal_some_clean50'
+
+
+
+# # ================================================================================
+# # PATHS PER DATASET (LQ and RES) - REBUTTAL VERSION WHERE SAME BLUR IS APPLIED + SOME CLEAN (30%)
+# # ================================================================================
+# DA3_LQ_ROOT_PATH_hiroom = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_300_same_rebuttal_some_clean'
+# DA3_LQ_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_700_same_rebuttal_some_clean'
+# DA3_LQ_ROOT_PATH_dtu = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100_resize_640_same_rebuttal_some_clean'
+# DA3_LQ_ROOT_PATH_dtu64 = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100_resize_640_same_rebuttal_some_clean'
+# DA3_LQ_ROOT_PATH_7scenes = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100_resize_640_same_rebuttal_some_clean'
+# DA3_LQ_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_200_same_rebuttal_some_clean'
+
+
+
+# # ================================================================================
+# # PATHS PER DATASET (LQ and RES) - REBUTTAL VERSION WHERE SAME BLUR IS APPLIED
+# # ================================================================================
+# DA3_LQ_ROOT_PATH_hiroom = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_300_same_rebuttal'
+# DA3_LQ_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_700_same_rebuttal'
+# DA3_LQ_ROOT_PATH_dtu = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100_resize_640_same_rebuttal'
+# DA3_LQ_ROOT_PATH_dtu64 = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100_resize_640_same_rebuttal'
+# DA3_LQ_ROOT_PATH_7scenes = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100_resize_640_same_rebuttal'
+# DA3_LQ_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_200_same_rebuttal'
+
+
+
 
 
 # ================================================================================
 # PATHS PER DATASET (LQ and RES)
 # ================================================================================
 DA3_LQ_ROOT_PATH_hiroom = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_300'
-# DA3_LQ_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_600'
 DA3_LQ_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_700'
-# DA3_LQ_ROOT_PATH_eth3d = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_800'
 DA3_LQ_ROOT_PATH_dtu = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100_resize_640'
 DA3_LQ_ROOT_PATH_dtu64 = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100_resize_640'
 DA3_LQ_ROOT_PATH_7scenes = f'/mnt/dataset1/MV_Restoration/da3_benchmark_dataset/filtered_cam_blur_100_resize_640'
@@ -134,7 +168,6 @@ DA3_RES_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/da3_benchmark_datas
 # DA3_RES_ROOT_PATH_dtu64 = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_100_resize_640_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results'
 # DA3_RES_ROOT_PATH_7scenes = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_100_resize_640_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results'
 # DA3_RES_ROOT_PATH_scannetpp = f'/mnt/dataset1/MV_Restoration/NIPS26_RESULTS_RE/pho_val/da3_giant/wo_mvrm_SD21_JIHYE135k/filtered_cam_blur_200_fair/ray_saddle_maxview10_cfg1/pho_rgb_recon_frame_results' 
-
 
 
 

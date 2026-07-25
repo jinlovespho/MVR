@@ -50,6 +50,24 @@ from depth_anything_3.bench.depth_metrics import (
     resize_depth_nearest
 )
 
+DEBLUR_IMG_EXTS = ('.png', '.jpg', '.jpeg', '.PNG', '.JPG', '.JPEG')
+
+# Maps each `*_bench` key in MVRM_EVAL config to how its data should be walked.
+# 'flat': bench_cfg.data.{lq_path,hq_path} are flat dirs; sequences are grouped by
+#         filename via _group_deblur_sequences (RealBlur-style).
+# 'per_seq_folder': bench_cfg.data_path directly contains one subdirectory per
+#         sequence, each with fixed blur_subdir/sharp_subdir children.
+# 'bsd_multi_setup': bench_cfg.data_path contains multiple BSD_* setup dirs, each
+#         itself a 'per_seq_folder' dataset rooted at <setup>/<split_dir>.
+BENCH_LAYOUTS = {
+    'realblur_j_bench': dict(layout='flat', key='realblur_j'),
+    'realblur_r_bench': dict(layout='flat', key='realblur_r'),
+    'REVD_FEVD_bench':  dict(layout='per_seq_folder', key='revd_fevd',
+                              blur_subdir='blur_down', sharp_subdir='gt_down_corrected'),
+    'BSD_bench':        dict(layout='bsd_multi_setup', split_dir='test',
+                              blur_subdir='Blur/RGB', sharp_subdir='Sharp/RGB'),
+}
+
 
 class Evaluator:
     """
@@ -296,26 +314,14 @@ class Evaluator:
             # Use npz (not mini_npz) so predicted images are saved for PSNR/SSIM/LPIPS eval
             export_format = "npz"
 
-            deblur_bench_gt_root = {
-                'realblur_j': '/mnt/dataset1/MV_Restoration/restormer_benchmark/RealBlur_J/target',
-                'realblur_r': '/mnt/dataset1/MV_Restoration/restormer_benchmark/RealBlur_R/target',
-            }
+            # Which models to actually run inference for, within each selected bench.
+            # 'ours' = the own MVRM model; other names are keys from that bench's
+            # `model:` dict (e.g. vrt, vrt_notile, restormer, hidiff, instructir).
+            # Opt-in, same convention as to_eval_deblur_bench: empty/unset = none.
+            to_eval_model = self.full_cfg.MVRM_EVAL.get('to_eval_model', None)
+            selected_models = set(to_eval_model or [])
 
-            deblur_bench_root = {
-                'realblur_j': '/mnt/dataset1/MV_Restoration/restormer_benchmark/RealBlur_J',
-                'realblur_r': '/mnt/dataset1/MV_Restoration/restormer_benchmark/RealBlur_R',
-            }
-
-            img_exts = ('.png', '.jpg', '.jpeg', '.PNG', '.JPG', '.JPEG')
-
-            for deblur_ds, deblur_path in deblur_bench_root.items():
-                lq_dir = os.path.join(deblur_path, 'input')
-                gt_dir = os.path.join(deblur_path, 'target')
-
-                lq_files = sorted([os.path.join(lq_dir, f) for f in os.listdir(lq_dir) if f.endswith(img_exts)])
-                gt_files = sorted([os.path.join(gt_dir, f) for f in os.listdir(gt_dir) if f.endswith(img_exts)])
-
-                sequences = self._group_deblur_sequences(lq_files, gt_files, deblur_ds)
+            for deblur_ds, sequences, restored_models_for_ds in self._expand_deblur_bench_config():
                 deblur_num_seqs = self.full_cfg.MVRM_EVAL.get('deblur_num_seqs', None)
                 if deblur_num_seqs is not None:
                     sequences = sequences[:deblur_num_seqs]
@@ -341,53 +347,59 @@ class Evaluator:
                     dummy_ext = np.eye(4, dtype=np.float32)[None].repeat(n, axis=0)
                     dummy_ixt = np.eye(3, dtype=np.float32)[None].repeat(n, axis=0)
 
-                    scene_data = Dict()
-                    scene_data.lq_image_files = lq_seq
-                    scene_data.image_files = gt_seq
-                    scene_data.extrinsics = dummy_ext
-                    scene_data.intrinsics = dummy_ixt
-                    scene_data.aux = Dict()
+                    if 'ours' in selected_models:
+                        scene_data = Dict()
+                        scene_data.lq_image_files = lq_seq
+                        scene_data.image_files = gt_seq
+                        scene_data.extrinsics = dummy_ext
+                        scene_data.intrinsics = dummy_ixt
+                        scene_data.aux = Dict()
 
-                    print(f'  [{deblur_ds}] {seq_name}: {n} frames')
-                    export_dir = self._export_dir(deblur_ds, seq_name, posed=False)
-                    api.inference(
-                        scene_data,
-                        export_dir=export_dir,
-                        export_format=export_format,
-                        ref_view_strategy=self.ref_view_strategy,
-                        eval_sampler=self.eval_sampler,
-                        denoiser=self.denoiser,
-                        denoiser2=self.denoiser2,
-                        noise_generator=noise_generator,
-                        cfg=self.full_cfg,
-                        scene_info=(deblur_ds, seq_name),
-                        use_pose=False,
-                        use_ray_pose=self.full_cfg.model.use_ray_pose,
-                        rgb_decoder=self.rgb_decoder,
-                        proj_adapter=self.proj_adapter
-                    )
-                    # Save GT file list for this sequence so eval can load it
-                    meta_path = os.path.join(export_dir, 'exports', 'deblur_gt_files.npz')
-                    os.makedirs(os.path.dirname(meta_path), exist_ok=True)
-                    np.savez_compressed(meta_path, gt_files=np.array(gt_seq, dtype=object))
+                        print(f'  [{deblur_ds}] {seq_name}: {n} frames')
+                        export_dir = self._export_dir(deblur_ds, seq_name, posed=False)
+                        api.inference(
+                            scene_data,
+                            export_dir=export_dir,
+                            export_format=export_format,
+                            ref_view_strategy=self.ref_view_strategy,
+                            eval_sampler=self.eval_sampler,
+                            denoiser=self.denoiser,
+                            denoiser2=self.denoiser2,
+                            noise_generator=noise_generator,
+                            cfg=self.full_cfg,
+                            # data (first element) becomes a path segment for every pho_*_results/
+                            # folder in api.py, so this nests each model's outputs separately
+                            # instead of mixing own/pseudo_gt/vrt/etc. in one shared directory.
+                            scene_info=(f'{deblur_ds}/ours', seq_name),
+                            use_pose=False,
+                            use_ray_pose=self.full_cfg.model.use_ray_pose,
+                            rgb_decoder=self.rgb_decoder,
+                            proj_adapter=self.proj_adapter
+                        )
+                        # Save GT file list for this sequence so eval can load it
+                        meta_path = os.path.join(export_dir, 'exports', 'deblur_gt_files.npz')
+                        os.makedirs(os.path.dirname(meta_path), exist_ok=True)
+                        np.savez_compressed(meta_path, gt_files=np.array(gt_seq, dtype=object))
 
-                    # Per-sequence text file: one image basename per line
-                    seq_txt = os.path.join(export_dir, 'exports', 'selected_images.txt')
-                    with open(seq_txt, 'w') as f:
-                        for p in gt_seq:
-                            f.write(os.path.basename(p) + '\n')
+                        # Per-sequence text file: one image basename per line
+                        seq_txt = os.path.join(export_dir, 'exports', 'selected_images.txt')
+                        with open(seq_txt, 'w') as f:
+                            for p in gt_seq:
+                                f.write(os.path.basename(p) + '\n')
 
-                    # Append to per-dataset summary file (one file covers all sequences)
-                    ds_summary_path = os.path.join(
-                        self.work_dir, 'model_results', deblur_ds, 'selected_images_all.txt')
-                    with open(ds_summary_path, 'a') as f:
-                        f.write(f'# {seq_name}\n')
-                        for p in gt_seq:
-                            f.write(os.path.basename(p) + '\n')
+                        # Append to per-dataset summary file (one file covers all sequences)
+                        ds_summary_path = os.path.join(
+                            self.work_dir, 'model_results', deblur_ds, 'selected_images_all.txt')
+                        with open(ds_summary_path, 'a') as f:
+                            f.write(f'# {seq_name}\n')
+                            for p in gt_seq:
+                                f.write(os.path.basename(p) + '\n')
 
                     # Run inference on GT clean images to obtain pseudo-GT geometry
-                    # (pose, depth, 3D) for geometric consistency evaluation
-                    if deblur_ds in deblur_bench_gt_root:
+                    # (pose, depth, 3D) for geometric consistency evaluation. Needed by
+                    # every selected model's geo eval (own or restored), so it runs
+                    # whenever at least one model is selected, not just 'ours'.
+                    if selected_models:
                         pseudo_gt_scene_data = Dict()
                         pseudo_gt_scene_data.lq_image_files = gt_seq
                         pseudo_gt_scene_data.image_files = gt_seq
@@ -408,7 +420,7 @@ class Evaluator:
                             denoiser2=self.denoiser2,
                             noise_generator=noise_generator,
                             cfg=self.full_cfg,
-                            scene_info=(deblur_ds, seq_name + '_pseudogt'),
+                            scene_info=(f'{deblur_ds}/pseudo_gt', seq_name),
                             use_pose=False,
                             use_ray_pose=self.full_cfg.model.use_ray_pose,
                             rgb_decoder=self.rgb_decoder,
@@ -416,11 +428,15 @@ class Evaluator:
                         )
 
                     # Run inference on pre-restored images from external deblurring models
-                    deblur_restored_models = self.full_cfg.MVRM_EVAL.get('deblur_restored_models', {})
-                    for model_name, model_ds_paths in deblur_restored_models.items():
-                        if deblur_ds not in model_ds_paths:
-                            continue
-                        restored_dir = model_ds_paths[deblur_ds]
+                    # (restored_models_for_ds is already filtered to selected_models, see
+                    # _expand_deblur_bench_config)
+                    for model_name, restored_dir in restored_models_for_ds.items():
+                        # Per-seq-folder datasets (BSD/REVD_FEVD) store restored images
+                        # under <restored_dir>/<seq_name>/, unlike RealBlur's flat layout
+                        # where all sequences' restored images sit directly in restored_dir.
+                        seq_restored_dir = os.path.join(restored_dir, seq_name)
+                        if os.path.isdir(seq_restored_dir):
+                            restored_dir = seq_restored_dir
                         if not os.path.isdir(restored_dir):
                             print(f'  [{deblur_ds}] {model_name}: restored dir not found: {restored_dir}')
                             continue
@@ -472,7 +488,7 @@ class Evaluator:
                             denoiser2=self.denoiser2,
                             noise_generator=noise_generator,
                             cfg=self.full_cfg,
-                            scene_info=(deblur_ds, f'{model_name}_{seq_name}'),
+                            scene_info=(f'{deblur_ds}/{model_name}', seq_name),
                             use_pose=False,
                             use_ray_pose=self.full_cfg.model.use_ray_pose,
                             rgb_decoder=self.rgb_decoder,
@@ -491,6 +507,12 @@ class Evaluator:
                 scene_data = self._sample_frames(scene_data, scene)
                 
                 # for img_path in scene_data.lq_image_files:
+                    
+                #     # extract folder name 
+                #     folder_name = img_path.split('/')[5]
+                #     new_path = img_path.replace(f"/{folder_name}/", f"/filtered_{folder_name}/")
+
+                    
                 #     # new_path = img_path.replace("/cam_blur_100_resize_640/", "/filtered_cam_blur_100_resize_640/")
                 #     # new_path = img_path.replace("/cam_blur_300_resize_640/", "/filtered_cam_blur_300_resize_640/")
                 #     # new_path = img_path.replace("/cam_blur_500_resize_640/", "/filtered_cam_blur_500_resize_640/")
@@ -498,7 +520,7 @@ class Evaluator:
                 #     # new_path = img_path.replace("/cam_blur_50_resize_640/", "/filtered_cam_blur_50_resize_640/")
                 #     # new_path = img_path.replace("/cam_blur_70_resize_640/", "/filtered_cam_blur_70_resize_640/")
                 #     # new_path = img_path.replace("/cam_blur_120_resize_640/", "/filtered_cam_blur_120_resize_640/")
-                #     new_path = img_path.replace("/cam_blur_150_resize_640/", "/filtered_cam_blur_150_resize_640/")
+                #     # new_path = img_path.replace("/cam_blur_150_resize_640/", "/filtered_cam_blur_150_resize_640/")
                     
                 #     # new_path = img_path.replace("/cam_blur_400/", "/filtered_cam_blur_400/")
                 #     # new_path = img_path.replace("/cam_blur_500/", "/filtered_cam_blur_500/")
@@ -517,6 +539,8 @@ class Evaluator:
                 # continue 
             
                 
+
+            
                 # for img_path in scene_data.image_files:
                 #     new_path = img_path.replace("/clean/", "/filtered_clean/")
                 #     # new_path = img_path.replace("/cam_blur_50/", "/filtered_cam_blur_50/")
@@ -769,9 +793,83 @@ class Evaluator:
             for seq in sorted(lq_by_seq)
         ]
 
+    @staticmethod
+    def _collect_per_seq_folder_sequences(split_root, blur_subdir, sharp_subdir):
+        """
+        Collect sequences from a dataset already split into one subdirectory per
+        sequence (e.g. BSD's <setup>/test/<seq>/{Blur,Sharp}/RGB, REVD_FEVD's
+        test/<seq>/{blur_down,gt_down_corrected}) — no filename parsing needed.
+        """
+        sequences = []
+        for seq_name in sorted(os.listdir(split_root)):
+            lq_dir = os.path.join(split_root, seq_name, blur_subdir)
+            gt_dir = os.path.join(split_root, seq_name, sharp_subdir)
+            if not os.path.isdir(lq_dir) or not os.path.isdir(gt_dir):
+                continue
+            lq_files = sorted(os.path.join(lq_dir, f) for f in os.listdir(lq_dir) if f.endswith(DEBLUR_IMG_EXTS))
+            gt_files = sorted(os.path.join(gt_dir, f) for f in os.listdir(gt_dir) if f.endswith(DEBLUR_IMG_EXTS))
+            sequences.append((seq_name, lq_files, gt_files))
+        return sequences
+
+    def _expand_deblur_bench_config(self):
+        """
+        Expand every selected `*_bench` entry in MVRM_EVAL config (per BENCH_LAYOUTS)
+        into a flat list of (ds_key, sequences, restored_models_for_ds), where
+        sequences = [(seq_name, lq_files, gt_files), ...] and restored_models_for_ds
+        = {model_name: restored_dir_for_this_ds_key}.
+
+        Stateless / re-derived from config on every call so it stays correct whether
+        called from infer() or from _eval_deblur_bench() running standalone
+        (eval.eval_only=true, no infer() call in this process).
+
+        to_eval_deblur_bench is opt-in: empty/unset selects NO bench (safe default,
+        avoids accidentally running every configured benchmark + all its restored-model
+        baselines). List the specific *_bench names you want to actually run.
+
+        to_eval_model is likewise opt-in and filters restored_models_for_ds down to the
+        selected baseline names (e.g. to_eval_model: [ours, vrt] keeps only vrt here;
+        'ours' itself isn't a `model:` entry, it gates the own-model call in infer()).
+        """
+        to_eval = self.full_cfg.MVRM_EVAL.get('to_eval_deblur_bench', None)
+        bench_names = [b for b in BENCH_LAYOUTS if b in self.full_cfg.MVRM_EVAL and b in (to_eval or [])]
+        to_eval_model = self.full_cfg.MVRM_EVAL.get('to_eval_model', None)
+        selected_models = set(to_eval_model or [])
+
+        out = []
+        for bench_name in bench_names:
+            bench_cfg = self.full_cfg.MVRM_EVAL[bench_name]
+            spec = BENCH_LAYOUTS[bench_name]
+            model_cfg = {k: v for k, v in bench_cfg.get('model', {}).items() if k in selected_models}
+
+            if spec['layout'] == 'flat':
+                lq_dir, gt_dir = bench_cfg.data.lq_path, bench_cfg.data.hq_path
+                lq_files = sorted(os.path.join(lq_dir, f) for f in os.listdir(lq_dir) if f.endswith(DEBLUR_IMG_EXTS))
+                gt_files = sorted(os.path.join(gt_dir, f) for f in os.listdir(gt_dir) if f.endswith(DEBLUR_IMG_EXTS))
+                sequences = self._group_deblur_sequences(lq_files, gt_files, spec['key'])
+                out.append((spec['key'], sequences, dict(model_cfg)))
+
+            elif spec['layout'] == 'per_seq_folder':
+                sequences = self._collect_per_seq_folder_sequences(
+                    bench_cfg.data_path, spec['blur_subdir'], spec['sharp_subdir'])
+                out.append((spec['key'], sequences, dict(model_cfg)))
+
+            elif spec['layout'] == 'bsd_multi_setup':
+                for setup in sorted(os.listdir(bench_cfg.data_path)):
+                    setup_root = os.path.join(bench_cfg.data_path, setup)
+                    if not (setup.startswith('BSD_') and os.path.isdir(os.path.join(setup_root, spec['split_dir']))):
+                        continue  # skips the .zip files, __MACOSX, restored_vrt(_notile) siblings
+                    ds_key = setup.lower()  # 'bsd_1ms8ms', 'bsd_2ms16ms', 'bsd_3ms24ms'
+                    sequences = self._collect_per_seq_folder_sequences(
+                        os.path.join(setup_root, spec['split_dir']), spec['blur_subdir'], spec['sharp_subdir'])
+                    # VRT restored paths are per-setup: restored_vrt/<setup>/<seq>/*.png
+                    restored_for_setup = {m: os.path.join(p, setup) for m, p in model_cfg.items()}
+                    out.append((ds_key, sequences, restored_for_setup))
+        return out
+
     def _eval_deblur_bench(self) -> dict[str, dict]:
         """
-        Evaluate deblurring quality on standard benchmarks (GoPro, HIDE, RealBlur_J/R).
+        Evaluate deblurring quality on the configured deblur benchmarks (whichever
+        `*_bench` entries are selected in MVRM_EVAL, see BENCH_LAYOUTS).
 
         Results are stored per sequence (one dir per sequence name).
         Per-image PSNR/SSIM/LPIPS are collected across all sequences and averaged
@@ -782,7 +880,9 @@ class Evaluator:
 
         os.makedirs(self._metric_dir, exist_ok=True)
 
-        deblur_datasets = ['gopro', 'hide', 'realblur_j', 'realblur_r']
+        expanded = self._expand_deblur_bench_config()
+        deblur_datasets = [ds_key for ds_key, _, _ in expanded]
+        restored_models_by_ds = {ds_key: restored for ds_key, _, restored in expanded}
         all_metrics: dict[str, dict] = {}
 
         for deblur_ds in deblur_datasets:
@@ -909,7 +1009,7 @@ class Evaluator:
                   f'psnr={metrics["psnr"]:.4f}  ssim={metrics["ssim"]:.4f}  lpips={metrics["lpips"]:.4f}')
 
             # Geometric evaluation with pseudo-GT (only for datasets that have clean GT images)
-            pseudo_gt_datasets = {'realblur_j', 'realblur_r'}
+            pseudo_gt_datasets = set(deblur_datasets)  # every bench in the new schema has real GT
             if deblur_ds in pseudo_gt_datasets:
                 from depth_anything_3.utils.geometry import as_homogeneous as _as_hom
 
@@ -1021,10 +1121,7 @@ class Evaluator:
             )
 
             # Evaluate pre-restored images from external deblurring models
-            deblur_restored_models = self.full_cfg.MVRM_EVAL.get('deblur_restored_models', {})
-            for model_name, model_ds_paths in deblur_restored_models.items():
-                if deblur_ds not in model_ds_paths:
-                    continue
+            for model_name, _restored_dir in restored_models_by_ds.get(deblur_ds, {}).items():
                 model_ds_dir = os.path.join(self.work_dir, 'model_results', deblur_ds, model_name)
                 if not os.path.exists(model_ds_dir):
                     print(f'[WARN] No inference results dir for {deblur_ds} [{model_name}], skipping.')
